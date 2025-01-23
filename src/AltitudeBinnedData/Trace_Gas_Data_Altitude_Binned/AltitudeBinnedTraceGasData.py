@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight8" ##--Flight1 AIMMS file currently broken at line 13234--##
+flight = "Flight10" ##--Flight1 AIMMS file currently broken at line 13234--##
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -92,7 +92,6 @@ O3_aligned = O3_df.set_index('Time_UTC').reindex(aimms_time)
 O3_aligned['O3'] = O3_aligned['O3'].where(O3_aligned.index.isin(aimms_time), np.nan)
 
 ##--Other trace gas data: addressing different start/stop times than AIMMS--##
-
 aimms_start = aimms_time.min()
 aimms_end = aimms_time.max()
 
@@ -170,8 +169,15 @@ df = pd.DataFrame({'Altitude': altitude, 'CO_conc':CO_conc_aligned,
 ##--Define desired number of bins here--##
 num_bins = 50
 
+##--Compute the minimum and maximum altitude, ignoring NaNs--##
+min_alt = df['Altitude'].min(skipna=True)
+max_alt = df['Altitude'].max(skipna=True)
+
+##--Create bin edges from min_alt to max_alt--##
+bin_edges = np.linspace(min_alt, max_alt, num_bins + 1)
+
 ##--Pandas 'cut' splits altitude data into specified number of bins--##
-df['Altitude_bin'] = pd.cut(df['Altitude'], bins=num_bins)
+df['Altitude_bin'] = pd.cut(df['Altitude'], bins=bin_edges)
 
 ##--Group variables into each altitude bin--## 
 ##--Observed=false shows all bins, even empty ones--##
