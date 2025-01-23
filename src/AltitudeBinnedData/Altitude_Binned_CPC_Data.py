@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight10" # Flight1 AIMMS file currently broken at line 13234
+flight = "Flight2" # Flight1 AIMMS file currently broken at line 13234
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -33,8 +33,8 @@ def find_files(directory, flight, partial_name):
 aimms = icartt.Dataset(find_files(directory, flight, "AIMMS_POLAR6")[0])
 
 ##--CPC data--##
-CPC3 = icartt.Dataset(find_files(directory, flight, 'CPC3772')[0])
-CPC10 = icartt.Dataset(find_files(directory, flight, 'CPC3776')[0])
+CPC10 = icartt.Dataset(find_files(directory, flight, 'CPC3772')[0])
+CPC3 = icartt.Dataset(find_files(directory, flight, 'CPC3776')[0])
 
 #################
 ##--Pull data--##
@@ -205,8 +205,8 @@ axs[0].fill_betweenx(binned_df['Altitude_center'], binned_df['CPC10_conc_min'],
                      binned_df['CPC10_conc_max'], color='indianred', alpha=0.25)
 axs[0].fill_betweenx(binned_df['Altitude_center'], binned_df['CPC10_conc_25th'],
                     binned_df['CPC10_conc_75th'], color='indianred', alpha=0.7)
-axs[0].set_ylabel('Altitude (m)')
-axs[0].set_title('Diameter \u2265 10 nm')
+axs[0].set_ylabel('Altitude (m)', fontsize=12)
+axs[0].set_title('N \u2265 10 nm')
 #axs[0].set_xlim(-50, 1500)
 
 ##--Second subplot: 2.5+ nm Particles vs Altitude--##
@@ -215,7 +215,7 @@ axs[1].fill_betweenx(binned_df['Altitude_center'], binned_df['CPC3_conc_min'],
                      binned_df['CPC3_conc_max'], color='sandybrown', alpha=0.25)
 axs[1].fill_betweenx(binned_df['Altitude_center'], binned_df['CPC3_conc_25th'],
                     binned_df['CPC3_conc_75th'], color='sandybrown', alpha=1)
-axs[1].set_title('Diameter \u2265 2.5 nm')
+axs[1].set_title('N \u2265 2.5 nm')
 #axs[1].set_xlim(-50, 2000)
 
 ##--Third subplot: Nuc particles vs Altitude--##
@@ -224,11 +224,12 @@ axs[2].fill_betweenx(binned_df['nuc_particles_center'], binned_df['nuc_particles
                      binned_df['nuc_particles_max'], color='cadetblue', alpha=0.25)
 axs[2].fill_betweenx(binned_df['Altitude_center'], binned_df['nuc_particles_25th'],
                     binned_df['nuc_particles_75th'], color='cadetblue', alpha=1)
-axs[2].set_title('Nucleating particles')
+##--Subscript 3-10--##
+axs[2].set_title('$N_{2.5-10}$')
 #axs[2].set_xlim(-50, 2000)
 
 ##--Add one common x-axis label--##
-fig.supxlabel('Concentration (counts/cm\u00b3)', fontsize=12)
+fig.supxlabel('Particle Concentration (counts/cm\u00b3)', fontsize=12)
 
 ##--Use f-string to embed flight # variable in plot title--##
 plt.suptitle(f"Vertical Particle Count Profiles - {flight.replace('Flight', 'Flight ')}", fontsize=16)
