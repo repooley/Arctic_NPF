@@ -35,12 +35,14 @@ aimms_time =aimms.data['TimeWave']
 ##--Pulls data for each AIMMS variable--##
 temperature = aimms.data["Temp"] # deg C
 altitude = aimms.data['Alt']
+min_alt = np.nanmin(altitude)
 ##--Humidity is converted to percent--##
 probe_humidity = aimms.data['RH']*100
 pressure = aimms.data['BP']
 
 ##--Pull H2O mixing data to calculate RH--##
 H2O = icartt.Dataset(find_files(directory, flight, "H2O_POLAR6")[0])
+H2O_probe = H2O.data['H2O_ppmv']
 
 ##--Ensure H2O data start/stop time is aligned with AIMMS--##
 aimms_start = aimms_time.min()
@@ -170,8 +172,15 @@ df = pd.DataFrame({'Altitude': altitude, 'Temperature': temperature_k, 'Potentia
 ##--Define number of bins here--##
 num_bins = 80
 
+# Compute the minimum and maximum altitude, ignoring NaNs
+min_alt = df['Altitude'].min(skipna=True)
+max_alt = df['Altitude'].max(skipna=True)
+
+# Create bin edges from min_alt to max_alt
+bin_edges = np.linspace(min_alt, max_alt, num_bins + 1)
+
 ##--Pandas 'cut' splits altitude data into specified number of bins--##
-df['Altitude_bin'] = pd.cut(df['Altitude'], bins=num_bins)
+df['Altitude_bin'] = pd.cut(df['Altitude'], bins=bin_edges)
 
 ##--Group variables into each altitude bin--## 
 ##--Observed=false shows all bins, even empty ones--##
