@@ -21,7 +21,7 @@ from scipy.stats import binned_statistic_2d
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight2" # Flight1 AIMMS file currently broken at line 13234
+flight = "Flight10" # Flight1 AIMMS file currently broken at line 13234
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -190,10 +190,11 @@ new_cmap.set_under('w')
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
 CPC3_plot = ax1.pcolormesh(CPC3_x_edges, CPC3_y_edges, CPC3_bin_medians.T,  # Transpose to align correctly
-    shading='auto', cmap=new_cmap, vmin=1)
+    shading='auto', cmap=new_cmap, vmin=0, vmax=3000)
 
 ##--Add colorbar--##
 cb = fig1.colorbar(CPC3_plot, ax=ax1)
+cb.minorticks_on()
 cb.set_label('Particles >2.5 nm $(Counts/cm^{3})$', fontsize=12)
 
 # Set axis labels
@@ -216,10 +217,11 @@ fig2, ax2 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot, set minimum for viridis colors as 1--##
 CPC10_plot = ax2.pcolormesh(CPC10_x_edges, CPC10_y_edges, CPC10_bin_medians.T,  # Transpose to align correctly
-    shading='auto', cmap=new_cmap, vmin=1)
+    shading='auto', cmap=new_cmap, vmin=0, vmax=3000)
 
 ##--Add colorbar--##
 cb2 = fig2.colorbar(CPC10_plot, ax=ax2)
+cb2.minorticks_on()
 cb2.set_label('Particles >10 nm $(Counts/cm^{3})$', fontsize=12)
 
 ##--Set axis labels--##
@@ -242,10 +244,11 @@ fig3, ax3 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot and use viridis for values greater than 1--##
 nuc_plot = ax3.pcolormesh(nuc_x_edges, nuc_y_edges, nuc_bin_medians.T,  # Transpose to align correctly
-    shading='auto', cmap=new_cmap, vmin=1)
+    shading='auto', cmap=new_cmap, vmin=0, vmax=2000)
 
 ##--Add colorbar--##
 cb3 = fig3.colorbar(nuc_plot, ax=ax3)
+cb3.minorticks_on()
 cb3.set_label('2.5-10 nm Particles $(Counts/cm^{3})$', fontsize=12)
 
 ##--Set axis labels--##
