@@ -179,23 +179,23 @@ num_bins = 30
 
 ##--Determine CPC3 bin edges--##
 CPC3_lat_bin_edges = np.linspace(CPC3_clean_df['Latitude'].min(), CPC3_clean_df['Latitude'].max(), num_bins + 1)
-CPC3_alt_bin_edges = np.linspace(CPC3_clean_df['PTemp'].min(), CPC3_clean_df['PTemp'].max(), num_bins + 1)
+CPC3_ptemp_bin_edges = np.linspace(CPC3_clean_df['PTemp'].min(), CPC3_clean_df['PTemp'].max(), num_bins + 1)
 
 ##--Make 2d histogram for CPC3 and compute median particle abundance in each bin--##
 CPC3_bin_medians, CPC3_x_edges, CPC3_y_edges, _ = binned_statistic_2d(CPC3_clean_df['Latitude'], 
-    CPC3_clean_df['PTemp'], CPC3_clean_df['CPC3'], statistic='median', bins=[CPC3_lat_bin_edges, CPC3_alt_bin_edges])
+    CPC3_clean_df['PTemp'], CPC3_clean_df['CPC3'], statistic='median', bins=[CPC3_lat_bin_edges, CPC3_ptemp_bin_edges])
 
 ##--Histogram for CPC10--##
 CPC10_lat_bin_edges = np.linspace(CPC10_clean_df['Latitude'].min(), CPC10_clean_df['Latitude'].max(), num_bins + 1)
-CPC10_alt_bin_edges = np.linspace(CPC10_clean_df['PTemp'].min(), CPC10_clean_df['PTemp'].max(), num_bins +1)
+CPC10_ptemp_bin_edges = np.linspace(CPC10_clean_df['PTemp'].min(), CPC10_clean_df['PTemp'].max(), num_bins +1)
 CPC10_bin_medians, CPC10_x_edges, CPC10_y_edges, _ = binned_statistic_2d(CPC10_clean_df['Latitude'], 
-    CPC10_clean_df['PTemp'], CPC10_clean_df['CPC10'], statistic='median', bins=[CPC10_lat_bin_edges, CPC10_alt_bin_edges])
+    CPC10_clean_df['PTemp'], CPC10_clean_df['CPC10'], statistic='median', bins=[CPC10_lat_bin_edges, CPC10_ptemp_bin_edges])
 
 ##--Histogram for nucleation mode particles--##
 nuc_lat_bin_edges = np.linspace(nuc_clean_df['Latitude'].min(), nuc_clean_df['Latitude'].max(), num_bins +1)
-nuc_alt_bin_edges = np.linspace(nuc_clean_df['PTemp'].min(), nuc_clean_df['PTemp'].max(), num_bins +1)
+nuc_ptemp_bin_edges = np.linspace(nuc_clean_df['PTemp'].min(), nuc_clean_df['PTemp'].max(), num_bins +1)
 nuc_bin_medians, nuc_x_edges, nuc_y_edges, _ = binned_statistic_2d(nuc_clean_df['Latitude'], 
-    nuc_clean_df['PTemp'], nuc_clean_df['nuc_particles'], statistic='median', bins=[nuc_lat_bin_edges, nuc_alt_bin_edges])
+    nuc_clean_df['PTemp'], nuc_clean_df['nuc_particles'], statistic='median', bins=[nuc_lat_bin_edges, nuc_ptemp_bin_edges])
 
 ################
 ##--PLOTTING--##
