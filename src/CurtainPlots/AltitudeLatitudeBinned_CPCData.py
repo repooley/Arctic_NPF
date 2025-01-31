@@ -203,7 +203,7 @@ ax1.set_ylabel('Altitude (m)', fontsize=12)
 ax1.set_title(f"Particles >2.5 nm Abundance - {flight.replace('Flight', 'Flight ')}")
 
 ##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC3"
+output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC3\AltitudeLatitude"
 
 ##--Use f-string to save file with flight# appended--##
 output_path = f"{output_path}\\{flight}"
@@ -230,7 +230,7 @@ ax2.set_ylabel('Altitude (m)', fontsize=12)
 ax2.set_title(f"Particles >10 nm Abundance - {flight.replace('Flight', 'Flight ')}")
 
 ##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC10"
+output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC10\AltitudeLatitude"
 
 ##--Use f-string to save file with flight# appended--##
 output_path = f"{output_path}\\{flight}"
@@ -257,7 +257,7 @@ ax3.set_ylabel('Altitude (m)', fontsize=12)
 ax3.set_title(f"2.5-10 nm Particle Abundance - {flight.replace('Flight', 'Flight ')}")
 
 ##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating"
+output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\AltitudeLatitude"
 
 ##--Use f-string to save file with flight# appended--##
 output_path = f"{output_path}\\{flight}"

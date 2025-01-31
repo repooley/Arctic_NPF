@@ -124,8 +124,6 @@ saturation_humidity_i = []
 relative_humidity_i = []
 
 ##--Calculate saturation humidity wrt ice in ppmv and RH--##
-
-##--Calculate saturation humidity wrt ice in ppmv and RH--##
 for T, P, H2O_ppmv in zip(temperature, pressure, H2O_conc_aligned):
     ##--Only calculate within temp range--##
     if -50 <= T < 0:
