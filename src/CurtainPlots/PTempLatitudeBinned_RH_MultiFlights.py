@@ -294,3 +294,75 @@ plot_curtain(RH_w_bin_medians, lat_bin_edges_RH_w, ptemp_bin_edges_RH_w, vmin=0,
 plot_curtain(RH_i_bin_medians, lat_bin_edges_RH_i, ptemp_bin_edges_RH_i, vmin=0, vmax=120,
     title="Relative Humidity With Respect to Ice", cbar_label="Percent Relative Humidity",
     output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude\RH_i_MultiFlights.png")
+
+########################
+##--Diagnostic Plots--##
+########################
+
+##--Remove hashtags below to comment out this section--##
+#'''
+
+##--RH wrt water counts per bin data--##
+RH_w_bin_counts, _, _, _ = binned_statistic_2d(all_latitudes_RH_w, all_ptemps_RH_w, all_RH_w,
+    statistic="count", bins=[lat_bin_edges_RH_w, ptemp_bin_edges_RH_w])
+ 
+##--RH wrt ice counts per bin data--##
+RH_i_bin_counts, _, _, _ = binned_statistic_2d(all_latitudes_RH_i, all_ptemps_RH_i, all_RH_i,
+    statistic="count", bins=[lat_bin_edges_RH_i, ptemp_bin_edges_RH_i])
+
+##--Plotting--##
+
+def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label, output_path):
+    fig, ax = plt.subplots(figsize=(8, 6))
+ 
+    ##--Set NaN values to white--##
+    cmap = plt.get_cmap('inferno')
+    cmap.set_under('w')
+ 
+    ##--Plot the 2D data using pcolormesh--##
+    mesh = ax.pcolormesh(x_edges, y_edges, bin_counts.T, shading="auto", cmap=cmap, vmin=vmin, vmax=vmax)
+ 
+    ##--Add colorbar--##
+    cb = fig.colorbar(mesh, ax=ax)
+    cb.minorticks_on()
+    cb.set_label(cbar_label, fontsize=12)
+    
+    ##--Add dashed horizontal lines for the polar dome boundaries--##
+    ax.axhline(y=275, color='k', linestyle='--', linewidth=1)
+    ax.axhline(y=299, color='k', linestyle='--', linewidth=1)
+    
+    ##--Add labels on the left-hand side within the plot area--##
+    polar_dome_mid = (238 + 275) / 2
+    marginal_polar_dome_mid = (275 + 299) / 2
+    x_text = ax.get_xlim()[0] - 0.25 
+    
+    ax.text(x_text, polar_dome_mid, 'Polar Dome',
+            rotation=90, fontsize=10, color='k',
+            verticalalignment='center', horizontalalignment='center')
+    ax.text(x_text, marginal_polar_dome_mid, 'Marginal Polar Dome',
+            rotation=90, fontsize=10, color='k',
+            verticalalignment='center', horizontalalignment='center')
+ 
+    ##--Set axis labels and title--##
+    ax.set_xlabel("Latitude (°)", fontsize=12)
+    ax.set_ylabel("Potential Temperature Θ (K)", fontsize=12)
+    ax.set_title(title)
+    ax.set_ylim(238, 301)
+    ax.set_xlim(79.5, 83.7)
+ 
+    ##--Save the plot--##
+    plt.savefig(output_path, dpi=600, bbox_inches="tight")
+    plt.tight_layout()
+    plt.show()
+ 
+##--Plot for RH wrt water counts--##
+plot_curtain(RH_w_bin_counts, lat_bin_edges_RH_w, ptemp_bin_edges_RH_w, vmin=1, vmax=1250, 
+    title="RH wrt Water Data Point Counts", cbar_label="Number of Data Points",
+    output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude\RH_w_MultiFlights_diagnostic.png")
+ 
+##--Plot for RH wrt ice counts--##
+plot_curtain(RH_w_bin_counts, lat_bin_edges_RH_w, ptemp_bin_edges_RH_w, vmin=1, vmax=1250,  
+    title="RH wrt Ice Data Point Counts", cbar_label="Number of Data Points",
+    output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude\RH_i_MultiFlights_diagnostic.png")
+
+#'''

@@ -21,7 +21,7 @@ from scipy.stats import binned_statistic_2d
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight2" # Flight1 AIMMS file currently broken at line 13234
+flight = "Flight10" # Flight1 AIMMS file currently broken at line 13234
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -230,17 +230,12 @@ plt.show()
 ##--RH wrt water--##
 fig2, ax2 = plt.subplots(figsize=(8, 6))
 
-##--Make special color map where 0 values are white--##
-new_cmap = plt.get_cmap('viridis')
-##--Values under specified minimum will be white--##
-new_cmap.set_under('w')
-
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
 RH_i_plot = ax2.pcolormesh(RH_i_x_edges, RH_i_y_edges, RH_i_bin_medians.T,  # Transpose to align correctly
     shading='auto', cmap=new_cmap, vmin=0, vmax=110)
 
 ##--Add colorbar--##
-cb = fig2.colorbar(RH_i_plot, ax=ax1)
+cb = fig2.colorbar(RH_i_plot, ax=ax2)
 cb.minorticks_on()
 cb.set_label('Relative Humidity', fontsize=12)
 
@@ -257,3 +252,79 @@ output_path = f"{output_path}\\{flight}_RHwrtIce.png"
 plt.savefig(output_path, dpi=600, bbox_inches='tight') 
 plt.tight_layout()
 plt.show()
+
+########################
+##--Diagnostic Plots--##
+########################
+
+##--Remove hashtags below to comment out this section--##
+#'''
+
+##--RH wrt water counts per bin data--##
+RH_w_bin_counts, _, _, _ = binned_statistic_2d(clean_w_df['Latitude'], 
+    clean_w_df['PTemp'], clean_w_df['Relative_Humidity_w'], statistic='count', bins=[w_lat_bin_edges, w_ptemp_bin_edges])
+ 
+##--RH wrt ice counts per bin data--##
+RH_i_bin_counts, _, _, _ = binned_statistic_2d(clean_i_df['Latitude'], 
+    clean_i_df['PTemp'], clean_i_df['Relative_Humidity_i'], statistic='count', bins=[i_lat_bin_edges, i_ptemp_bin_edges])
+
+##--Plotting--##
+
+##--RH wrt water--##
+fig1, ax1 = plt.subplots(figsize=(8, 6))
+
+##--Make special color map where 0 values are white--##
+new_cmap = plt.get_cmap('inferno')
+##--Values under specified minimum will be white--##
+new_cmap.set_under('w')
+
+##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
+RH_w_diag_plot = ax1.pcolormesh(RH_w_x_edges, RH_w_y_edges, RH_w_bin_counts.T,  # Transpose to align correctly
+    shading='auto', cmap=new_cmap, vmin=1, vmax=500)
+
+##--Add colorbar--##
+cb = fig1.colorbar(RH_w_diag_plot, ax=ax1)
+cb.minorticks_on()
+cb.set_label('Number of Data Points', fontsize=12)
+
+# Set axis labels
+ax1.set_xlabel('Latitude (°)', fontsize=12)
+ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
+ax1.set_title(f"Relative Humidity wrt Water Counts per Bin - {flight.replace('Flight', 'Flight ')}")
+
+##--Base output path in directory--##
+output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude"
+
+##--Use f-string to save file with flight# appended--##
+output_path = f"{output_path}\\{flight}_RHwrtWater_diagnostic.png"
+plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+plt.tight_layout()
+plt.show()
+
+##--RH wrt water--##
+fig2, ax2 = plt.subplots(figsize=(8, 6))
+
+##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
+RH_i_plot = ax2.pcolormesh(RH_i_x_edges, RH_i_y_edges, RH_i_bin_counts.T,  # Transpose to align correctly
+    shading='auto', cmap=new_cmap, vmin=1, vmax=500)
+
+##--Add colorbar--##
+cb = fig2.colorbar(RH_i_plot, ax=ax2)
+cb.minorticks_on()
+cb.set_label('Number of Data Points', fontsize=12)
+
+# Set axis labels
+ax2.set_xlabel('Latitude (°)', fontsize=12)
+ax2.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
+ax2.set_title(f"Relative Humidity wrt Ice Counts per Bin - {flight.replace('Flight', 'Flight ')}")
+
+##--Base output path in directory--##
+output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude"
+
+##--Use f-string to save file with flight# appended--##
+output_path = f"{output_path}\\{flight}_RHwrtIce_diagnostic.png"
+plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+plt.tight_layout()
+plt.show()
+
+#'''

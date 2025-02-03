@@ -251,7 +251,7 @@ nuc_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_nuc, all_ptemps_nuc
 def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, output_path):
     fig, ax = plt.subplots(figsize=(8, 6))
  
-    ##--Make special color map where 0 values are white--##
+    ##--Makecolor map where 0 values are white--##
     new_cmap = plt.get_cmap('viridis')
     new_cmap.set_under('w')
  
@@ -307,3 +307,85 @@ plot_curtain(CPC10_bin_medians, lat_bin_edges_CPC10, ptemp_bin_edges_CPC10, vmin
 plot_curtain(nuc_bin_medians, lat_bin_edges_nuc, ptemp_bin_edges_nuc, vmin=0, vmax=1200,
     title="2.5-10 nm Particle Abundance", cbar_label="2.5-10 nm Particles $(Counts/cm^{3})$",
     output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\PTempLatitude\MultiFlights.png")
+
+
+########################
+##--Diagnostic Plots--##
+########################
+
+##--Remove hashtags below to comment out this section--##
+#'''
+
+##--Counts per bin for CPC3 data--##
+CPC3_bin_counts, _, _, _ = binned_statistic_2d(all_latitudes_CPC3, all_ptemps_CPC3, all_CPC3_concs,
+    statistic="count", bins=[lat_bin_edges_CPC3, ptemp_bin_edges_CPC3])
+ 
+##--Counts per bin for CPC10 data--##
+CPC10_bin_counts, _, _, _ = binned_statistic_2d(all_latitudes_CPC10, all_ptemps_CPC10, all_CPC10_concs,
+    statistic="count", bins=[lat_bin_edges_CPC10, ptemp_bin_edges_CPC10])
+ 
+##--Counts per bin for N3-10 particles--##
+nuc_bin_counts, _, _, _ = binned_statistic_2d(all_latitudes_nuc, all_ptemps_nuc, all_nuc_particles,
+    statistic="count", bins=[lat_bin_edges_nuc, ptemp_bin_edges_nuc])
+
+##--Plotting--##
+
+def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label, output_path):
+    fig, ax = plt.subplots(figsize=(8, 6))
+ 
+    ##--Set NaN values to white--##
+    cmap = plt.get_cmap('inferno')
+    cmap.set_under('w')
+ 
+    ##--Plot the 2D data using pcolormesh--##
+    mesh = ax.pcolormesh(x_edges, y_edges, bin_counts.T, shading="auto", cmap=cmap, vmin=vmin, vmax=vmax)
+ 
+    ##--Add colorbar--##
+    cb = fig.colorbar(mesh, ax=ax)
+    cb.minorticks_on()
+    cb.set_label(cbar_label, fontsize=12)
+    
+    ##--Add dashed horizontal lines for the polar dome boundaries--##
+    ax.axhline(y=275, color='k', linestyle='--', linewidth=1)
+    ax.axhline(y=299, color='k', linestyle='--', linewidth=1)
+    
+    ##--Add labels on the left-hand side within the plot area--##
+    polar_dome_mid = (238 + 275) / 2
+    marginal_polar_dome_mid = (275 + 299) / 2
+    x_text = ax.get_xlim()[0] - 0.25 
+    
+    ax.text(x_text, polar_dome_mid, 'Polar Dome',
+            rotation=90, fontsize=10, color='k',
+            verticalalignment='center', horizontalalignment='center')
+    ax.text(x_text, marginal_polar_dome_mid, 'Marginal Polar Dome',
+            rotation=90, fontsize=10, color='k',
+            verticalalignment='center', horizontalalignment='center')
+ 
+    ##--Set axis labels and title--##
+    ax.set_xlabel("Latitude (°)", fontsize=12)
+    ax.set_ylabel("Potential Temperature Θ (K)", fontsize=12)
+    ax.set_title(title)
+    ax.set_ylim(238, 301)
+    ax.set_xlim(79.5, 83.7)
+ 
+    ##--Save the plot--##
+    plt.savefig(output_path, dpi=600, bbox_inches="tight")
+    plt.tight_layout()
+    plt.show()
+ 
+##--Plot for CPC3 counts--##
+plot_curtain(CPC3_bin_counts, lat_bin_edges_CPC3, ptemp_bin_edges_CPC3, vmin=1, vmax=1750, 
+    title="Particles >2.5 nm Data Point Counts", cbar_label="Number of Data Points",
+    output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC3\PTempLatitude\MultiFlights_diagnostic.png")
+ 
+##--Plot for CPC10 counts--##
+plot_curtain(CPC10_bin_counts, lat_bin_edges_CPC10, ptemp_bin_edges_CPC10, vmin=1, vmax=1750,  
+    title="Particles >10 nm Data Point Counts", cbar_label="Number of Data Points",
+    output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC10\PTempLatitude\MultiFlights_diagnostic.png")
+ 
+##--Plot for N3-10 counts--##
+plot_curtain(nuc_bin_counts, lat_bin_edges_nuc, ptemp_bin_edges_nuc, vmin=1, vmax=1000,  
+    title="2.5-10 nm Data Point Counts", cbar_label="Number of Data Points",
+    output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\PTempLatitude\MultiFlights_diagnostic.png")
+
+#'''

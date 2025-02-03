@@ -21,7 +21,7 @@ from scipy.stats import binned_statistic_2d
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight10" # Flight1 AIMMS file currently broken at line 13234
+flight = "Flight2" # Flight1 AIMMS file currently broken at line 13234
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -282,6 +282,113 @@ output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlot
 
 ##--Use f-string to save file with flight# appended--##
 output_path = f"{output_path}\\{flight}"
+plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+
+plt.tight_layout()
+plt.show()
+
+########################
+##--Diagnostic Plots--##
+########################
+
+##--Remove hashtags below to comment out this section--##
+#'''
+
+##--Counts per bin for CPC3 data--##
+CPC3_bin_counts, _, _, _ = binned_statistic_2d(CPC3_clean_df['Latitude'], 
+    CPC3_clean_df['PTemp'], CPC3_clean_df['CPC3'], statistic='count', bins=[CPC3_lat_bin_edges, CPC3_ptemp_bin_edges])
+ 
+##--Counts per bin for CPC10 data--##
+CPC10_bin_counts, _, _, _ = binned_statistic_2d(CPC10_clean_df['Latitude'], 
+    CPC10_clean_df['PTemp'], CPC10_clean_df['CPC10'], statistic='count', bins=[CPC10_lat_bin_edges, CPC10_ptemp_bin_edges])
+
+##--Counts per bin for N3-10 particles--##
+nuc_bin_counts, _, _, _ = binned_statistic_2d(nuc_clean_df['Latitude'], 
+    nuc_clean_df['PTemp'], nuc_clean_df['nuc_particles'], statistic='count', bins=[nuc_lat_bin_edges, nuc_ptemp_bin_edges])
+
+##--Plotting--##
+
+##--Particles larger than 3 nm--##
+fig1, ax1 = plt.subplots(figsize=(8, 6))
+
+##--Make special color map where 0 values are white--##
+new_cmap = plt.get_cmap('inferno')
+##--Values under specified minimum will be white--##
+new_cmap.set_under('w')
+
+##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
+CPC3_plot = ax1.pcolormesh(CPC3_x_edges, CPC3_y_edges, CPC3_bin_counts.T,  # Transpose to align correctly
+    shading='auto', cmap=new_cmap, vmin=1, vmax=750)
+
+##--Add colorbar--##
+cb = fig1.colorbar(CPC3_plot, ax=ax1)
+cb.minorticks_on()
+cb.set_label('Number of Data Points', fontsize=12)
+
+# Set axis labels
+ax1.set_xlabel('Latitude (°)', fontsize=12)
+ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
+ax1.set_title(f"Particles >2.5 nm Counts per Bin - {flight.replace('Flight', 'Flight ')}")
+
+##--Base output path in directory--##
+output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC3\PTempLatitude"
+
+##--Use f-string to save file with flight# appended--##
+output_path = f"{output_path}\\{flight}_diagnostic"
+plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+
+plt.tight_layout()
+plt.show()
+
+##--Particles larger than 10 nm--##
+fig2, ax2 = plt.subplots(figsize=(8, 6))
+
+##--Use pcolormesh for the plot, set minimum for viridis colors as 1--##
+CPC10_plot = ax2.pcolormesh(CPC10_x_edges, CPC10_y_edges, CPC10_bin_counts.T,  # Transpose to align correctly
+    shading='auto', cmap=new_cmap, vmin=1, vmax=750)
+
+##--Add colorbar--##
+cb2 = fig2.colorbar(CPC10_plot, ax=ax2)
+cb2.minorticks_on()
+cb2.set_label('Number of Data Points', fontsize=12)
+
+##--Set axis labels--##
+ax2.set_xlabel('Latitude (°)', fontsize=12)
+ax2.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
+ax2.set_title(f"Particles >10 nm Counts per Bin - {flight.replace('Flight', 'Flight ')}")
+
+##--Base output path in directory--##
+output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC10\PTempLatitude"
+
+##--Use f-string to save file with flight# appended--##
+output_path = f"{output_path}\\{flight}_diagnostic"
+plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+
+plt.tight_layout()
+plt.show()
+
+##--Nucleating particles--##
+fig3, ax3 = plt.subplots(figsize=(8, 6))
+
+##--Use pcolormesh for the plot and use viridis for values greater than 1--##
+nuc_plot = ax3.pcolormesh(nuc_x_edges, nuc_y_edges, nuc_bin_counts.T,  # Transpose to align correctly
+    shading='auto', cmap=new_cmap, vmin=1, vmax=750)
+
+##--Add colorbar--##
+cb3 = fig3.colorbar(nuc_plot, ax=ax3)
+cb3.minorticks_on()
+cb3.set_label('Number of Data Points', fontsize=12)
+
+##--Set axis labels--##
+ax3.set_xlabel('Latitude (°)', fontsize=12)
+ax3.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
+ax3.set_title(f"2.5-10 nm Particle Counts per Bin - {flight.replace('Flight', 'Flight ')}")
+
+##--Base output path in directory--##
+output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\PTempLatitude"
+
+##--Use f-string to save file with flight# appended--##
+output_path = f"{output_path}\\{flight}_diagnostic"
 plt.savefig(output_path, dpi=600, bbox_inches='tight') 
 
 plt.tight_layout()
