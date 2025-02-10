@@ -21,7 +21,7 @@ from scipy.stats import binned_statistic_2d
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight8" # Flight1 AIMMS file currently broken at line 13234
+flight = "Flight10" # Flight1 AIMMS file currently broken at line 13234
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -218,8 +218,8 @@ cb.set_label('Relative Humidity', fontsize=12)
 ax1.set_xlabel('Latitude (°)', fontsize=12)
 ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax1.set_title(f"Relative Humidity wrt Water - {flight.replace('Flight', 'Flight ')}")
-ax1.set_ylim(238, 301)
-ax1.set_xlim(79.5, 83.7)
+#ax1.set_ylim(238, 301)
+#ax1.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude"
@@ -246,8 +246,8 @@ cb.set_label('Relative Humidity', fontsize=12)
 ax2.set_xlabel('Latitude (°)', fontsize=12)
 ax2.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax2.set_title(f"Relative Humidity wrt Ice - {flight.replace('Flight', 'Flight ')}")
-ax2.set_ylim(238, 301)
-ax2.set_xlim(79.5, 83.7)
+#ax2.set_ylim(238, 301)
+#ax2.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude"
@@ -296,8 +296,8 @@ cb.set_label('Number of Data Points', fontsize=12)
 ax1.set_xlabel('Latitude (°)', fontsize=12)
 ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax1.set_title(f"Relative Humidity wrt Water Counts per Bin - {flight.replace('Flight', 'Flight ')}")
-ax1.set_ylim(238, 301)
-ax1.set_xlim(79.5, 83.7)
+#ax1.set_ylim(238, 301)
+#ax1.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude"
@@ -324,8 +324,8 @@ cb.set_label('Number of Data Points', fontsize=12)
 ax2.set_xlabel('Latitude (°)', fontsize=12)
 ax2.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax2.set_title(f"Relative Humidity wrt Ice Counts per Bin - {flight.replace('Flight', 'Flight ')}")
-ax2.set_ylim(238, 301)
-ax2.set_xlim(79.5, 83.7)
+#ax2.set_ylim(238, 301)
+#ax2.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude"

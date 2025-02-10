@@ -223,8 +223,8 @@ cb.set_label('Particles >2.5 nm $(Counts/cm^{3})$', fontsize=12)
 ax1.set_xlabel('Latitude (°)', fontsize=12)
 ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax1.set_title(f"Particles >2.5 nm Abundance - {flight.replace('Flight', 'Flight ')}")
-ax1.set_ylim(238, 301)
-ax1.set_xlim(79.5, 83.7)
+#ax1.set_ylim(238, 301)
+#ax1.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC3\PTempLatitude"
@@ -252,8 +252,8 @@ cb2.set_label('Particles >10 nm $(Counts/cm^{3})$', fontsize=12)
 ax2.set_xlabel('Latitude (°)', fontsize=12)
 ax2.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax2.set_title(f"Particles >10 nm Abundance - {flight.replace('Flight', 'Flight ')}")
-ax2.set_ylim(238, 301)
-ax2.set_xlim(79.5, 83.7)
+#ax2.set_ylim(238, 301)
+#ax2.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC10\PTempLatitude"
@@ -281,8 +281,8 @@ cb3.set_label('2.5-10 nm Particles $(Counts/cm^{3})$', fontsize=12)
 ax3.set_xlabel('Latitude (°)', fontsize=12)
 ax3.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax3.set_title(f"2.5-10 nm Particle Abundance - {flight.replace('Flight', 'Flight ')}")
-ax3.set_ylim(238, 301)
-ax3.set_xlim(79.5, 83.7)
+#ax3.set_ylim(238, 301)
+#ax3.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\PTempLatitude"
@@ -336,8 +336,8 @@ cb.set_label('Number of Data Points', fontsize=12)
 ax1.set_xlabel('Latitude (°)', fontsize=12)
 ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax1.set_title(f"Particles >2.5 nm Counts per Bin - {flight.replace('Flight', 'Flight ')}")
-ax1.set_ylim(238, 301)
-ax1.set_xlim(79.5, 83.7)
+#ax1.set_ylim(238, 301)
+#ax1.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC3\PTempLatitude"
@@ -365,8 +365,8 @@ cb2.set_label('Number of Data Points', fontsize=12)
 ax2.set_xlabel('Latitude (°)', fontsize=12)
 ax2.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax2.set_title(f"Particles >10 nm Counts per Bin - {flight.replace('Flight', 'Flight ')}")
-ax2.set_ylim(238, 301)
-ax2.set_xlim(79.5, 83.7)
+#ax2.set_ylim(238, 301)
+#ax2.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC10\PTempLatitude"
@@ -394,8 +394,8 @@ cb3.set_label('Number of Data Points', fontsize=12)
 ax3.set_xlabel('Latitude (°)', fontsize=12)
 ax3.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax3.set_title(f"2.5-10 nm Particle Counts per Bin - {flight.replace('Flight', 'Flight ')}")
-ax3.set_ylim(238, 301)
-ax3.set_xlim(79.5, 83.7)
+#ax3.set_ylim(238, 301)
+#ax3.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\PTempLatitude"

@@ -35,7 +35,7 @@ def find_files(flight_dir, partial_name):
 ##--Choose which flights to analyze here!--##
 ##--Flight1 AIMMS currently broken, no CPC3 data for Flight4--##
 ##--Flights 9 and 10 are in a different region, plot separately--##
-flights_to_analyze = ["Flight2", "Flight3", "Flight5", "Flight6", "Flight7", "Flight8"]
+flights_to_analyze = ["Flight2", "Flight3", "Flight5", "Flight6", "Flight7"]
  
 ##--Store processed data here: --##
 CPC3_dfs = []
@@ -198,7 +198,7 @@ for flight in flights_to_analyze:
 ###########################
  
 ##--Define number of bins here--##
-num_bins_lat = 4
+num_bins_lat = 5
 num_bins_alt = 15
  
 ##--Binning for CPC3 data--##

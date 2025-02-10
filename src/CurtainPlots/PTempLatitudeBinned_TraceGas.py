@@ -21,7 +21,7 @@ from scipy.stats import binned_statistic_2d
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight8" # Flight1 AIMMS file currently broken at line 13234
+flight = "Flight10" # Flight1 AIMMS file currently broken at line 13234
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -222,8 +222,8 @@ cb.set_label('O\u2083 ppbv', fontsize=12)
 ax1.set_xlabel('Latitude (°)', fontsize=12)
 ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax1.set_title(f"O\u2083 Mixing Ratio - {flight.replace('Flight', 'Flight ')}")
-ax1.set_ylim(238, 301)
-ax1.set_xlim(79.5, 83.7)
+#ax1.set_ylim(238, 301)
+#ax1.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude"
@@ -250,8 +250,8 @@ cb.set_label('CO ppbv', fontsize=12)
 ax2.set_xlabel('Latitude (°)', fontsize=12)
 ax2.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax2.set_title(f"CO Mixing Ratio - {flight.replace('Flight', 'Flight ')}")
-ax2.set_ylim(238, 301)
-ax2.set_xlim(79.5, 83.7)
+#ax2.set_ylim(238, 301)
+#ax2.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude"
@@ -278,8 +278,8 @@ cb.set_label('CO\u2082 ppmv', fontsize=12)
 ax3.set_xlabel('Latitude (°)', fontsize=12)
 ax3.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax3.set_title(f"CO\u2082 Mixing Ratio - {flight.replace('Flight', 'Flight ')}")
-ax3.set_ylim(238, 301)
-ax3.set_xlim(79.5, 83.7)
+#ax3.set_ylim(238, 301)
+#ax3.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude"
@@ -333,8 +333,8 @@ cb.set_label('Number of Data Points', fontsize=12)
 ax1.set_xlabel('Latitude (°)', fontsize=12)
 ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax1.set_title(f"O\u2083 Counts per Bin - {flight.replace('Flight', 'Flight ')}")
-ax1.set_ylim(238, 301)
-ax1.set_xlim(79.5, 83.7)
+#ax1.set_ylim(238, 301)
+#ax1.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude"
@@ -361,8 +361,8 @@ cb.set_label('Number of Data Points', fontsize=12)
 ax2.set_xlabel('Latitude (°)', fontsize=12)
 ax2.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax2.set_title(f"CO Counts per Bin - {flight.replace('Flight', 'Flight ')}")
-ax2.set_ylim(238, 301)
-ax2.set_xlim(79.5, 83.7)
+#ax2.set_ylim(238, 301)
+#ax2.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude"
@@ -389,8 +389,8 @@ cb.set_label('Number of Data Points', fontsize=12)
 ax3.set_xlabel('Latitude (°)', fontsize=12)
 ax3.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax3.set_title(f"CO\u2082 Counts per Bin - {flight.replace('Flight', 'Flight ')}")
-ax3.set_ylim(238, 301)
-ax3.set_xlim(79.5, 83.7)
+#ax3.set_ylim(238, 301)
+#ax3.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude"

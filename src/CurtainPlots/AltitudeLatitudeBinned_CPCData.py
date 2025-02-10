@@ -21,7 +21,7 @@ from scipy.stats import binned_statistic_2d
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight9" # Flight1 AIMMS file currently broken at line 13234
+flight = "Flight8" # Flight1 AIMMS file currently broken at line 13234
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -202,8 +202,8 @@ cb.set_label('Particles >2.5 nm $(Counts/cm^{3})$', fontsize=12)
 ax1.set_xlabel('Latitude (°)', fontsize=12)
 ax1.set_ylabel('Altitude (m)', fontsize=12)
 ax1.set_title(f"Particles >2.5 nm Abundance - {flight.replace('Flight', 'Flight ')}")
-ax1.set_ylim(0, 6250)
-ax1.set_xlim(79.5, 83.7)
+#ax1.set_ylim(0, 6250)
+#ax1.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC3\AltitudeLatitude"
@@ -231,8 +231,8 @@ cb2.set_label('Particles >10 nm $(Counts/cm^{3})$', fontsize=12)
 ax2.set_xlabel('Latitude (°)', fontsize=12)
 ax2.set_ylabel('Altitude (m)', fontsize=12)
 ax2.set_title(f"Particles >10 nm Abundance - {flight.replace('Flight', 'Flight ')}")
-ax2.set_ylim(0, 6250)
-ax2.set_xlim(79.5, 83.7)
+#ax2.set_ylim(0, 6250)
+#ax2.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC10\AltitudeLatitude"
@@ -260,8 +260,8 @@ cb3.set_label('2.5-10 nm Particles $(Counts/cm^{3})$', fontsize=12)
 ax3.set_xlabel('Latitude (°)', fontsize=12)
 ax3.set_ylabel('Altitude (m)', fontsize=12)
 ax3.set_title(f"2.5-10 nm Particle Abundance - {flight.replace('Flight', 'Flight ')}")
-ax3.set_ylim(0, 6250)
-ax3.set_xlim(79.5, 83.7)
+#ax3.set_ylim(0, 6250)
+#ax3.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\AltitudeLatitude"
@@ -315,8 +315,8 @@ cb.set_label('Number of Data Points', fontsize=12)
 ax1.set_xlabel('Latitude (°)', fontsize=12)
 ax1.set_ylabel('Altitude (m)', fontsize=12)
 ax1.set_title(f"Particles >2.5 nm Counts per Bin - {flight.replace('Flight', 'Flight ')}")
-ax1.set_ylim(0, 6250)
-ax1.set_xlim(79.5, 83.7)
+#ax1.set_ylim(0, 6250)
+#ax1.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC3\AltitudeLatitude"
@@ -344,8 +344,8 @@ cb2.set_label('Number of Data Points', fontsize=12)
 ax2.set_xlabel('Latitude (°)', fontsize=12)
 ax2.set_ylabel('Altitude (m)', fontsize=12)
 ax2.set_title(f"Particles >10 nm Counts per Bin - {flight.replace('Flight', 'Flight ')}")
-ax2.set_ylim(0, 6250)
-ax2.set_xlim(79.5, 83.7)
+#ax2.set_ylim(0, 6250)
+#ax2.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC10\AltitudeLatitude"
@@ -373,8 +373,8 @@ cb3.set_label('Number of Data Points', fontsize=12)
 ax3.set_xlabel('Latitude (°)', fontsize=12)
 ax3.set_ylabel('Altitude (m)', fontsize=12)
 ax3.set_title(f"2.5-10 nm Particle Counts per Bin - {flight.replace('Flight', 'Flight ')}")
-ax3.set_ylim(0, 6250)
-ax3.set_xlim(79.5, 83.7)
+#ax3.set_ylim(0, 6250)
+#ax3.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\AltitudeLatitude"
