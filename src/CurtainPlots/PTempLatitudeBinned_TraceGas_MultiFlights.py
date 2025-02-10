@@ -221,15 +221,16 @@ for flight in flights_to_analyze:
 ###########################
  
 ##--Define number of bins here--##
-num_bins = 30
+num_bins_lat = 5
+num_bins_ptemp = 15
  
 ##--Binning for O3 data--##
 all_latitudes_O3 = np.concatenate([df["Latitude"].values for df in O3_dfs])
 all_ptemps_O3 = np.concatenate([df["PTemp"].values for df in O3_dfs])
 all_O3 = np.concatenate([df["O3_conc"].values for df in O3_dfs])
  
-lat_bin_edges_O3 = np.linspace(all_latitudes_O3.min(), all_latitudes_O3.max(), num_bins + 1)
-ptemp_bin_edges_O3 = np.linspace(all_ptemps_O3.min(), all_ptemps_O3.max(), num_bins + 1)
+lat_bin_edges_O3 = np.linspace(all_latitudes_O3.min(), all_latitudes_O3.max(), num_bins_lat + 1)
+ptemp_bin_edges_O3 = np.linspace(all_ptemps_O3.min(), all_ptemps_O3.max(), num_bins_ptemp + 1)
  
 O3_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_O3, all_ptemps_O3, 
         all_O3, statistic="mean", bins=[lat_bin_edges_O3, ptemp_bin_edges_O3])
@@ -239,8 +240,8 @@ all_latitudes_CO = np.concatenate([df["Latitude"].values for df in CO_dfs])
 all_ptemps_CO = np.concatenate([df["PTemp"].values for df in CO_dfs])
 all_CO = np.concatenate([df["CO_conc"].values for df in CO_dfs])
  
-lat_bin_edges_CO = np.linspace(all_latitudes_CO.min(), all_latitudes_CO.max(), num_bins + 1)
-ptemp_bin_edges_CO = np.linspace(all_ptemps_CO.min(), all_ptemps_CO.max(), num_bins + 1)
+lat_bin_edges_CO = np.linspace(all_latitudes_CO.min(), all_latitudes_CO.max(), num_bins_lat + 1)
+ptemp_bin_edges_CO = np.linspace(all_ptemps_CO.min(), all_ptemps_CO.max(), num_bins_ptemp + 1)
  
 CO_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_CO, all_ptemps_CO, 
         all_CO, statistic="mean", bins=[lat_bin_edges_CO, ptemp_bin_edges_CO])
@@ -250,8 +251,8 @@ all_latitudes_CO2 = np.concatenate([df["Latitude"].values for df in CO2_dfs])
 all_ptemps_CO2 = np.concatenate([df["PTemp"].values for df in CO2_dfs])
 all_CO2 = np.concatenate([df["CO2_conc"].values for df in CO2_dfs])
  
-lat_bin_edges_CO2 = np.linspace(all_latitudes_CO2.min(), all_latitudes_CO2.max(), num_bins + 1)
-ptemp_bin_edges_CO2 = np.linspace(all_ptemps_CO2.min(), all_ptemps_CO2.max(), num_bins + 1)
+lat_bin_edges_CO2 = np.linspace(all_latitudes_CO2.min(), all_latitudes_CO2.max(), num_bins_lat + 1)
+ptemp_bin_edges_CO2 = np.linspace(all_ptemps_CO2.min(), all_ptemps_CO2.max(), num_bins_ptemp + 1)
  
 CO2_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_CO2, all_ptemps_CO2, 
         all_CO2, statistic="mean", bins=[lat_bin_edges_CO2, ptemp_bin_edges_CO2])
@@ -311,7 +312,7 @@ plot_curtain(O3_bin_medians, lat_bin_edges_O3, ptemp_bin_edges_O3, vmin=0, vmax=
     output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude\O3_MultiFlights.png")
 
 ##--Plot for CO--##
-plot_curtain(CO_bin_medians, lat_bin_edges_CO, ptemp_bin_edges_CO, vmin=110, vmax=175,
+plot_curtain(CO_bin_medians, lat_bin_edges_CO, ptemp_bin_edges_CO, vmin=110, vmax=155,
     title="CO Mixing Ratio", cbar_label="CO ppbv",
     output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude\CO_MultiFlights.png")
 
@@ -385,17 +386,17 @@ def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label, ou
     plt.show()
  
 ##--Plot for O3 counts--##
-plot_curtain(O3_bin_counts, lat_bin_edges_O3, ptemp_bin_edges_O3, vmin=1, vmax=150, 
+plot_curtain(O3_bin_counts, lat_bin_edges_O3, ptemp_bin_edges_O3, vmin=1, vmax=500, 
     title="O\u2083 Data Point Counts", cbar_label="Number of Data Points",
     output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude\O3_MultiFlights_diagnostic.png")
  
 ##--Plot for CPC10 counts--##
-plot_curtain(CO_bin_counts, lat_bin_edges_CO, ptemp_bin_edges_CO, vmin=1, vmax=1500,  
+plot_curtain(CO_bin_counts, lat_bin_edges_CO, ptemp_bin_edges_CO, vmin=1, vmax=6000,  
     title="CO Data Point Counts", cbar_label="Number of Data Points",
     output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude\CO_MultiFlights_diagnostic.png")
  
 ##--Plot for CO2 counts--##
-plot_curtain(CO2_bin_counts, lat_bin_edges_CO2, ptemp_bin_edges_CO2, vmin=1, vmax=1500,  
+plot_curtain(CO2_bin_counts, lat_bin_edges_CO2, ptemp_bin_edges_CO2, vmin=1, vmax=6000,  
     title="CO\u2082 Data Point Counts", cbar_label="Number of Data Points",
     output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\PTempLatitude\CO2_MultiFlights_diagnostic.png")
 

@@ -21,7 +21,7 @@ from scipy.stats import binned_statistic_2d
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight2" # Flight1 AIMMS file currently broken at line 13234
+flight = "Flight8" # Flight1 AIMMS file currently broken at line 13234
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -175,25 +175,26 @@ nuc_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'nuc_parti
 nuc_clean_df = nuc_df.dropna()
 
 ##--Define number of bins here--##
-num_bins = 30
+num_bins_lat = 5
+num_bins_ptemp = 15
 
 ##--Determine CPC3 bin edges--##
-CPC3_lat_bin_edges = np.linspace(CPC3_clean_df['Latitude'].min(), CPC3_clean_df['Latitude'].max(), num_bins + 1)
-CPC3_ptemp_bin_edges = np.linspace(CPC3_clean_df['PTemp'].min(), CPC3_clean_df['PTemp'].max(), num_bins + 1)
+CPC3_lat_bin_edges = np.linspace(CPC3_clean_df['Latitude'].min(), CPC3_clean_df['Latitude'].max(), num_bins_lat + 1)
+CPC3_ptemp_bin_edges = np.linspace(CPC3_clean_df['PTemp'].min(), CPC3_clean_df['PTemp'].max(), num_bins_ptemp + 1)
 
 ##--Make 2d histogram for CPC3 and compute median particle abundance in each bin--##
 CPC3_bin_medians, CPC3_x_edges, CPC3_y_edges, _ = binned_statistic_2d(CPC3_clean_df['Latitude'], 
     CPC3_clean_df['PTemp'], CPC3_clean_df['CPC3'], statistic='median', bins=[CPC3_lat_bin_edges, CPC3_ptemp_bin_edges])
 
 ##--Histogram for CPC10--##
-CPC10_lat_bin_edges = np.linspace(CPC10_clean_df['Latitude'].min(), CPC10_clean_df['Latitude'].max(), num_bins + 1)
-CPC10_ptemp_bin_edges = np.linspace(CPC10_clean_df['PTemp'].min(), CPC10_clean_df['PTemp'].max(), num_bins +1)
+CPC10_lat_bin_edges = np.linspace(CPC10_clean_df['Latitude'].min(), CPC10_clean_df['Latitude'].max(), num_bins_lat + 1)
+CPC10_ptemp_bin_edges = np.linspace(CPC10_clean_df['PTemp'].min(), CPC10_clean_df['PTemp'].max(), num_bins_ptemp +1)
 CPC10_bin_medians, CPC10_x_edges, CPC10_y_edges, _ = binned_statistic_2d(CPC10_clean_df['Latitude'], 
     CPC10_clean_df['PTemp'], CPC10_clean_df['CPC10'], statistic='median', bins=[CPC10_lat_bin_edges, CPC10_ptemp_bin_edges])
 
 ##--Histogram for nucleation mode particles--##
-nuc_lat_bin_edges = np.linspace(nuc_clean_df['Latitude'].min(), nuc_clean_df['Latitude'].max(), num_bins +1)
-nuc_ptemp_bin_edges = np.linspace(nuc_clean_df['PTemp'].min(), nuc_clean_df['PTemp'].max(), num_bins +1)
+nuc_lat_bin_edges = np.linspace(nuc_clean_df['Latitude'].min(), nuc_clean_df['Latitude'].max(), num_bins_lat +1)
+nuc_ptemp_bin_edges = np.linspace(nuc_clean_df['PTemp'].min(), nuc_clean_df['PTemp'].max(), num_bins_ptemp +1)
 nuc_bin_medians, nuc_x_edges, nuc_y_edges, _ = binned_statistic_2d(nuc_clean_df['Latitude'], 
     nuc_clean_df['PTemp'], nuc_clean_df['nuc_particles'], statistic='median', bins=[nuc_lat_bin_edges, nuc_ptemp_bin_edges])
 
@@ -222,6 +223,8 @@ cb.set_label('Particles >2.5 nm $(Counts/cm^{3})$', fontsize=12)
 ax1.set_xlabel('Latitude (°)', fontsize=12)
 ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax1.set_title(f"Particles >2.5 nm Abundance - {flight.replace('Flight', 'Flight ')}")
+ax1.set_ylim(238, 301)
+ax1.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC3\PTempLatitude"
@@ -238,7 +241,7 @@ fig2, ax2 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot, set minimum for viridis colors as 1--##
 CPC10_plot = ax2.pcolormesh(CPC10_x_edges, CPC10_y_edges, CPC10_bin_medians.T,  # Transpose to align correctly
-    shading='auto', cmap=new_cmap, vmin=0, vmax=2500)
+    shading='auto', cmap=new_cmap, vmin=0, vmax=2000)
 
 ##--Add colorbar--##
 cb2 = fig2.colorbar(CPC10_plot, ax=ax2)
@@ -249,6 +252,8 @@ cb2.set_label('Particles >10 nm $(Counts/cm^{3})$', fontsize=12)
 ax2.set_xlabel('Latitude (°)', fontsize=12)
 ax2.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax2.set_title(f"Particles >10 nm Abundance - {flight.replace('Flight', 'Flight ')}")
+ax2.set_ylim(238, 301)
+ax2.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC10\PTempLatitude"
@@ -265,7 +270,7 @@ fig3, ax3 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot and use viridis for values greater than 1--##
 nuc_plot = ax3.pcolormesh(nuc_x_edges, nuc_y_edges, nuc_bin_medians.T,  # Transpose to align correctly
-    shading='auto', cmap=new_cmap, vmin=0, vmax=1400)
+    shading='auto', cmap=new_cmap, vmin=0, vmax=1000)
 
 ##--Add colorbar--##
 cb3 = fig3.colorbar(nuc_plot, ax=ax3)
@@ -276,6 +281,8 @@ cb3.set_label('2.5-10 nm Particles $(Counts/cm^{3})$', fontsize=12)
 ax3.set_xlabel('Latitude (°)', fontsize=12)
 ax3.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax3.set_title(f"2.5-10 nm Particle Abundance - {flight.replace('Flight', 'Flight ')}")
+ax3.set_ylim(238, 301)
+ax3.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\PTempLatitude"
@@ -318,7 +325,7 @@ new_cmap.set_under('w')
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
 CPC3_plot = ax1.pcolormesh(CPC3_x_edges, CPC3_y_edges, CPC3_bin_counts.T,  # Transpose to align correctly
-    shading='auto', cmap=new_cmap, vmin=1, vmax=750)
+    shading='auto', cmap=new_cmap, vmin=1, vmax=1250)
 
 ##--Add colorbar--##
 cb = fig1.colorbar(CPC3_plot, ax=ax1)
@@ -329,6 +336,8 @@ cb.set_label('Number of Data Points', fontsize=12)
 ax1.set_xlabel('Latitude (°)', fontsize=12)
 ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax1.set_title(f"Particles >2.5 nm Counts per Bin - {flight.replace('Flight', 'Flight ')}")
+ax1.set_ylim(238, 301)
+ax1.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC3\PTempLatitude"
@@ -345,7 +354,7 @@ fig2, ax2 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot, set minimum for viridis colors as 1--##
 CPC10_plot = ax2.pcolormesh(CPC10_x_edges, CPC10_y_edges, CPC10_bin_counts.T,  # Transpose to align correctly
-    shading='auto', cmap=new_cmap, vmin=1, vmax=750)
+    shading='auto', cmap=new_cmap, vmin=1, vmax=1250)
 
 ##--Add colorbar--##
 cb2 = fig2.colorbar(CPC10_plot, ax=ax2)
@@ -356,6 +365,8 @@ cb2.set_label('Number of Data Points', fontsize=12)
 ax2.set_xlabel('Latitude (°)', fontsize=12)
 ax2.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax2.set_title(f"Particles >10 nm Counts per Bin - {flight.replace('Flight', 'Flight ')}")
+ax2.set_ylim(238, 301)
+ax2.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC10\PTempLatitude"
@@ -372,7 +383,7 @@ fig3, ax3 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot and use viridis for values greater than 1--##
 nuc_plot = ax3.pcolormesh(nuc_x_edges, nuc_y_edges, nuc_bin_counts.T,  # Transpose to align correctly
-    shading='auto', cmap=new_cmap, vmin=1, vmax=750)
+    shading='auto', cmap=new_cmap, vmin=1, vmax=1000)
 
 ##--Add colorbar--##
 cb3 = fig3.colorbar(nuc_plot, ax=ax3)
@@ -383,6 +394,8 @@ cb3.set_label('Number of Data Points', fontsize=12)
 ax3.set_xlabel('Latitude (°)', fontsize=12)
 ax3.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax3.set_title(f"2.5-10 nm Particle Counts per Bin - {flight.replace('Flight', 'Flight ')}")
+ax3.set_ylim(238, 301)
+ax3.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\PTempLatitude"

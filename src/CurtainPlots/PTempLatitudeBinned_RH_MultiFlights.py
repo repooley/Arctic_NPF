@@ -212,15 +212,16 @@ for flight in flights_to_analyze:
 ###########################
  
 ##--Define number of bins here--##
-num_bins = 30
+num_bins_lat = 5
+num_bins_ptemp = 15
  
 ##--Binning for RH wrt water data--##
 all_latitudes_RH_w = np.concatenate([df["Latitude"].values for df in RH_w_dfs])
 all_ptemps_RH_w = np.concatenate([df["Ptemp"].values for df in RH_w_dfs])
 all_RH_w = np.concatenate([df["Relative_Humidity_w"].values for df in RH_w_dfs])
  
-lat_bin_edges_RH_w = np.linspace(all_latitudes_RH_w.min(), all_latitudes_RH_w.max(), num_bins + 1)
-ptemp_bin_edges_RH_w = np.linspace(all_ptemps_RH_w.min(), all_ptemps_RH_w.max(), num_bins + 1)
+lat_bin_edges_RH_w = np.linspace(all_latitudes_RH_w.min(), all_latitudes_RH_w.max(), num_bins_lat + 1)
+ptemp_bin_edges_RH_w = np.linspace(all_ptemps_RH_w.min(), all_ptemps_RH_w.max(), num_bins_ptemp + 1)
  
 RH_w_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_RH_w, all_ptemps_RH_w, 
         all_RH_w, statistic="mean", bins=[lat_bin_edges_RH_w, ptemp_bin_edges_RH_w])
@@ -230,8 +231,8 @@ all_latitudes_RH_i = np.concatenate([df["Latitude"].values for df in RH_i_dfs])
 all_ptemps_RH_i = np.concatenate([df["Ptemp"].values for df in RH_i_dfs])
 all_RH_i = np.concatenate([df["Relative_Humidity_i"].values for df in RH_i_dfs])
  
-lat_bin_edges_RH_i = np.linspace(all_latitudes_RH_i.min(), all_latitudes_RH_i.max(), num_bins + 1)
-ptemp_bin_edges_RH_i = np.linspace(all_ptemps_RH_i.min(), all_ptemps_RH_i.max(), num_bins + 1)
+lat_bin_edges_RH_i = np.linspace(all_latitudes_RH_i.min(), all_latitudes_RH_i.max(), num_bins_lat + 1)
+ptemp_bin_edges_RH_i = np.linspace(all_ptemps_RH_i.min(), all_ptemps_RH_i.max(), num_bins_ptemp + 1)
  
 RH_i_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_RH_i, all_ptemps_RH_i, 
         all_RH_i, statistic="mean", bins=[lat_bin_edges_RH_i, ptemp_bin_edges_RH_i])
@@ -286,7 +287,7 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, o
     plt.show()
  
 ##--Plot for RH wrt Water--##
-plot_curtain(RH_w_bin_medians, lat_bin_edges_RH_w, ptemp_bin_edges_RH_w, vmin=0, vmax=110,
+plot_curtain(RH_w_bin_medians, lat_bin_edges_RH_w, ptemp_bin_edges_RH_w, vmin=0, vmax=120,
     title="Relative Humidity With Respect to Water", cbar_label="Percent Relative Humidity",
     output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude\RH_w_MultiFlights.png")
 
@@ -356,12 +357,12 @@ def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label, ou
     plt.show()
  
 ##--Plot for RH wrt water counts--##
-plot_curtain(RH_w_bin_counts, lat_bin_edges_RH_w, ptemp_bin_edges_RH_w, vmin=1, vmax=1250, 
+plot_curtain(RH_w_bin_counts, lat_bin_edges_RH_w, ptemp_bin_edges_RH_w, vmin=1, vmax=3000, 
     title="RH wrt Water Data Point Counts", cbar_label="Number of Data Points",
     output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude\RH_w_MultiFlights_diagnostic.png")
  
 ##--Plot for RH wrt ice counts--##
-plot_curtain(RH_w_bin_counts, lat_bin_edges_RH_w, ptemp_bin_edges_RH_w, vmin=1, vmax=1250,  
+plot_curtain(RH_w_bin_counts, lat_bin_edges_RH_w, ptemp_bin_edges_RH_w, vmin=1, vmax=3000,  
     title="RH wrt Ice Data Point Counts", cbar_label="Number of Data Points",
     output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude\RH_i_MultiFlights_diagnostic.png")
 

@@ -21,7 +21,7 @@ from scipy.stats import binned_statistic_2d
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight10" # Flight1 AIMMS file currently broken at line 13234
+flight = "Flight8" # Flight1 AIMMS file currently broken at line 13234
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -178,13 +178,14 @@ clean_w_df = w_df.dropna()
 clean_i_df = i_df.dropna()
 
 ##--Define number of bins here--##
-num_bins = 30
+num_bins_lat = 5
+num_bins_ptemp = 15
 
 ##--Determine bin edges--##
-w_lat_bin_edges = np.linspace(clean_w_df['Latitude'].min(), clean_w_df['Latitude'].max(), num_bins + 1)
-w_ptemp_bin_edges = np.linspace(clean_w_df['PTemp'].min(), clean_w_df['PTemp'].max(), num_bins + 1)
-i_lat_bin_edges = np.linspace(clean_i_df['Latitude'].min(), clean_i_df['Latitude'].max(), num_bins +1)
-i_ptemp_bin_edges = np.linspace(clean_i_df['PTemp'].min(), clean_i_df['PTemp'].max(), num_bins +1)
+w_lat_bin_edges = np.linspace(clean_w_df['Latitude'].min(), clean_w_df['Latitude'].max(), num_bins_lat + 1)
+w_ptemp_bin_edges = np.linspace(clean_w_df['PTemp'].min(), clean_w_df['PTemp'].max(), num_bins_ptemp + 1)
+i_lat_bin_edges = np.linspace(clean_i_df['Latitude'].min(), clean_i_df['Latitude'].max(), num_bins_lat +1)
+i_ptemp_bin_edges = np.linspace(clean_i_df['PTemp'].min(), clean_i_df['PTemp'].max(), num_bins_ptemp +1)
 
 ##--Make 2d histogram and compute median RH in each bin--##
 RH_w_bin_medians, RH_w_x_edges, RH_w_y_edges, _ = binned_statistic_2d(clean_w_df['Latitude'], 
@@ -206,7 +207,7 @@ new_cmap.set_under('w')
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
 RH_w_plot = ax1.pcolormesh(RH_w_x_edges, RH_w_y_edges, RH_w_bin_medians.T,  # Transpose to align correctly
-    shading='auto', cmap=new_cmap, vmin=0, vmax=110)
+    shading='auto', cmap=new_cmap, vmin=0, vmax=120)
 
 ##--Add colorbar--##
 cb = fig1.colorbar(RH_w_plot, ax=ax1)
@@ -217,6 +218,8 @@ cb.set_label('Relative Humidity', fontsize=12)
 ax1.set_xlabel('Latitude (°)', fontsize=12)
 ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax1.set_title(f"Relative Humidity wrt Water - {flight.replace('Flight', 'Flight ')}")
+ax1.set_ylim(238, 301)
+ax1.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude"
@@ -232,7 +235,7 @@ fig2, ax2 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
 RH_i_plot = ax2.pcolormesh(RH_i_x_edges, RH_i_y_edges, RH_i_bin_medians.T,  # Transpose to align correctly
-    shading='auto', cmap=new_cmap, vmin=0, vmax=110)
+    shading='auto', cmap=new_cmap, vmin=0, vmax=120)
 
 ##--Add colorbar--##
 cb = fig2.colorbar(RH_i_plot, ax=ax2)
@@ -243,6 +246,8 @@ cb.set_label('Relative Humidity', fontsize=12)
 ax2.set_xlabel('Latitude (°)', fontsize=12)
 ax2.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax2.set_title(f"Relative Humidity wrt Ice - {flight.replace('Flight', 'Flight ')}")
+ax2.set_ylim(238, 301)
+ax2.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude"
@@ -280,7 +285,7 @@ new_cmap.set_under('w')
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
 RH_w_diag_plot = ax1.pcolormesh(RH_w_x_edges, RH_w_y_edges, RH_w_bin_counts.T,  # Transpose to align correctly
-    shading='auto', cmap=new_cmap, vmin=1, vmax=500)
+    shading='auto', cmap=new_cmap, vmin=1, vmax=1250)
 
 ##--Add colorbar--##
 cb = fig1.colorbar(RH_w_diag_plot, ax=ax1)
@@ -291,6 +296,8 @@ cb.set_label('Number of Data Points', fontsize=12)
 ax1.set_xlabel('Latitude (°)', fontsize=12)
 ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax1.set_title(f"Relative Humidity wrt Water Counts per Bin - {flight.replace('Flight', 'Flight ')}")
+ax1.set_ylim(238, 301)
+ax1.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude"
@@ -306,7 +313,7 @@ fig2, ax2 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
 RH_i_plot = ax2.pcolormesh(RH_i_x_edges, RH_i_y_edges, RH_i_bin_counts.T,  # Transpose to align correctly
-    shading='auto', cmap=new_cmap, vmin=1, vmax=500)
+    shading='auto', cmap=new_cmap, vmin=1, vmax=1250)
 
 ##--Add colorbar--##
 cb = fig2.colorbar(RH_i_plot, ax=ax2)
@@ -317,6 +324,8 @@ cb.set_label('Number of Data Points', fontsize=12)
 ax2.set_xlabel('Latitude (°)', fontsize=12)
 ax2.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax2.set_title(f"Relative Humidity wrt Ice Counts per Bin - {flight.replace('Flight', 'Flight ')}")
+ax2.set_ylim(238, 301)
+ax2.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude"

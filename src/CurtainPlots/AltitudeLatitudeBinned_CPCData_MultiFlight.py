@@ -198,15 +198,16 @@ for flight in flights_to_analyze:
 ###########################
  
 ##--Define number of bins here--##
-num_bins = 30
+num_bins_lat = 4
+num_bins_alt = 15
  
 ##--Binning for CPC3 data--##
 all_latitudes_CPC3 = np.concatenate([df["Latitude"].values for df in CPC3_dfs])
 all_altitudes_CPC3 = np.concatenate([df["Altitude"].values for df in CPC3_dfs])
 all_CPC3_concs = np.concatenate([df["CPC3_conc"].values for df in CPC3_dfs])
  
-lat_bin_edges_CPC3 = np.linspace(all_latitudes_CPC3.min(), all_latitudes_CPC3.max(), num_bins + 1)
-alt_bin_edges_CPC3 = np.linspace(all_altitudes_CPC3.min(), all_altitudes_CPC3.max(), num_bins + 1)
+lat_bin_edges_CPC3 = np.linspace(all_latitudes_CPC3.min(), all_latitudes_CPC3.max(), num_bins_lat + 1)
+alt_bin_edges_CPC3 = np.linspace(all_altitudes_CPC3.min(), all_altitudes_CPC3.max(), num_bins_alt + 1)
  
 CPC3_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_CPC3, all_altitudes_CPC3, 
     all_CPC3_concs, statistic="mean", bins=[lat_bin_edges_CPC3, alt_bin_edges_CPC3])
@@ -216,8 +217,8 @@ all_latitudes_CPC10 = np.concatenate([df["Latitude"].values for df in CPC10_dfs]
 all_altitudes_CPC10 = np.concatenate([df["Altitude"].values for df in CPC10_dfs])
 all_CPC10_concs = np.concatenate([df["CPC10_conc"].values for df in CPC10_dfs])
  
-lat_bin_edges_CPC10 = np.linspace(all_latitudes_CPC10.min(), all_latitudes_CPC10.max(), num_bins + 1)
-alt_bin_edges_CPC10 = np.linspace(all_altitudes_CPC10.min(), all_altitudes_CPC10.max(), num_bins + 1)
+lat_bin_edges_CPC10 = np.linspace(all_latitudes_CPC10.min(), all_latitudes_CPC10.max(), num_bins_lat + 1)
+alt_bin_edges_CPC10 = np.linspace(all_altitudes_CPC10.min(), all_altitudes_CPC10.max(), num_bins_alt + 1)
  
 CPC10_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_CPC10, all_altitudes_CPC10, 
     all_CPC10_concs, statistic="mean", bins=[lat_bin_edges_CPC10, alt_bin_edges_CPC10])
@@ -227,8 +228,8 @@ all_latitudes_nuc = np.concatenate([df["Latitude"].values for df in nuc_dfs])
 all_altitudes_nuc = np.concatenate([df["Altitude"].values for df in nuc_dfs])
 all_nuc_particles = np.concatenate([df["nuc_particles"].values for df in nuc_dfs])
  
-lat_bin_edges_nuc = np.linspace(all_latitudes_nuc.min(), all_latitudes_nuc.max(), num_bins + 1)
-alt_bin_edges_nuc = np.linspace(all_altitudes_nuc.min(), all_altitudes_nuc.max(), num_bins + 1)
+lat_bin_edges_nuc = np.linspace(all_latitudes_nuc.min(), all_latitudes_nuc.max(), num_bins_lat + 1)
+alt_bin_edges_nuc = np.linspace(all_altitudes_nuc.min(), all_altitudes_nuc.max(), num_bins_alt + 1)
  
 nuc_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_nuc, all_altitudes_nuc, 
     all_nuc_particles, statistic="mean", bins=[lat_bin_edges_nuc, alt_bin_edges_nuc])
@@ -265,17 +266,17 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, o
     plt.show()
  
 ##--Plot for CPC3--##
-plot_curtain(CPC3_bin_medians, lat_bin_edges_CPC3, alt_bin_edges_CPC3, vmin=0, vmax=3000,
+plot_curtain(CPC3_bin_medians, lat_bin_edges_CPC3, alt_bin_edges_CPC3, vmin=0, vmax=2250,
     title="Particles >2.5 nm Abundance", cbar_label="Particles >2.5 nm $(Counts/cm^{3})$",
     output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC3\AltitudeLatitude\MultiFlights.png")
 
 ##--Plot for CPC10--##
-plot_curtain(CPC10_bin_medians, lat_bin_edges_CPC10, alt_bin_edges_CPC10, vmin=0, vmax=3000,
+plot_curtain(CPC10_bin_medians, lat_bin_edges_CPC10, alt_bin_edges_CPC10, vmin=0, vmax=2000,
     title="Particles >10 nm Abundance", cbar_label="Particles >10 nm $(Counts/cm^{3})$",
     output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC10\AltitudeLatitude\MultiFlights.png")
  
 ##--Plot for nucleating particles--##
-plot_curtain(nuc_bin_medians, lat_bin_edges_nuc, alt_bin_edges_nuc, vmin=0, vmax=1500,
+plot_curtain(nuc_bin_medians, lat_bin_edges_nuc, alt_bin_edges_nuc, vmin=0, vmax=1100,
     title="2.5-10 nm Particle Abundance", cbar_label="2.5-10 nm Particles $(Counts/cm^{3})$",
     output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\AltitudeLatitude\MultiFlights.png")
 
@@ -328,17 +329,17 @@ def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label, ou
     plt.show()
  
 ##--Plot for CPC3 counts--##
-plot_curtain(CPC3_bin_counts, lat_bin_edges_CPC3, alt_bin_edges_CPC3, vmin=1, vmax=1750, 
+plot_curtain(CPC3_bin_counts, lat_bin_edges_CPC3, alt_bin_edges_CPC3, vmin=1, vmax=6000, 
     title="Particles >2.5 nm Data Point Counts", cbar_label="Number of Data Points",
     output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC3\AltitudeLatitude\MultiFlights_diagnostic.png")
  
 ##--Plot for CPC10 counts--##
-plot_curtain(CPC10_bin_counts, lat_bin_edges_CPC10, alt_bin_edges_CPC10, vmin=1, vmax=1750,  
+plot_curtain(CPC10_bin_counts, lat_bin_edges_CPC10, alt_bin_edges_CPC10, vmin=1, vmax=7500,  
     title="Particles >10 nm Data Point Counts", cbar_label="Number of Data Points",
     output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC10\AltitudeLatitude\MultiFlights_diagnostic.png")
  
 ##--Plot for N3-10 counts--##
-plot_curtain(nuc_bin_counts, lat_bin_edges_nuc, alt_bin_edges_nuc, vmin=1, vmax=1000,  
+plot_curtain(nuc_bin_counts, lat_bin_edges_nuc, alt_bin_edges_nuc, vmin=1, vmax=3500,  
     title="2.5-10 nm Data Point Counts", cbar_label="Number of Data Points",
     output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\AltitudeLatitude\MultiFlights_diagnostic.png")
 

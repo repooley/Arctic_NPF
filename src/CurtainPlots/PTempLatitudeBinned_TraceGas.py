@@ -21,7 +21,7 @@ from scipy.stats import binned_statistic_2d
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight2" # Flight1 AIMMS file currently broken at line 13234
+flight = "Flight8" # Flight1 AIMMS file currently broken at line 13234
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -177,15 +177,16 @@ clean_CO_df = CO_df.dropna()
 clean_CO2_df = CO2_df.dropna()
 
 ##--Define number of bins here--##
-num_bins = 30
+num_bins_lat = 5
+num_bins_ptemp = 15
 
 ##--Determine bin edges--##
-O3_lat_bin_edges = np.linspace(clean_O3_df['Latitude'].min(), clean_O3_df['Latitude'].max(), num_bins + 1)
-O3_ptemp_bin_edges = np.linspace(clean_O3_df['PTemp'].min(), clean_O3_df['PTemp'].max(), num_bins + 1)
-CO_lat_bin_edges = np.linspace(clean_CO_df['Latitude'].min(), clean_CO_df['Latitude'].max(), num_bins +1)
-CO_ptemp_bin_edges = np.linspace(clean_CO_df['PTemp'].min(), clean_CO_df['PTemp'].max(), num_bins +1)
-CO2_lat_bin_edges = np.linspace(clean_CO2_df['Latitude'].min(), clean_CO2_df['Latitude'].max(), num_bins +1)
-CO2_ptemp_bin_edges = np.linspace(clean_CO2_df['PTemp'].min(), clean_CO2_df['PTemp'].max(), num_bins +1)
+O3_lat_bin_edges = np.linspace(clean_O3_df['Latitude'].min(), clean_O3_df['Latitude'].max(), num_bins_lat + 1)
+O3_ptemp_bin_edges = np.linspace(clean_O3_df['PTemp'].min(), clean_O3_df['PTemp'].max(), num_bins_ptemp + 1)
+CO_lat_bin_edges = np.linspace(clean_CO_df['Latitude'].min(), clean_CO_df['Latitude'].max(), num_bins_lat +1)
+CO_ptemp_bin_edges = np.linspace(clean_CO_df['PTemp'].min(), clean_CO_df['PTemp'].max(), num_bins_ptemp +1)
+CO2_lat_bin_edges = np.linspace(clean_CO2_df['Latitude'].min(), clean_CO2_df['Latitude'].max(), num_bins_lat +1)
+CO2_ptemp_bin_edges = np.linspace(clean_CO2_df['PTemp'].min(), clean_CO2_df['PTemp'].max(), num_bins_ptemp +1)
 
 ##--Make 2d histogram and compute median RH in each bin--##
 O3_bin_medians, O3_x_edges, O3_y_edges, _ = binned_statistic_2d(clean_O3_df['Latitude'], 
@@ -221,6 +222,8 @@ cb.set_label('O\u2083 ppbv', fontsize=12)
 ax1.set_xlabel('Latitude (°)', fontsize=12)
 ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax1.set_title(f"O\u2083 Mixing Ratio - {flight.replace('Flight', 'Flight ')}")
+ax1.set_ylim(238, 301)
+ax1.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude"
@@ -247,6 +250,8 @@ cb.set_label('CO ppbv', fontsize=12)
 ax2.set_xlabel('Latitude (°)', fontsize=12)
 ax2.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax2.set_title(f"CO Mixing Ratio - {flight.replace('Flight', 'Flight ')}")
+ax2.set_ylim(238, 301)
+ax2.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude"
@@ -273,6 +278,8 @@ cb.set_label('CO\u2082 ppmv', fontsize=12)
 ax3.set_xlabel('Latitude (°)', fontsize=12)
 ax3.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax3.set_title(f"CO\u2082 Mixing Ratio - {flight.replace('Flight', 'Flight ')}")
+ax3.set_ylim(238, 301)
+ax3.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude"
@@ -315,7 +322,7 @@ new_cmap.set_under('w')
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
 O3_plot = ax1.pcolormesh(O3_x_edges, O3_y_edges, O3_bin_counts.T,  # Transpose to align correctly
-    shading='auto', cmap=new_cmap, vmin=1, vmax=80)
+    shading='auto', cmap=new_cmap, vmin=1, vmax=150)
 
 ##--Add colorbar--##
 cb = fig1.colorbar(O3_plot, ax=ax1)
@@ -326,6 +333,8 @@ cb.set_label('Number of Data Points', fontsize=12)
 ax1.set_xlabel('Latitude (°)', fontsize=12)
 ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax1.set_title(f"O\u2083 Counts per Bin - {flight.replace('Flight', 'Flight ')}")
+ax1.set_ylim(238, 301)
+ax1.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude"
@@ -341,7 +350,7 @@ fig2, ax2 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
 CO_plot = ax2.pcolormesh(CO_x_edges, CO_y_edges, CO_bin_counts.T,  # Transpose to align correctly
-    shading='auto', cmap=new_cmap, vmin=1, vmax=750)
+    shading='auto', cmap=new_cmap, vmin=1, vmax=1500)
 
 ##--Add colorbar--##
 cb = fig2.colorbar(CO_plot, ax=ax2)
@@ -352,6 +361,8 @@ cb.set_label('Number of Data Points', fontsize=12)
 ax2.set_xlabel('Latitude (°)', fontsize=12)
 ax2.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax2.set_title(f"CO Counts per Bin - {flight.replace('Flight', 'Flight ')}")
+ax2.set_ylim(238, 301)
+ax2.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude"
@@ -367,7 +378,7 @@ fig3, ax3 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
 CO2_plot = ax3.pcolormesh(CO2_x_edges, CO2_y_edges, CO2_bin_counts.T,  # Transpose to align correctly
-    shading='auto', cmap=new_cmap, vmin=1, vmax=750)
+    shading='auto', cmap=new_cmap, vmin=1, vmax=1500)
 
 ##--Add colorbar--##
 cb = fig3.colorbar(CO2_plot, ax=ax3)
@@ -378,6 +389,8 @@ cb.set_label('Number of Data Points', fontsize=12)
 ax3.set_xlabel('Latitude (°)', fontsize=12)
 ax3.set_ylabel('Potential Temperature \u0398 (K)', fontsize=12)
 ax3.set_title(f"CO\u2082 Counts per Bin - {flight.replace('Flight', 'Flight ')}")
+ax3.set_ylim(238, 301)
+ax3.set_xlim(79.5, 83.7)
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude"
