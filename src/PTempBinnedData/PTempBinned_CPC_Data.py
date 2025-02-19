@@ -1,0 +1,288 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Feb 19 11:40:48 2025
+
+@author: repooley
+"""
+
+import icartt
+import os
+import glob
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt 
+
+#########################
+##--Open ICARTT Files--##
+#########################
+
+##--Set the base directory to project folder--##
+directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
+
+##--Select flight (Flight1 thru Flight10)--##
+flight = "Flight10" # Flight1 AIMMS file currently broken at line 13234
+
+##--Define function that creates datasets from filenames--##
+def find_files(directory, flight, partial_name):
+    ##--flight data are stored in a folder called "raw"--##
+    flight_dir = os.path.join(directory, "raw", flight)
+    search_pattern = os.path.join(flight_dir, f"*{partial_name}*")
+    return sorted(glob.glob(search_pattern))
+
+##--Meterological data from AIMMS monitoring system--##
+aimms = icartt.Dataset(find_files(directory, flight, "AIMMS_POLAR6")[0])
+
+##--CPC data--##
+CPC10 = icartt.Dataset(find_files(directory, flight, 'CPC3772')[0])
+CPC3 = icartt.Dataset(find_files(directory, flight, 'CPC3776')[0])
+
+#################
+##--Pull data--##
+#################
+
+##--AIMMS Data--##
+altitude = aimms.data['Alt'] # in m
+temperature = aimms.data['Temp'] + 273.15 # in K
+pressure = aimms.data['BP']
+aimms_time =aimms.data['TimeWave']
+
+##--10 nm CPC data--##
+CPC10_time = CPC10.data['time']
+CPC10_conc = CPC10.data['conc'] # count/cm^3
+
+##--2.5 nm CPC data--##
+CPC3_time = CPC3.data['time']
+CPC3_conc = CPC3.data['conc'] # count/cm^3
+
+##################
+##--Align data--##
+##################
+
+##--Establish AIMMS start/stop times--##
+aimms_end = aimms_time.max()
+aimms_start = aimms_time.min()
+
+##--Handle CPC3 data with different start/stop times than AIMMS--##
+CPC3_time = CPC3.data['time']
+
+##--Trim CPC3 data if it starts before AIMMS--##
+if CPC3_time.min() < aimms_start:
+    mask_start = CPC3_time >= aimms_start
+    CPC3_time = CPC3_time[mask_start]
+    CPC3_conc = CPC3_conc[mask_start]
+    
+##--Append CPC3 data with NaNs if it ends before AIMMS--##
+if CPC3_time.max() < aimms_end: 
+    missing_times = np.arange(CPC3_time.max()+1, aimms_end +1)
+    CPC3_time = np.concatenate([CPC3_time, missing_times])
+    CPC3_conc = np.concatenate([CPC3_conc, [np.nan]*len(missing_times)])
+
+##--Create a DataFrame for CPC3 data and reindex to AIMMS time, setting non-overlapping times to nan--##
+CPC3_df = pd.DataFrame({'time': CPC3_time, 'conc': CPC3_conc})
+CPC3_aligned = CPC3_df.set_index('time').reindex(aimms_time)
+CPC3_aligned['conc']=CPC3_aligned['conc'].where(CPC3_aligned.index.isin(aimms_time), np.nan)
+CPC3_conc_aligned = CPC3_aligned['conc']
+
+##--Handle CPC10 data with different start/stop times than AIMMS--##
+CPC10_time = CPC10.data['time']
+
+##--Trim CPC10 data if it starts before AIMMS--##
+if CPC10_time.min() < aimms_start:
+    mask_start = CPC10_time >= aimms_start
+    CPC10_time = CPC10_time[mask_start]
+    CPC10_conc = CPC10_conc[mask_start]
+    
+##--Append CPC10 data with NaNs if it ends before AIMMS--##
+if CPC10_time.max() < aimms_end: 
+    missing_times = np.arange(CPC10_time.max()+1, aimms_end +1)
+    CPC10_time = np.concatenate([CPC10_time, missing_times])
+    CPC10_conc = np.concatenate([CPC10_conc, [np.nan]*len(missing_times)])
+
+##--Create a DataFrame for CPC10 data and reindex to AIMMS time, setting non-overlapping times to nan--##
+CPC10_df = pd.DataFrame({'time': CPC10_time, 'conc': CPC10_conc})
+CPC10_aligned = CPC10_df.set_index('time').reindex(aimms_time)
+CPC10_aligned['conc']=CPC10_aligned['conc'].where(CPC10_aligned.index.isin(aimms_time), np.nan)
+CPC10_conc_aligned = CPC10_aligned['conc']
+
+######################
+##--Convert to STP--##
+######################
+
+P_STP = 101325  # Pa
+T_STP = 273.15  # K
+
+##--Create empty list for CPC3 particles--##
+CPC3_conc_STP = []
+
+for CPC3, T, P in zip(CPC3_conc_aligned, temperature, pressure):
+    if np.isnan(CPC3) or np.isnan(T) or np.isnan(P):
+        ##--Append with NaN if any input is NaN--##
+        CPC3_conc_STP.append(np.nan)
+    else:
+        ##--Perform conversion if all inputs are valid--##
+        CPC3_conversion = CPC3 * (P_STP / P) * (T / T_STP)
+        CPC3_conc_STP.append(CPC3_conversion)
+    
+##--Create empty list for CPC10 particles--##
+CPC10_conc_STP = []
+
+for CPC10, T, P in zip(CPC10_conc_aligned, temperature, pressure):
+    if np.isnan(CPC10) or np.isnan(T) or np.isnan(P):
+        ##--Append with NaN if any input is NaN--##
+        CPC10_conc_STP.append(np.nan)
+    else:
+        ##--Perform conversion if all inputs are valid--##
+        CPC10_conversion = CPC10 * (P_STP / P) * (T / T_STP)
+        CPC10_conc_STP.append(CPC10_conversion)
+
+#######################################
+##--Calculate potential temperature--##
+#######################################
+
+##--Constants--##
+p_0 = 1E5 # Reference pressure in Pa (1000 hPa)
+k = 0.286 # Poisson constant for dry air
+
+##--Generate empty list for potential temperature output--##
+potential_temp = []
+
+##--Calculate potential temperature from ambient temp & pressure--##
+for T, P in zip(temperature, pressure):
+    p_t = T*(p_0/P)**k
+    potential_temp.append(p_t)
+
+###############
+##--BINNING--##
+###############
+
+
+##--Creates a Pandas dataframe with all variables--##
+df = pd.DataFrame({'PTemp': potential_temp,'CPC10_conc':CPC10_conc_STP, 'CPC3_conc':CPC3_conc_STP})
+
+##--Nucleation Mode Particles--##
+nuc_particles = (df['CPC3_conc'] - df['CPC10_conc'])
+
+##--Change calculated particle counts less than zero to NaN--##
+nuc_particles = np.where(nuc_particles >= 0, nuc_particles, np.nan)
+
+##--Append the dataframe with nucleated particles--##
+df['nuc_particles'] = nuc_particles
+
+##--Define number of bins here--##
+num_bins = 124
+
+##--Compute the minimum and maximum altitude, ignoring NaNs--##
+min_ptemp = df['PTemp'].min(skipna=True)
+max_ptemp = df['PTemp'].max(skipna=True)
+
+##--Create bin edges from min_alt to max_alt--##
+bin_edges = np.linspace(min_ptemp, max_ptemp, num_bins + 1)
+
+##--Pandas 'cut' splits altitude data into specified number of bins--##
+df['PTemp_bin'] = pd.cut(df['PTemp'], bins=bin_edges)
+
+##--Group variables into each altitude bin--## 
+##--Observed=false shows all bins, even empty ones--##
+binned_df = df.groupby('PTemp_bin', observed=False).agg(
+    
+   ##--Aggregate data by mean, min, and max--##
+    PTemp_center=('PTemp', 'median'), 
+    CPC10_conc_center=('CPC10_conc', 'median'), 
+    CPC10_conc_min=('CPC10_conc', 'min'),
+    CPC10_conc_max=('CPC10_conc', 'max'),
+    CPC10_conc_25th=('CPC10_conc', lambda x: x.quantile(0.25)),
+    CPC10_conc_75th=('CPC10_conc', lambda x: x.quantile(0.75)),
+    CPC3_conc_center=('CPC3_conc', 'median'), 
+    CPC3_conc_min=('CPC3_conc', 'min'),
+    CPC3_conc_max=('CPC3_conc', 'max'),
+    CPC3_conc_25th=('CPC3_conc', lambda x: x.quantile(0.25)),
+    CPC3_conc_75th=('CPC3_conc', lambda x: x.quantile(0.75)),
+    nuc_particles_center=('nuc_particles', 'median'), 
+    nuc_particles_min=('nuc_particles', 'min'),
+    nuc_particles_max=('nuc_particles', 'max'), 
+    nuc_particles_25th=('nuc_particles', lambda x: x.quantile(0.25)),
+    nuc_particles_75th=('nuc_particles', lambda x: x.quantile(0.75))
+    
+    ##--Reset the index so Altitude_bin is just a column--##
+).reset_index()
+
+################
+##--PLOTTING--##
+################
+
+##--Creates figure with 2 horizontally stacked subplots sharing a y-axis--##
+fig, axs = plt.subplots(1, 3, figsize=(9, 6), sharey=True)
+
+##--First subplot: 10+ nm Particles vs PTemp--##
+
+##--Averaged data in each bin is plotted against bin center--##
+axs[0].plot(binned_df['CPC10_conc_center'], binned_df['PTemp_center'], color='maroon', label='CPC 10')
+##--Range is given by filling between data minimum and maximum for each bin--##
+axs[0].fill_betweenx(binned_df['PTemp_center'], binned_df['CPC10_conc_min'], 
+                     binned_df['CPC10_conc_max'], color='indianred', alpha=0.25)
+axs[0].fill_betweenx(binned_df['PTemp_center'], binned_df['CPC10_conc_25th'],
+                    binned_df['CPC10_conc_75th'], color='indianred', alpha=0.7)
+axs[0].set_ylabel('Potential Temperature (K)', fontsize=12)
+axs[0].set_title('N \u2265 10 nm')
+axs[0].set_xlim(-50, 2000)
+
+##--Add dashed horizontal lines for the polar dome boundaries--##
+##--Boundaries are defined from Bozem et al 2019 (ACP)--##
+axs[0].axhline(y=275, color='k', linestyle='--', linewidth=1)
+axs[0].axhline(y=299, color='k', linestyle='--', linewidth=1)
+
+##--Add text labels on the left-hand side within the plot area--##
+##--Compute midpoints for label placement--##
+polar_dome_label = 272
+marginal_polar_dome_label = 278
+x_text = axs[0].get_xlim()[0] + 750  # offset from left edge
+
+axs[0].text(x_text, polar_dome_label, 'Polar Dome',
+        rotation=0, fontsize=10, color='k',
+        verticalalignment='center', horizontalalignment='left')
+axs[0].text(x_text, marginal_polar_dome_label, 'Marginal Dome',
+        rotation=0, fontsize=10, color='k',
+        verticalalignment='center', horizontalalignment='left')
+
+##--Second subplot: 2.5+ nm Particles vs PTemp--##
+axs[1].plot(binned_df['CPC3_conc_center'], binned_df['PTemp_center'], color='saddlebrown', label='CPC 3')
+axs[1].fill_betweenx(binned_df['PTemp_center'], binned_df['CPC3_conc_min'], 
+                     binned_df['CPC3_conc_max'], color='sandybrown', alpha=0.25)
+axs[1].fill_betweenx(binned_df['PTemp_center'], binned_df['CPC3_conc_25th'],
+                    binned_df['CPC3_conc_75th'], color='sandybrown', alpha=1)
+axs[1].set_title('N \u2265 2.5 nm')
+axs[1].set_xlim(-50, 3200)
+
+axs[1].axhline(y=275, color='k', linestyle='--', linewidth=1)
+axs[1].axhline(y=299, color='k', linestyle='--', linewidth=1)
+
+##--Third subplot: Nuc particles vs PTemp--##
+axs[2].plot(binned_df['nuc_particles_center'], binned_df['PTemp_center'], color='darkslategray', label='CPC 3')
+#axs[2].fill_betweenx(binned_df['nuc_particles_center'], binned_df['nuc_particles_min'], 
+#                     binned_df['nuc_particles_max'], color='cadetblue', alpha=0.25)
+axs[2].fill_betweenx(binned_df['PTemp_center'], binned_df['nuc_particles_25th'],
+                    binned_df['nuc_particles_75th'], color='cadetblue', alpha=1)
+##--Subscript 3-10--##
+axs[2].set_title('$N_{2.5-10}$')
+axs[2].set_xlim(-50, 1500)
+
+axs[2].axhline(y=275, color='k', linestyle='--', linewidth=1)
+axs[2].axhline(y=299, color='k', linestyle='--', linewidth=1)
+
+##--Add one common x-axis label--##
+fig.supxlabel('Particle Concentration (counts/cm\u00b3)', fontsize=12)
+
+##--Use f-string to embed flight # variable in plot title--##
+plt.suptitle(f"Vertical Particle Count Profiles - {flight.replace('Flight', 'Flight ')}", fontsize=16)
+
+##--Adjusts layout to prevent overlapping--## 
+plt.tight_layout(rect=[0, -0.02, 1, 0.99])
+
+##--Base output path in directory--##
+output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\PTempBinnedData\Particle"
+
+##--Use f-string to save file with flight# appended--##
+output_path = f"{output_path}\\CPC_Data_{flight}"
+plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+
+plt.show()
