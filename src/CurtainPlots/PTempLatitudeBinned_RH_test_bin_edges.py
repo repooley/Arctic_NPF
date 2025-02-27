@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Jan 24 14:42:01 2025
+Created on Thu Feb 20 16:38:53 2025
 
 @author: repooley
 """
@@ -274,25 +274,30 @@ clean_w_df = w_df.dropna()
 clean_i_df = i_df.dropna()
 clean_temp_df = temp_df.dropna()
 
-##--Define number of bins here--##
+##--Define number of bins--##
 num_bins_lat = 4
 num_bins_ptemp = 12
 
-##--Determine bin edges--##
-w_lat_bin_edges = np.linspace(clean_w_df['Latitude'].min(), clean_w_df['Latitude'].max(), num_bins_lat + 1)
-w_ptemp_bin_edges = np.linspace(clean_w_df['PTemp'].min(), clean_w_df['PTemp'].max(), num_bins_ptemp + 1)
-i_lat_bin_edges = np.linspace(clean_i_df['Latitude'].min(), clean_i_df['Latitude'].max(), num_bins_lat +1)
-i_ptemp_bin_edges = np.linspace(clean_i_df['PTemp'].min(), clean_i_df['PTemp'].max(), num_bins_ptemp +1)
-temp_lat_bin_edges = np.linspace(clean_temp_df['Latitude'].min(), clean_temp_df['Latitude'].max(), num_bins_lat + 1)
-temp_ptemp_bin_edges = np.linspace(clean_temp_df['PTemp'].min(), clean_temp_df['PTemp'].max(), num_bins_ptemp +1)
+##--Compute global min/max values across all data BEFORE dropping NaNs--##
+lat_min, lat_max = np.nanmin(latitude), np.nanmax(latitude)
+ptemp_min, ptemp_max = np.nanmin(potential_temp), np.nanmax(potential_temp)
 
-##--Make 2d histogram and compute median RH in each bin--##
-RH_w_bin_medians, RH_w_x_edges, RH_w_y_edges, _ = binned_statistic_2d(clean_w_df['Latitude'], 
-    clean_w_df['PTemp'], clean_w_df['Relative_Humidity_w'], statistic='median', bins=[w_lat_bin_edges, w_ptemp_bin_edges])
-RH_i_bin_medians, RH_i_x_edges, RH_i_y_edges, _ = binned_statistic_2d(clean_i_df['Latitude'], 
-    clean_i_df['PTemp'], clean_i_df['Relative_Humidity_i'], statistic='median', bins=[i_lat_bin_edges, i_ptemp_bin_edges])
-temp_bin_medians, temp_x_edges, temp_y_edges, _ = binned_statistic_2d(clean_temp_df['Latitude'],
-    clean_temp_df['PTemp'], clean_temp_df['Temperature'], statistic='median', bins=[temp_lat_bin_edges, temp_ptemp_bin_edges])
+##--Generate common bin edges using specified number of bins--##
+common_lat_bin_edges = np.linspace(lat_min, lat_max, num_bins_lat + 1)
+common_ptemp_bin_edges = np.linspace(ptemp_min, ptemp_max, num_bins_ptemp + 1)
+
+##--Make 2D histogram using common bins--##
+RH_w_bin_medians, _, _, _ = binned_statistic_2d(
+    clean_w_df['Latitude'], clean_w_df['PTemp'], clean_w_df['Relative_Humidity_w'], 
+    statistic='median', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+
+RH_i_bin_medians, _, _, _ = binned_statistic_2d(
+    clean_i_df['Latitude'], clean_i_df['PTemp'], clean_i_df['Relative_Humidity_i'], 
+    statistic='median', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+
+temp_bin_medians, _, _, _ = binned_statistic_2d(
+    clean_temp_df['Latitude'], clean_temp_df['PTemp'], clean_temp_df['Temperature'], 
+    statistic='median', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
 
 ################
 ##--PLOTTING--##
@@ -306,8 +311,7 @@ new_cmap = plt.get_cmap('viridis')
 ##--Values under specified minimum will be white--##
 new_cmap.set_under('w')
 
-##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
-RH_w_plot = ax1.pcolormesh(RH_w_x_edges, RH_w_y_edges, RH_w_bin_medians.T,  # Transpose to align correctly
+RH_w_plot = ax1.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, RH_w_bin_medians.T,  
     shading='auto', cmap=new_cmap, vmin=0, vmax=120)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
@@ -325,7 +329,7 @@ ax1.set_xlabel('Latitude (°)', fontsize=16)
 ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=16)
 ax1.tick_params(axis='both', labelsize=16)
 ax1.set_title(f"Relative Humidity wrt Water - {flight.replace('Flight', 'Flight ')}", fontsize=18)
-#ax1.set_ylim(244, 301)
+ax1.set_ylim(244, 301)
 #ax1.set_xlim(82.4, 83.4)
 
 ##--Base output path in directory--##
@@ -341,7 +345,7 @@ plt.show()
 fig2, ax2 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
-RH_i_plot = ax2.pcolormesh(RH_i_x_edges, RH_i_y_edges, RH_i_bin_medians.T,  # Transpose to align correctly
+RH_i_plot = ax2.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, RH_i_bin_medians.T,  # Transpose to align correctly
     shading='auto', cmap=new_cmap, vmin=0, vmax=120)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
@@ -359,7 +363,7 @@ ax2.set_xlabel('Latitude (°)', fontsize=16)
 ax2.set_ylabel('Potential Temperature \u0398 (K)', fontsize=16)
 ax2.tick_params(axis='both', labelsize=16)
 ax2.set_title(f"Relative Humidity wrt Ice - {flight.replace('Flight', 'Flight ')}", fontsize=18)
-#ax2.set_ylim(244, 301)
+ax2.set_ylim(244, 301)
 #ax2.set_xlim(82.4, 83.4)
 
 ##--Base output path in directory--##
@@ -375,7 +379,7 @@ plt.show()
 fig3, ax3 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
-temp_plot = ax3.pcolormesh(temp_x_edges, temp_y_edges, temp_bin_medians.T,  # Transpose to align correctly
+temp_plot = ax3.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, temp_bin_medians.T,  # Transpose to align correctly
     shading='auto', cmap=new_cmap, vmin=200, vmax=300)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
@@ -393,7 +397,7 @@ ax3.set_xlabel('Latitude (°)', fontsize=16)
 ax3.set_ylabel('Potential Temperature \u0398 (K)', fontsize=16)
 ax3.tick_params(axis='both', labelsize=16)
 ax3.set_title(f"Absolute Temperature - {flight.replace('Flight', 'Flight ')}", fontsize=18)
-#ax3.set_ylim(244, 301)
+ax3.set_ylim(244, 301)
 #ax3.set_xlim(82.4, 83.4)
 
 ##--Base output path in directory--##
@@ -414,11 +418,11 @@ plt.show()
 
 ##--RH wrt water counts per bin data--##
 RH_w_bin_counts, _, _, _ = binned_statistic_2d(clean_w_df['Latitude'], 
-    clean_w_df['PTemp'], clean_w_df['Relative_Humidity_w'], statistic='count', bins=[w_lat_bin_edges, w_ptemp_bin_edges])
+    clean_w_df['PTemp'], clean_w_df['Relative_Humidity_w'], statistic='count', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
  
 ##--RH wrt ice counts per bin data--##
 RH_i_bin_counts, _, _, _ = binned_statistic_2d(clean_i_df['Latitude'], 
-    clean_i_df['PTemp'], clean_i_df['Relative_Humidity_i'], statistic='count', bins=[i_lat_bin_edges, i_ptemp_bin_edges])
+    clean_i_df['PTemp'], clean_i_df['Relative_Humidity_i'], statistic='count', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
 
 ##--Plotting--##
 
@@ -431,7 +435,7 @@ new_cmap = plt.get_cmap('inferno')
 new_cmap.set_under('w')
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
-RH_w_diag_plot = ax1.pcolormesh(RH_w_x_edges, RH_w_y_edges, RH_w_bin_counts.T,  # Transpose to align correctly
+RH_w_diag_plot = ax1.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, RH_w_bin_counts.T,  # Transpose to align correctly
     shading='auto', cmap=new_cmap, vmin=1, vmax=1250)
 
 ##--Add colorbar--##
@@ -459,7 +463,7 @@ plt.show()
 fig2, ax2 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
-RH_i_plot = ax2.pcolormesh(RH_i_x_edges, RH_i_y_edges, RH_i_bin_counts.T,  # Transpose to align correctly
+RH_i_plot = ax2.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, RH_i_bin_counts.T,  # Transpose to align correctly
     shading='auto', cmap=new_cmap, vmin=1, vmax=1250)
 
 ##--Add colorbar--##

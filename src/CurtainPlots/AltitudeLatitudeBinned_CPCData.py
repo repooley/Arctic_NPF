@@ -21,7 +21,7 @@ from scipy.stats import binned_statistic_2d
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight8" # Flight1 AIMMS file currently broken at line 13234
+flight = "Flight9" # Flight1 AIMMS file currently broken at line 13234
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -33,6 +33,7 @@ def find_files(directory, flight, partial_name):
 ##--Meterological data from AIMMS monitoring system--##
 aimms = icartt.Dataset(find_files(directory, flight, "AIMMS_POLAR6")[0])
 
+##--Not pulling properly for flight 6, unsure why--##
 ##--CPC data--##
 CPC10 = icartt.Dataset(find_files(directory, flight, 'CPC3772')[0])
 CPC3 = icartt.Dataset(find_files(directory, flight, 'CPC3776')[0])
@@ -154,8 +155,8 @@ nuc_particles = np.where(nuc_particles >= 0, nuc_particles, np.nan)
 CPC_df['nuc_particles'] = nuc_particles
 
 ##--Define number of bins here--##
-num_bins_lat = 5
-num_bins_alt = 15
+num_bins_lat = 8
+num_bins_alt = 12
 
 ##--Determine CPC3 bin edges--##
 CPC3_lat_bin_edges = np.linspace(CPC_df['Latitude'].min(), CPC_df['Latitude'].max(), num_bins_lat + 1)
@@ -249,17 +250,19 @@ fig3, ax3 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot and use viridis for values greater than 1--##
 nuc_plot = ax3.pcolormesh(nuc_x_edges, nuc_y_edges, nuc_bin_medians.T,  # Transpose to align correctly
-    shading='auto', cmap=new_cmap, vmin=0, vmax=1600)
+    shading='auto', cmap=new_cmap, vmin=0, vmax=1200)
 
 ##--Add colorbar--##
 cb3 = fig3.colorbar(nuc_plot, ax=ax3)
 cb3.minorticks_on()
-cb3.set_label('2.5-10 nm Particles $(Counts/cm^{3})$', fontsize=12)
+cb.ax.tick_params(labelsize=16)
+cb3.set_label('2.5-10 nm Particles $(Counts/cm^{3})$', fontsize=16)
 
 ##--Set axis labels--##
-ax3.set_xlabel('Latitude (°)', fontsize=12)
-ax3.set_ylabel('Altitude (m)', fontsize=12)
-ax3.set_title(f"2.5-10 nm Particle Abundance - {flight.replace('Flight', 'Flight ')}")
+ax3.set_xlabel('Latitude (°)', fontsize=16)
+ax3.set_ylabel('Altitude (m)', fontsize=16)
+ax3.tick_params(axis='both', labelsize=16)
+ax3.set_title(f"2.5-10 nm Particle Abundance - {flight.replace('Flight', 'Flight ')}", fontsize=18)
 #ax3.set_ylim(0, 6250)
 #ax3.set_xlim(79.5, 83.7)
 

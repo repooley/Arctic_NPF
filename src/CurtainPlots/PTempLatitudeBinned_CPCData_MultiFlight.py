@@ -35,7 +35,7 @@ def find_files(flight_dir, partial_name):
 ##--Choose which flights to analyze here!--##
 ##--Flight1 AIMMS currently broken, no CPC3 data for Flight4--##
 ##--Flights 9 and 10 are in a different region, plot separately--##
-flights_to_analyze = ["Flight2", "Flight3", "Flight5", "Flight6", "Flight7"]
+flights_to_analyze = ["Flight2", "Flight3", "Flight5", "Flight6", "Flight7", "Flight8", "Flight9", "Flight10"]
  
 ##--Store processed data here: --##
 CPC3_dfs = []
@@ -209,8 +209,8 @@ for flight in flights_to_analyze:
 ###########################
  
 ##--Define number of bins here--##
-num_bins_lat = 5
-num_bins_ptemp = 15
+num_bins_lat = 12
+num_bins_ptemp = 14
  
 ##--Binning for CPC3 data--##
 all_latitudes_CPC3 = np.concatenate([df["Latitude"].values for df in CPC3_dfs])
@@ -262,13 +262,15 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, o
     ##--Add colorbar--##
     cb = fig.colorbar(mesh, ax=ax)
     cb.minorticks_on()
-    cb.set_label(cbar_label, fontsize=12)
+    cb.ax.tick_params(labelsize=16)
+    cb.set_label(cbar_label, fontsize=16)
     
     ##--Add dashed horizontal lines for the polar dome boundaries--##
     ##--Boundaries are defined from Bozem et al 2019 (ACP)--##
     ax.axhline(y=275, color='k', linestyle='--', linewidth=1)
     ax.axhline(y=299, color='k', linestyle='--', linewidth=1)
     
+    '''
     ##--Add text labels on the left-hand side within the plot area--##
     ##--Compute midpoints for label placement--##
     polar_dome_mid = (238 + 275) / 2
@@ -281,13 +283,14 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, o
     ax.text(x_text, marginal_polar_dome_mid, 'Marginal Polar Dome',
             rotation=90, fontsize=10, color='k',
             verticalalignment='center', horizontalalignment='center')
- 
+    '''
     ##--Set axis labels and title--##
-    ax.set_xlabel("Latitude (°)", fontsize=12)
-    ax.set_ylabel("Potential Temperature \u0398 (K)", fontsize=12)
-    ax.set_title(title)
-    ax.set_ylim(238, 301)
-    ax.set_xlim(79.5, 83.7)
+    ax.set_xlabel("Latitude (°)", fontsize=16)
+    ax.set_ylabel("Potential Temperature \u0398 (K)", fontsize=16)
+    ax.tick_params(axis='both', labelsize=16)
+    ax.set_title(title, fontsize=18)
+    #ax.set_ylim(238, 301)
+    #ax.set_xlim(79.5, 83.7)
  
     ##--Save the plot--##
     plt.savefig(output_path, dpi=600, bbox_inches="tight")
@@ -344,12 +347,14 @@ def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label, ou
     ##--Add colorbar--##
     cb = fig.colorbar(mesh, ax=ax)
     cb.minorticks_on()
-    cb.set_label(cbar_label, fontsize=12)
+    cb.ax.tick_params(labelsize=16)
+    cb.set_label(cbar_label, fontsize=16)
     
     ##--Add dashed horizontal lines for the polar dome boundaries--##
     ax.axhline(y=275, color='k', linestyle='--', linewidth=1)
     ax.axhline(y=299, color='k', linestyle='--', linewidth=1)
     
+    '''
     ##--Add labels on the left-hand side within the plot area--##
     polar_dome_mid = (238 + 275) / 2
     marginal_polar_dome_mid = (275 + 299) / 2
@@ -361,13 +366,15 @@ def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label, ou
     ax.text(x_text, marginal_polar_dome_mid, 'Marginal Polar Dome',
             rotation=90, fontsize=10, color='k',
             verticalalignment='center', horizontalalignment='center')
+    '''
  
     ##--Set axis labels and title--##
-    ax.set_xlabel("Latitude (°)", fontsize=12)
-    ax.set_ylabel("Potential Temperature Θ (K)", fontsize=12)
-    ax.set_title(title)
-    ax.set_ylim(238, 301)
-    ax.set_xlim(79.5, 83.7)
+    ax.set_xlabel("Latitude (°)", fontsize=16)
+    ax.set_ylabel("Potential Temperature Θ (K)", fontsize=16)
+    ax.tick_params(axis='both', labelsize=16)
+    ax.set_title(title, fontsize=18)
+    #ax.set_ylim(238, 301)
+    #ax.set_xlim(79.5, 83.7)
  
     ##--Save the plot--##
     plt.savefig(output_path, dpi=600, bbox_inches="tight")
