@@ -21,7 +21,7 @@ from scipy.stats import binned_statistic_2d
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight2" # Flight1 AIMMS file currently broken at line 13234
+flight = "Flight1" 
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -271,25 +271,30 @@ clean_O3_df = O3_df.dropna()
 clean_CO_df = CO_df.dropna()
 clean_CO2_df = CO2_df.dropna()
 
-##--Define number of bins here--##
+##--Define number of bins--##
 num_bins_lat = 4
-num_bins_ptemp = 12
+num_bins_ptemp = 8
 
-##--Determine bin edges--##
-O3_lat_bin_edges = np.linspace(clean_O3_df['Latitude'].min(), clean_O3_df['Latitude'].max(), num_bins_lat + 1)
-O3_ptemp_bin_edges = np.linspace(clean_O3_df['PTemp'].min(), clean_O3_df['PTemp'].max(), num_bins_ptemp + 1)
-CO_lat_bin_edges = np.linspace(clean_CO_df['Latitude'].min(), clean_CO_df['Latitude'].max(), num_bins_lat +1)
-CO_ptemp_bin_edges = np.linspace(clean_CO_df['PTemp'].min(), clean_CO_df['PTemp'].max(), num_bins_ptemp +1)
-CO2_lat_bin_edges = np.linspace(clean_CO2_df['Latitude'].min(), clean_CO2_df['Latitude'].max(), num_bins_lat +1)
-CO2_ptemp_bin_edges = np.linspace(clean_CO2_df['PTemp'].min(), clean_CO2_df['PTemp'].max(), num_bins_ptemp +1)
+##--Compute global min/max values across all data BEFORE dropping NaNs--##
+lat_min, lat_max = np.nanmin(latitude), np.nanmax(latitude)
+ptemp_min, ptemp_max = np.nanmin(potential_temp), np.nanmax(potential_temp)
 
-##--Make 2d histogram and compute median in each bin--##
-O3_bin_medians, O3_x_edges, O3_y_edges, _ = binned_statistic_2d(clean_O3_df['Latitude'], 
-    clean_O3_df['PTemp'], clean_O3_df['O3_conc'], statistic='median', bins=[O3_lat_bin_edges, O3_ptemp_bin_edges])
-CO_bin_medians, CO_x_edges, CO_y_edges, _ = binned_statistic_2d(clean_CO_df['Latitude'], 
-    clean_CO_df['PTemp'], clean_CO_df['CO_conc'], statistic='median', bins=[CO_lat_bin_edges, CO_ptemp_bin_edges])
-CO2_bin_medians, CO2_x_edges, CO2_y_edges, _ = binned_statistic_2d(clean_CO2_df['Latitude'], 
-    clean_CO2_df['PTemp'], clean_CO2_df['CO2_conc'], statistic='median', bins=[CO2_lat_bin_edges, CO2_ptemp_bin_edges])
+##--Generate common bin edges using specified number of bins--##
+common_lat_bin_edges = np.linspace(lat_min, lat_max, num_bins_lat + 1)
+common_ptemp_bin_edges = np.linspace(ptemp_min, ptemp_max, num_bins_ptemp + 1)
+
+##--Make 2D histogram using common bins--##
+CO_bin_medians, _, _, _ = binned_statistic_2d(
+    clean_CO_df['Latitude'], clean_CO_df['PTemp'], clean_CO_df['CO_conc'], 
+    statistic='median', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+
+O3_bin_medians, _, _, _ = binned_statistic_2d(
+    clean_O3_df['Latitude'], clean_O3_df['PTemp'], clean_O3_df['O3_conc'], 
+    statistic='median', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+
+CO2_bin_medians, _, _, _ = binned_statistic_2d(
+    clean_CO2_df['Latitude'], clean_CO2_df['PTemp'], clean_CO2_df['CO2_conc'], 
+    statistic='median', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
 
 ################
 ##--PLOTTING--##
@@ -305,7 +310,7 @@ new_cmap = plt.get_cmap('viridis')
 new_cmap.set_under('w')
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
-O3_plot = ax1.pcolormesh(O3_x_edges, O3_y_edges, O3_bin_medians.T,  # Transpose to align correctly
+O3_plot = ax1.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, O3_bin_medians.T,  # Transpose to align correctly
     shading='auto', cmap=new_cmap, vmin=0, vmax=80)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
@@ -339,7 +344,7 @@ plt.show()
 fig2, ax2 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
-CO_plot = ax2.pcolormesh(CO_x_edges, CO_y_edges, CO_bin_medians.T,  # Transpose to align correctly
+CO_plot = ax2.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, CO_bin_medians.T,  # Transpose to align correctly
     shading='auto', cmap=new_cmap, vmin=100, vmax=250)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
@@ -373,7 +378,7 @@ plt.show()
 fig3, ax3 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
-CO2_plot = ax3.pcolormesh(CO2_x_edges, CO2_y_edges, CO2_bin_medians.T,  # Transpose to align correctly
+CO2_plot = ax3.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, CO2_bin_medians.T,  # Transpose to align correctly
     shading='auto', cmap=new_cmap, vmin=400, vmax=410)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
@@ -412,15 +417,15 @@ plt.show()
 
 ##--Counts per bin for O3 data--##
 O3_bin_counts, _, _, _ = binned_statistic_2d(clean_O3_df['Latitude'], 
-    clean_O3_df['PTemp'], clean_O3_df['O3_conc'], statistic='count', bins=[O3_lat_bin_edges, O3_ptemp_bin_edges])
+    clean_O3_df['PTemp'], clean_O3_df['O3_conc'], statistic='count', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
  
 ##--Counts per bin for CPC10 data--##
 CO_bin_counts, _, _, _ = binned_statistic_2d(clean_CO_df['Latitude'], 
-    clean_CO_df['PTemp'], clean_CO_df['CO_conc'], statistic='count', bins=[CO_lat_bin_edges, CO_ptemp_bin_edges])
+    clean_CO_df['PTemp'], clean_CO_df['CO_conc'], statistic='count', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
  
 ##--Counts per bin for N3-10 particles--##
 CO2_bin_counts, _, _, _ = binned_statistic_2d(clean_CO2_df['Latitude'], 
-    clean_CO2_df['PTemp'], clean_CO2_df['CO2_conc'], statistic='count', bins=[CO2_lat_bin_edges, CO2_ptemp_bin_edges])
+    clean_CO2_df['PTemp'], clean_CO2_df['CO2_conc'], statistic='count', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
 
 ##--Plotting--##
 
@@ -434,7 +439,7 @@ new_cmap = plt.get_cmap('inferno')
 new_cmap.set_under('w')
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
-O3_plot = ax1.pcolormesh(O3_x_edges, O3_y_edges, O3_bin_counts.T,  # Transpose to align correctly
+O3_plot = ax1.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, O3_bin_counts.T,  # Transpose to align correctly
     shading='auto', cmap=new_cmap, vmin=1, vmax=150)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
@@ -468,7 +473,7 @@ plt.show()
 fig2, ax2 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
-CO_plot = ax2.pcolormesh(CO_x_edges, CO_y_edges, CO_bin_counts.T,  # Transpose to align correctly
+CO_plot = ax2.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, CO_bin_counts.T,  # Transpose to align correctly
     shading='auto', cmap=new_cmap, vmin=1, vmax=1500)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
@@ -502,7 +507,7 @@ plt.show()
 fig3, ax3 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
-CO2_plot = ax3.pcolormesh(CO2_x_edges, CO2_y_edges, CO2_bin_counts.T,  # Transpose to align correctly
+CO2_plot = ax3.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, CO2_bin_counts.T,  # Transpose to align correctly
     shading='auto', cmap=new_cmap, vmin=1, vmax=1500)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##

@@ -21,7 +21,7 @@ from scipy.stats import binned_statistic_2d
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight3" # Flight1 AIMMS file currently broken at line 13234
+flight = "Flight1"
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -178,25 +178,23 @@ nuc_clean_df = nuc_df.dropna()
 num_bins_lat = 4
 num_bins_ptemp = 12
 
-##--Determine CPC3 bin edges--##
-CPC3_lat_bin_edges = np.linspace(CPC3_clean_df['Latitude'].min(), CPC3_clean_df['Latitude'].max(), num_bins_lat + 1)
-CPC3_ptemp_bin_edges = np.linspace(CPC3_clean_df['PTemp'].min(), CPC3_clean_df['PTemp'].max(), num_bins_ptemp + 1)
+##--Compute global min/max values across all data BEFORE dropping NaNs--##
+lat_min, lat_max = np.nanmin(latitude), np.nanmax(latitude)
+ptemp_min, ptemp_max = np.nanmin(potential_temp), np.nanmax(potential_temp)
 
-##--Make 2d histogram for CPC3 and compute median particle abundance in each bin--##
-CPC3_bin_medians, CPC3_x_edges, CPC3_y_edges, _ = binned_statistic_2d(CPC3_clean_df['Latitude'], 
-    CPC3_clean_df['PTemp'], CPC3_clean_df['CPC3'], statistic='median', bins=[CPC3_lat_bin_edges, CPC3_ptemp_bin_edges])
+##--Generate common bin edges using specified number of bins--##
+common_lat_bin_edges = np.linspace(lat_min, lat_max, num_bins_lat + 1)
+common_ptemp_bin_edges = np.linspace(ptemp_min, ptemp_max, num_bins_ptemp + 1)
 
-##--Histogram for CPC10--##
-CPC10_lat_bin_edges = np.linspace(CPC10_clean_df['Latitude'].min(), CPC10_clean_df['Latitude'].max(), num_bins_lat + 1)
-CPC10_ptemp_bin_edges = np.linspace(CPC10_clean_df['PTemp'].min(), CPC10_clean_df['PTemp'].max(), num_bins_ptemp +1)
-CPC10_bin_medians, CPC10_x_edges, CPC10_y_edges, _ = binned_statistic_2d(CPC10_clean_df['Latitude'], 
-    CPC10_clean_df['PTemp'], CPC10_clean_df['CPC10'], statistic='median', bins=[CPC10_lat_bin_edges, CPC10_ptemp_bin_edges])
+##--Make 2D histograms using common bins--##
+CPC3_bin_medians, _, _, _ = binned_statistic_2d(CPC3_clean_df['Latitude'], 
+    CPC3_clean_df['PTemp'], CPC3_clean_df['CPC3'], statistic='median', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
 
-##--Histogram for nucleation mode particles--##
-nuc_lat_bin_edges = np.linspace(nuc_clean_df['Latitude'].min(), nuc_clean_df['Latitude'].max(), num_bins_lat +1)
-nuc_ptemp_bin_edges = np.linspace(nuc_clean_df['PTemp'].min(), nuc_clean_df['PTemp'].max(), num_bins_ptemp +1)
-nuc_bin_medians, nuc_x_edges, nuc_y_edges, _ = binned_statistic_2d(nuc_clean_df['Latitude'], 
-    nuc_clean_df['PTemp'], nuc_clean_df['nuc_particles'], statistic='median', bins=[nuc_lat_bin_edges, nuc_ptemp_bin_edges])
+CPC10_bin_medians, _, _, _ = binned_statistic_2d(CPC10_clean_df['Latitude'], 
+    CPC10_clean_df['PTemp'], CPC10_clean_df['CPC10'], statistic='median', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+
+nuc_bin_medians, _, _, _ = binned_statistic_2d(nuc_clean_df['Latitude'], 
+    nuc_clean_df['PTemp'], nuc_clean_df['nuc_particles'], statistic='median', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
 
 ################
 ##--PLOTTING--##
@@ -211,7 +209,7 @@ new_cmap = plt.get_cmap('viridis')
 new_cmap.set_under('w')
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
-CPC3_plot = ax1.pcolormesh(CPC3_x_edges, CPC3_y_edges, CPC3_bin_medians.T,  # Transpose to align correctly
+CPC3_plot = ax1.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, CPC3_bin_medians.T,  # Transpose to align correctly
     shading='auto', cmap=new_cmap, vmin=0, vmax=2500)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
@@ -246,7 +244,7 @@ plt.show()
 fig2, ax2 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot, set minimum for viridis colors as 1--##
-CPC10_plot = ax2.pcolormesh(CPC10_x_edges, CPC10_y_edges, CPC10_bin_medians.T,  # Transpose to align correctly
+CPC10_plot = ax2.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, CPC10_bin_medians.T,  # Transpose to align correctly
     shading='auto', cmap=new_cmap, vmin=0, vmax=2000)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
@@ -281,7 +279,7 @@ plt.show()
 fig3, ax3 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot and use viridis for values greater than 1--##
-nuc_plot = ax3.pcolormesh(nuc_x_edges, nuc_y_edges, nuc_bin_medians.T,  # Transpose to align correctly
+nuc_plot = ax3.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, nuc_bin_medians.T,  # Transpose to align correctly
     shading='auto', cmap=new_cmap, vmin=0, vmax=1000)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
@@ -321,15 +319,15 @@ plt.show()
 
 ##--Counts per bin for CPC3 data--##
 CPC3_bin_counts, _, _, _ = binned_statistic_2d(CPC3_clean_df['Latitude'], 
-    CPC3_clean_df['PTemp'], CPC3_clean_df['CPC3'], statistic='count', bins=[CPC3_lat_bin_edges, CPC3_ptemp_bin_edges])
+    CPC3_clean_df['PTemp'], CPC3_clean_df['CPC3'], statistic='count', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
  
 ##--Counts per bin for CPC10 data--##
 CPC10_bin_counts, _, _, _ = binned_statistic_2d(CPC10_clean_df['Latitude'], 
-    CPC10_clean_df['PTemp'], CPC10_clean_df['CPC10'], statistic='count', bins=[CPC10_lat_bin_edges, CPC10_ptemp_bin_edges])
+    CPC10_clean_df['PTemp'], CPC10_clean_df['CPC10'], statistic='count', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
 
 ##--Counts per bin for N3-10 particles--##
 nuc_bin_counts, _, _, _ = binned_statistic_2d(nuc_clean_df['Latitude'], 
-    nuc_clean_df['PTemp'], nuc_clean_df['nuc_particles'], statistic='count', bins=[nuc_lat_bin_edges, nuc_ptemp_bin_edges])
+    nuc_clean_df['PTemp'], nuc_clean_df['nuc_particles'], statistic='count', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
 
 ##--Plotting--##
 
@@ -342,7 +340,7 @@ new_cmap = plt.get_cmap('inferno')
 new_cmap.set_under('w')
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
-CPC3_plot = ax1.pcolormesh(CPC3_x_edges, CPC3_y_edges, CPC3_bin_counts.T,  # Transpose to align correctly
+CPC3_plot = ax1.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, CPC3_bin_counts.T,  # Transpose to align correctly
     shading='auto', cmap=new_cmap, vmin=1, vmax=1250)
 
 ##--Add colorbar--##
@@ -373,7 +371,7 @@ plt.show()
 fig2, ax2 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot, set minimum for viridis colors as 1--##
-CPC10_plot = ax2.pcolormesh(CPC10_x_edges, CPC10_y_edges, CPC10_bin_counts.T,  # Transpose to align correctly
+CPC10_plot = ax2.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, CPC10_bin_counts.T,  # Transpose to align correctly
     shading='auto', cmap=new_cmap, vmin=1, vmax=1250)
 
 ##--Add colorbar--##
@@ -404,7 +402,7 @@ plt.show()
 fig3, ax3 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot and use viridis for values greater than 1--##
-nuc_plot = ax3.pcolormesh(nuc_x_edges, nuc_y_edges, nuc_bin_counts.T,  # Transpose to align correctly
+nuc_plot = ax3.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, nuc_bin_counts.T,  # Transpose to align correctly
     shading='auto', cmap=new_cmap, vmin=1, vmax=1000)
 
 ##--Add colorbar--##
