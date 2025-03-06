@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight10" # Flight1 AIMMS file currently broken at line 13234
+flight = "Flight10" 
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -151,10 +151,46 @@ for T, P in zip(temperature, pressure):
     p_t = T*(p_0/P)**k
     potential_temp.append(p_t)
 
+#####################################
+##--Calculate std dev from zeroes--##        
+#####################################
+
+##--Pull datasets with zeros not filtered out--##
+##--Worth it to do flight by flight or no?--##
+CPC3_R1 = icartt.Dataset(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\CPC_R1\CPC3776_Polar6_20150408_R1_L2.ict")    
+CPC10_R1 = icartt.Dataset(r'C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\CPC_R1\CPC3772_Polar6_20150408_R1_L2.ict')
+CPC3_R1_conc = CPC3_R1.data['conc']
+CPC10_R1_conc = CPC10_R1.data['conc']
+
+##--Isolate zero periods, setting conservative upper limit of 50--##
+##--Numpy doesn't recognize -9999 as NaN, tell it to ignore these values--##
+CPC3_zeros_c = CPC3_R1_conc[(CPC3_R1_conc < 50) & (CPC3_R1_conc != -9999)]
+CPC10_zeros_c = CPC10_R1_conc[(CPC10_R1_conc < 50) & (CPC10_R1_conc != -99999)]
+
+##--Calculate standard deviation of zeros--##
+CPC3_sigma = np.std(CPC3_zeros_c, ddof=1)  # Use ddof=1 for sample standard deviation
+CPC10_sigma = np.std(CPC10_zeros_c, ddof=1)
+
+#############################
+##--Propagate uncertainty--##
+#############################
+
+##--The ICARTT files for CPC instruments say 10% uncertainty of meas value - feels conservative for large counts!--##
+##--Calculate the 3 sigma uncertainty for nucleating particles--##
+
+T_error = 0.3 # K, constant
+P_error = 100 + 0.0005*(pressure)
+
+##--Use formula for multiplication/division--##
+greater3nm_error = (CPC3_conc_aligned)*(((P_error)/(pressure))**2 + ((T_error)/(temperature))**2 + ((CPC3_sigma)/(CPC3_conc_aligned)))**(0.5)
+greater10nm_error = (CPC10_conc_aligned)*(((P_error)/(pressure))**2 + ((T_error)/(temperature))**2 + ((CPC10_sigma)/(CPC10_conc_aligned)))**(0.5)
+
+##--Use add/subtract forumula--##
+nuc_error_3sigma = (((greater3nm_error)**2 + (greater10nm_error)**2)**(0.5))*3
+
 ###############
 ##--BINNING--##
 ###############
-
 
 ##--Creates a Pandas dataframe with all variables--##
 df = pd.DataFrame({'PTemp': potential_temp,'CPC10_conc':CPC10_conc_STP, 'CPC3_conc':CPC3_conc_STP})
@@ -165,8 +201,11 @@ nuc_particles = (df['CPC3_conc'] - df['CPC10_conc'])
 ##--Change calculated particle counts less than zero to NaN--##
 nuc_particles = np.where(nuc_particles >= 0, nuc_particles, np.nan)
 
-##--Append the dataframe with nucleated particles--##
+##--Append the dataframe with nucleated particles and uncertainty--##
 df['nuc_particles'] = nuc_particles
+
+##--nuc_error_3sigma still has a time index, reset to integer to align--##
+df['nuc_error_3sigma'] = pd.Series(nuc_error_3sigma).reset_index(drop=True)
 
 ##--Define number of bins here--##
 num_bins = 124
@@ -201,7 +240,10 @@ binned_df = df.groupby('PTemp_bin', observed=False).agg(
     nuc_particles_min=('nuc_particles', 'min'),
     nuc_particles_max=('nuc_particles', 'max'), 
     nuc_particles_25th=('nuc_particles', lambda x: x.quantile(0.25)),
-    nuc_particles_75th=('nuc_particles', lambda x: x.quantile(0.75))
+    nuc_particles_75th=('nuc_particles', lambda x: x.quantile(0.75)),
+    
+    ##--Bin the uncertainty of nucleating particles--##
+    nuc_error_center=('nuc_error_3sigma', 'median')  
     
     ##--Reset the index so Altitude_bin is just a column--##
 ).reset_index()
@@ -216,7 +258,7 @@ fig, axs = plt.subplots(1, 3, figsize=(9, 6), sharey=True)
 ##--First subplot: 10+ nm Particles vs PTemp--##
 
 ##--Averaged data in each bin is plotted against bin center--##
-axs[0].plot(binned_df['CPC10_conc_center'], binned_df['PTemp_center'], color='maroon', label='CPC 10')
+axs[0].plot(binned_df['CPC10_conc_center'], binned_df['PTemp_center'], color='maroon')
 ##--Range is given by filling between data minimum and maximum for each bin--##
 axs[0].fill_betweenx(binned_df['PTemp_center'], binned_df['CPC10_conc_min'], 
                      binned_df['CPC10_conc_max'], color='indianred', alpha=0.25)
@@ -245,7 +287,7 @@ axs[0].text(x_text, marginal_polar_dome_label, 'Marginal Dome',
         verticalalignment='center', horizontalalignment='left')
 
 ##--Second subplot: 2.5+ nm Particles vs PTemp--##
-axs[1].plot(binned_df['CPC3_conc_center'], binned_df['PTemp_center'], color='saddlebrown', label='CPC 3')
+axs[1].plot(binned_df['CPC3_conc_center'], binned_df['PTemp_center'], color='saddlebrown')
 axs[1].fill_betweenx(binned_df['PTemp_center'], binned_df['CPC3_conc_min'], 
                      binned_df['CPC3_conc_max'], color='sandybrown', alpha=0.25)
 axs[1].fill_betweenx(binned_df['PTemp_center'], binned_df['CPC3_conc_25th'],
@@ -257,17 +299,23 @@ axs[1].axhline(y=275, color='k', linestyle='--', linewidth=1)
 axs[1].axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Third subplot: Nuc particles vs PTemp--##
-axs[2].plot(binned_df['nuc_particles_center'], binned_df['PTemp_center'], color='darkslategray', label='CPC 3')
+axs[2].plot(binned_df['nuc_particles_center'], binned_df['PTemp_center'], color='darkslategray')
 #axs[2].fill_betweenx(binned_df['nuc_particles_center'], binned_df['nuc_particles_min'], 
 #                     binned_df['nuc_particles_max'], color='cadetblue', alpha=0.25)
 axs[2].fill_betweenx(binned_df['PTemp_center'], binned_df['nuc_particles_25th'],
                     binned_df['nuc_particles_75th'], color='cadetblue', alpha=1)
+
+##--Plot uncertainty as its own trace--##
+axs[2].plot(binned_df['nuc_error_center'], binned_df['PTemp_center'], color='crimson', linestyle='dashed', label='3$\sigma$ Uncertainty')
+
 ##--Subscript 3-10--##
 axs[2].set_title('$N_{2.5-10}$')
 axs[2].set_xlim(-50, 1500)
 
 axs[2].axhline(y=275, color='k', linestyle='--', linewidth=1)
 axs[2].axhline(y=299, color='k', linestyle='--', linewidth=1)
+
+axs[2].legend()
 
 ##--Add one common x-axis label--##
 fig.supxlabel('Particle Concentration (counts/cm\u00b3)', fontsize=12)
