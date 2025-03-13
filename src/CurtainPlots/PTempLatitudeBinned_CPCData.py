@@ -13,15 +13,26 @@ import pandas as pd
 import matplotlib.pyplot as plt 
 from scipy.stats import binned_statistic_2d
 
-#########################
-##--Open ICARTT Files--##
-#########################
+###################
+##--User inputs--##
+###################
 
 ##--Set the base directory to project folder--##
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
-##--Select flight (Flight1 thru Flight10)--##
+##--Select flight to analyze (Flight1 thru Flight10)--##
 flight = "Flight1"
+
+##--Set binning for PTemp and Latitude--##
+num_bins_lat = 4
+num_bins_ptemp = 12
+
+##--Base output path for figures in directory--##
+output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\PTempLatitude"
+
+#########################
+##--Open ICARTT Files--##
+#########################
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -37,9 +48,9 @@ aimms = icartt.Dataset(find_files(directory, flight, "AIMMS_POLAR6")[0])
 CPC10 = icartt.Dataset(find_files(directory, flight, 'CPC3772')[0])
 CPC3 = icartt.Dataset(find_files(directory, flight, 'CPC3776')[0])
 
-#################
-##--Pull data--##
-#################
+#########################
+##--Pull & align data--##
+#########################
 
 ##--AIMMS Data--##
 altitude = aimms.data['Alt'] # in m
@@ -56,55 +67,15 @@ CPC10_conc = CPC10.data['conc'] # count/cm^3
 CPC3_time = CPC3.data['time']
 CPC3_conc = CPC3.data['conc'] # count/cm^3
 
-##################
-##--Align data--##
-##################
+##--Make CPC3 df and set index to CPC3 time--##
+CPC3_df = pd.DataFrame({'time': CPC3_time, 'conc': CPC3_conc}).set_index('time')
+##--Make a new df reindexed to aimms_time. Populate with CPC3 conc--##
+CPC3_conc_aligned = CPC3_df.reindex(aimms_time)['conc']
 
-##--Establish AIMMS start/stop times--##
-aimms_end = aimms_time.max()
-aimms_start = aimms_time.min()
-
-##--Handle CPC3 data with different start/stop times than AIMMS--##
-CPC3_time = CPC3.data['time']
-
-##--Trim CPC3 data if it starts before AIMMS--##
-if CPC3_time.min() < aimms_start:
-    mask_start = CPC3_time >= aimms_start
-    CPC3_time = CPC3_time[mask_start]
-    CPC3_conc = CPC3_conc[mask_start]
-    
-##--Append CPC3 data with NaNs if it ends before AIMMS--##
-if CPC3_time.max() < aimms_end: 
-    missing_times = np.arange(CPC3_time.max()+1, aimms_end +1)
-    CPC3_time = np.concatenate([CPC3_time, missing_times])
-    CPC3_conc = np.concatenate([CPC3_conc, [np.nan]*len(missing_times)])
-
-##--Create a DataFrame for CPC3 data and reindex to AIMMS time, setting non-overlapping times to nan--##
-CPC3_df = pd.DataFrame({'time': CPC3_time, 'conc': CPC3_conc})
-CPC3_aligned = CPC3_df.set_index('time').reindex(aimms_time)
-CPC3_aligned['conc']=CPC3_aligned['conc'].where(CPC3_aligned.index.isin(aimms_time), np.nan)
-CPC3_conc_aligned = CPC3_aligned['conc']
-
-##--Handle CPC10 data with different start/stop times than AIMMS--##
-CPC10_time = CPC10.data['time']
-
-##--Trim CPC10 data if it starts before AIMMS--##
-if CPC10_time.min() < aimms_start:
-    mask_start = CPC10_time >= aimms_start
-    CPC10_time = CPC10_time[mask_start]
-    CPC10_conc = CPC10_conc[mask_start]
-    
-##--Append CPC10 data with NaNs if it ends before AIMMS--##
-if CPC10_time.max() < aimms_end: 
-    missing_times = np.arange(CPC10_time.max()+1, aimms_end +1)
-    CPC10_time = np.concatenate([CPC10_time, missing_times])
-    CPC10_conc = np.concatenate([CPC10_conc, [np.nan]*len(missing_times)])
-
-##--Create a DataFrame for CPC10 data and reindex to AIMMS time, setting non-overlapping times to nan--##
-CPC10_df = pd.DataFrame({'time': CPC10_time, 'conc': CPC10_conc})
-CPC10_aligned = CPC10_df.set_index('time').reindex(aimms_time)
-CPC10_aligned['conc']=CPC10_aligned['conc'].where(CPC10_aligned.index.isin(aimms_time), np.nan)
-CPC10_conc_aligned = CPC10_aligned['conc']
+##--Make CPC10 df and set index to CPC10 time--##
+CPC10_df = pd.DataFrame({'time': CPC10_time, 'conc': CPC10_conc}).set_index('time')
+##--Make a new df reindexed to aimms_time. Populate with CPC10 conc--##
+CPC10_conc_aligned = CPC10_df.reindex(aimms_time)['conc']
 
 ######################
 ##--Convert to STP--##
@@ -174,10 +145,6 @@ nuc_particles = np.where(nuc_particles >= 0, nuc_particles, np.nan)
 nuc_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'nuc_particles': nuc_particles})
 nuc_clean_df = nuc_df.dropna()
 
-##--Define number of bins here--##
-num_bins_lat = 4
-num_bins_ptemp = 12
-
 ##--Compute global min/max values across all data BEFORE dropping NaNs--##
 lat_min, lat_max = np.nanmin(latitude), np.nanmax(latitude)
 ptemp_min, ptemp_max = np.nanmin(potential_temp), np.nanmax(potential_temp)
@@ -187,12 +154,15 @@ common_lat_bin_edges = np.linspace(lat_min, lat_max, num_bins_lat + 1)
 common_ptemp_bin_edges = np.linspace(ptemp_min, ptemp_max, num_bins_ptemp + 1)
 
 ##--Make 2D histograms using common bins--##
+##--CPC3--##
 CPC3_bin_medians, _, _, _ = binned_statistic_2d(CPC3_clean_df['Latitude'], 
     CPC3_clean_df['PTemp'], CPC3_clean_df['CPC3'], statistic='median', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
 
+##--CPC10--##
 CPC10_bin_medians, _, _, _ = binned_statistic_2d(CPC10_clean_df['Latitude'], 
     CPC10_clean_df['PTemp'], CPC10_clean_df['CPC10'], statistic='median', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
 
+##--N(2.5-10)--##
 nuc_bin_medians, _, _, _ = binned_statistic_2d(nuc_clean_df['Latitude'], 
     nuc_clean_df['PTemp'], nuc_clean_df['nuc_particles'], statistic='median', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
 
@@ -222,7 +192,7 @@ cb.minorticks_on()
 cb.ax.tick_params(labelsize=16)
 cb.set_label('Particles >2.5 nm $(Counts/cm^{3})$', fontsize=16)
 
-# Set axis labels
+##--Set axis labels--##
 ax1.set_xlabel('Latitude (°)', fontsize=16)
 ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=16)
 ax1.tick_params(axis='both', labelsize=16)
@@ -230,12 +200,9 @@ ax1.set_title(f"Particles >2.5 nm Abundance - {flight.replace('Flight', 'Flight 
 #ax1.set_ylim(238, 301)
 #ax1.set_xlim(79.5, 83.7)
 
-##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC3\PTempLatitude"
-
 ##--Use f-string to save file with flight# appended--##
-output_path = f"{output_path}\\{flight}"
-plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+CPC3_output_path = f"{output_path}\\{flight}"
+plt.savefig(CPC3_output_path, dpi=600, bbox_inches='tight') 
 
 plt.tight_layout()
 plt.show()
@@ -265,12 +232,9 @@ ax2.set_title(f"Particles >10 nm Abundance - {flight.replace('Flight', 'Flight '
 #ax2.set_ylim(238, 301)
 #ax2.set_xlim(79.5, 83.7)
 
-##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC10\PTempLatitude"
-
 ##--Use f-string to save file with flight# appended--##
-output_path = f"{output_path}\\{flight}"
-plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+CPC10_output_path = f"{output_path}\\{flight}"
+plt.savefig(CPC10_output_path, dpi=600, bbox_inches='tight') 
 
 plt.tight_layout()
 plt.show()
@@ -300,12 +264,9 @@ ax3.set_title(f"2.5-10 nm Particle Abundance - {flight.replace('Flight', 'Flight
 #ax3.set_ylim(238, 301)
 #ax3.set_xlim(79.5, 83.7)
 
-##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\PTempLatitude"
-
 ##--Use f-string to save file with flight# appended--##
-output_path = f"{output_path}\\{flight}"
-plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+nuc_output_path = f"{output_path}\\{flight}"
+plt.savefig(nuc_output_path, dpi=600, bbox_inches='tight') 
 
 plt.tight_layout()
 plt.show()
@@ -357,12 +318,9 @@ ax1.set_title(f"Particles >2.5 nm Counts per Bin - {flight.replace('Flight', 'Fl
 #ax1.set_ylim(238, 301)
 #ax1.set_xlim(79.5, 83.7)
 
-##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC3\PTempLatitude"
-
 ##--Use f-string to save file with flight# appended--##
-output_path = f"{output_path}\\{flight}_diagnostic"
-plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+CPC3_diag_output_path = f"{output_path}\\{flight}_diagnostic"
+plt.savefig(CPC3_diag_output_path, dpi=600, bbox_inches='tight') 
 
 plt.tight_layout()
 plt.show()
@@ -388,12 +346,9 @@ ax2.set_title(f"Particles >10 nm Counts per Bin - {flight.replace('Flight', 'Fli
 #ax2.set_ylim(238, 301)
 #ax2.set_xlim(79.5, 83.7)
 
-##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC10\PTempLatitude"
-
 ##--Use f-string to save file with flight# appended--##
-output_path = f"{output_path}\\{flight}_diagnostic"
-plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+CPC10_diag_output_path = f"{output_path}\\{flight}_diagnostic"
+plt.savefig(CPC10_diag_output_path, dpi=600, bbox_inches='tight') 
 
 plt.tight_layout()
 plt.show()
@@ -419,12 +374,9 @@ ax3.set_title(f"2.5-10 nm Particle Counts per Bin - {flight.replace('Flight', 'F
 #ax3.set_ylim(238, 301)
 #ax3.set_xlim(79.5, 83.7)
 
-##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\PTempLatitude"
-
 ##--Use f-string to save file with flight# appended--##
-output_path = f"{output_path}\\{flight}_diagnostic"
-plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+nuc_diag_output_path = f"{output_path}\\{flight}_diagnostic"
+plt.savefig(nuc_diag_output_path, dpi=600, bbox_inches='tight') 
 
 plt.tight_layout()
 plt.show()

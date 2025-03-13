@@ -13,13 +13,26 @@ import pandas as pd
 import matplotlib.pyplot as plt 
 from scipy.stats import binned_statistic_2d
  
-#########################
-##--Open ICARTT Files--##
-#########################
- 
+###################
+##--User inputs--##
+###################
+
 ##--Set the base directory to project folder--##
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw"
  
+##--Choose which flights to analyze here!--##
+flights_to_analyze = ["Flight1", "Flight2", "Flight3", "Flight4", "Flight5", "Flight6", "Flight7", "Flight8", "Flight9", "Flight10"]
+
+##--Set binning for PTemp and Latitude--##
+num_bins_lat = 10
+num_bins_alt = 15
+
+# Add global output path here
+
+#########################
+##--Open ICARTT Files--##
+#########################
+
 ##--Define a function to find all flight data--##
 def get_all_flights(directory):
     ##--flights are iteratively named Flight1, Flight2, etc--##
@@ -31,11 +44,6 @@ def get_all_flights(directory):
 def find_files(flight_dir, partial_name):
     search_pattern = os.path.join(flight_dir, f"*{partial_name}*")
     return sorted(glob.glob(search_pattern))
- 
-##--Choose which flights to analyze here!--##
-##--Flight1 AIMMS currently broken, no CPC3 data for Flight4--##
-##--Flights 9 and 10 are in a different region, plot separately--##
-flights_to_analyze = ["Flight2", "Flight3", "Flight5", "Flight6", "Flight7", "Flight8", "Flight9", "Flight10"]
  
 ##--Store processed data here: --##
 CPC3_dfs = []
@@ -69,9 +77,9 @@ for flight in flights_to_analyze:
         print(f"Missing CPC data for {flight}. Skipping...")
         continue
  
-    #################
-    ##--Pull data--##
-    #################
+    #########################
+    ##--Pull & align data--##
+    #########################
     
     ##--AIMMS Data--##
     altitude = aimms.data['Alt'] # in m
@@ -88,55 +96,15 @@ for flight in flights_to_analyze:
     CPC3_time = CPC3.data['time']
     CPC3_conc = CPC3.data['conc'] # count/cm^3
     
-    ##################
-    ##--Align data--##
-    ##################
+    ##--Make CPC3 df and set index to CPC3 time--##
+    CPC3_df = pd.DataFrame({'time': CPC3_time, 'conc': CPC3_conc}).set_index('time')
+    ##--Make a new df reindexed to aimms_time. Populate with CPC3 conc--##
+    CPC3_conc_aligned = CPC3_df.reindex(aimms_time)['conc']
     
-    ##--Establish AIMMS start/stop times--##
-    aimms_end = aimms_time.max()
-    aimms_start = aimms_time.min()
-    
-    ##--Handle CPC3 data with different start/stop times than AIMMS--##
-    CPC3_time = CPC3.data['time']
-    
-    ##--Trim CPC3 data if it starts before AIMMS--##
-    if CPC3_time.min() < aimms_start:
-        mask_start = CPC3_time >= aimms_start
-        CPC3_time = CPC3_time[mask_start]
-        CPC3_conc = CPC3_conc[mask_start]
-        
-    ##--Append CPC3 data with NaNs if it ends before AIMMS--##
-    if CPC3_time.max() < aimms_end: 
-        missing_times = np.arange(CPC3_time.max()+1, aimms_end +1)
-        CPC3_time = np.concatenate([CPC3_time, missing_times])
-        CPC3_conc = np.concatenate([CPC3_conc, [np.nan]*len(missing_times)])
-        
-    ##--Create a DataFrame for CPC3 data and reindex to AIMMS time, setting non-overlapping times to nan--##
-    CPC3_df = pd.DataFrame({'time': CPC3_time, 'conc': CPC3_conc})
-    CPC3_aligned = CPC3_df.set_index('time').reindex(aimms_time)
-    CPC3_aligned['conc']=CPC3_aligned['conc'].where(CPC3_aligned.index.isin(aimms_time), np.nan)
-    CPC3_conc_aligned = CPC3_aligned['conc']
-    
-    ##--Handle CPC10 data with different start/stop times than AIMMS--##
-    CPC10_time = CPC10.data['time']
-    
-    ##--Trim CPC10 data if it starts before AIMMS--##
-    if CPC10_time.min() < aimms_start:
-        mask_start = CPC10_time >= aimms_start
-        CPC10_time = CPC10_time[mask_start]
-        CPC10_conc = CPC10_conc[mask_start]
-        
-    ##--Append CPC10 data with NaNs if it ends before AIMMS--##
-    if CPC10_time.max() < aimms_end: 
-        missing_times = np.arange(CPC10_time.max()+1, aimms_end +1)
-        CPC10_time = np.concatenate([CPC10_time, missing_times])
-        CPC10_conc = np.concatenate([CPC10_conc, [np.nan]*len(missing_times)])
-        
-    ##--Create a DataFrame for CPC10 data and reindex to AIMMS time, setting non-overlapping times to nan--##
-    CPC10_df = pd.DataFrame({'time': CPC10_time, 'conc': CPC10_conc})
-    CPC10_aligned = CPC10_df.set_index('time').reindex(aimms_time)
-    CPC10_aligned['conc']=CPC10_aligned['conc'].where(CPC10_aligned.index.isin(aimms_time), np.nan)
-    CPC10_conc_aligned = CPC10_aligned['conc']
+    ##--Make CPC10 df and set index to CPC10 time--##
+    CPC10_df = pd.DataFrame({'time': CPC10_time, 'conc': CPC10_conc}).set_index('time')
+    ##--Make a new df reindexed to aimms_time. Populate with CPC10 conc--##
+    CPC10_conc_aligned = CPC10_df.reindex(aimms_time)['conc']
     
     ######################
     ##--Convert to STP--##
@@ -196,11 +164,7 @@ for flight in flights_to_analyze:
 ###########################
 ##--Prepare for Binning--##
 ###########################
- 
-##--Define number of bins here--##
-num_bins_lat = 10
-num_bins_alt = 15
- 
+
 ##--Binning for CPC3 data--##
 all_latitudes_CPC3 = np.concatenate([df["Latitude"].values for df in CPC3_dfs])
 all_altitudes_CPC3 = np.concatenate([df["Altitude"].values for df in CPC3_dfs])

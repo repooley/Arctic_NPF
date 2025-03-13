@@ -13,15 +13,26 @@ import pandas as pd
 import matplotlib.pyplot as plt 
 from scipy.stats import binned_statistic_2d
 
-#########################
-##--Open ICARTT Files--##
-#########################
+###################
+##--User inputs--##
+###################
 
 ##--Set the base directory to project folder--##
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight1" #Issue with AIMMS time not aligning for flight 1
+flight = "Flight1" 
+
+##--Define number of bins--##
+num_bins_lat = 4
+num_bins_ptemp = 12
+
+##--Base output path for figures in directory--##
+output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude"
+
+#########################
+##--Open ICARTT Files--##
+#########################
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -33,100 +44,26 @@ def find_files(directory, flight, partial_name):
 ##--Meterological data from AIMMS monitoring system--##
 aimms = icartt.Dataset(find_files(directory, flight, "AIMMS_POLAR6")[0])
 
-##--CPC data--##
-CPC10 = icartt.Dataset(find_files(directory, flight, 'CPC3772')[0])
-CPC3 = icartt.Dataset(find_files(directory, flight, 'CPC3776')[0])
-
 ##--Water mixing data--##
 H2O = icartt.Dataset(find_files(directory, flight, 'H2O')[0])
 
-#################
-##--Pull data--##
-#################
+#########################
+##--Pull & align data--##
+#########################
 
 ##--AIMMS Data--##
 altitude = aimms.data['Alt'] # in m
 latitude = aimms.data['Lat'] # in degrees
-temperature = aimms.data['Temp'] # in C
+temperature = aimms.data['Temp'] 
 pressure = aimms.data['BP'] # in pa
 aimms_time =aimms.data['TimeWave'] # seconds since midnight
 
-##--10 nm CPC data--##
+##--H2O data--##
 H2O_time = H2O.data['Time_UTC'] # seconds since midnight
 H2O_conc = H2O.data['H2O_ppmv'] # ppmv
 
-##--10 nm CPC data--##
-CPC10_time = CPC10.data['time']
-CPC10_conc = CPC10.data['conc'] # count/cm^3
-
-##--2.5 nm CPC data--##
-CPC3_time = CPC3.data['time']
-CPC3_conc = CPC3.data['conc'] # count/cm^3
-
-##################
-##--Align data--##
-##################
-
-##--Establish AIMMS start/stop times--##
-aimms_end = aimms_time.max()
-aimms_start = aimms_time.min()
-
-##--Trim H2O data if it starts before AIMMS--##
-if H2O_time.min() < aimms_start:
-    mask_start = H2O_time >= aimms_start
-    H2O_time = H2O_time[mask_start]
-    H2O_conc = H2O_conc[mask_start]
-    
-##--Append H2O data with NaNs if it ends before AIMMS--##
-if H2O_time.max() < aimms_end: 
-    missing_times = np.arange(H2O_time.max()+1, aimms_end +1)
-    H2O_time = np.concatenate([H2O_time, missing_times])
-    H2O_conc = np.concatenate([H2O_conc, [np.nan]*len(missing_times)])
-
-##--Create a DataFrame for H2O data and reindex to AIMMS time, setting non-overlapping times to nan--##
-H2O_df = pd.DataFrame({'Time_UTC': H2O_time, 'H2O_ppmv': H2O_conc})
-H2O_aligned = H2O_df.set_index('Time_UTC').reindex(aimms_time)
-H2O_aligned['H2O_ppmv']=H2O_aligned['H2O_ppmv'].where(H2O_aligned.index.isin(aimms_time), np.nan)
-H2O_conc_aligned = H2O_aligned['H2O_ppmv']
-
-##--Trim CPC3 data if it starts before AIMMS--##
-if CPC3_time.min() < aimms_start:
-    mask_start = CPC3_time >= aimms_start
-    CPC3_time = CPC3_time[mask_start]
-    CPC3_conc = CPC3_conc[mask_start]
-    
-##--Append CPC3 data with NaNs if it ends before AIMMS--##
-if CPC3_time.max() < aimms_end: 
-    missing_times = np.arange(CPC3_time.max()+1, aimms_end +1)
-    CPC3_time = np.concatenate([CPC3_time, missing_times])
-    CPC3_conc = np.concatenate([CPC3_conc, [np.nan]*len(missing_times)])
-
-##--Create a DataFrame for CPC3 data and reindex to AIMMS time, setting non-overlapping times to nan--##
-CPC3_df = pd.DataFrame({'time': CPC3_time, 'conc': CPC3_conc})
-CPC3_aligned = CPC3_df.set_index('time').reindex(aimms_time)
-CPC3_aligned['conc']=CPC3_aligned['conc'].where(CPC3_aligned.index.isin(aimms_time), np.nan)
-CPC3_conc_aligned = CPC3_aligned['conc']
-
-##--Handle CPC10 data with different start/stop times than AIMMS--##
-CPC10_time = CPC10.data['time']
-
-##--Trim CPC10 data if it starts before AIMMS--##
-if CPC10_time.min() < aimms_start:
-    mask_start = CPC10_time >= aimms_start
-    CPC10_time = CPC10_time[mask_start]
-    CPC10_conc = CPC10_conc[mask_start]
-    
-##--Append CPC10 data with NaNs if it ends before AIMMS--##
-if CPC10_time.max() < aimms_end: 
-    missing_times = np.arange(CPC10_time.max()+1, aimms_end +1)
-    CPC10_time = np.concatenate([CPC10_time, missing_times])
-    CPC10_conc = np.concatenate([CPC10_conc, [np.nan]*len(missing_times)])
-
-##--Create a DataFrame for CPC10 data and reindex to AIMMS time, setting non-overlapping times to nan--##
-CPC10_df = pd.DataFrame({'time': CPC10_time, 'conc': CPC10_conc})
-CPC10_aligned = CPC10_df.set_index('time').reindex(aimms_time)
-CPC10_aligned['conc']=CPC10_aligned['conc'].where(CPC10_aligned.index.isin(aimms_time), np.nan)
-CPC10_conc_aligned = CPC10_aligned['conc']
+H2O_df = pd.DataFrame({'time': H2O_time, 'conc': H2O_conc}).set_index('time')
+H2O_conc_aligned = H2O_df.reindex(aimms_time)['conc']
 
 ###################
 ##--Conversions--##
@@ -216,52 +153,9 @@ for T, P in zip(temperature_k, pressure):
     p_t = T*(p_0/P)**k
     potential_temp.append(p_t)
 
-##--Convert particle data to STP--##
-
-P_STP = 101325  # Pa
-T_STP = 273.15  # K
-
-##--Create empty list for CPC3 particles--##
-CPC3_conc_STP = []
-
-for CPC3, T, P in zip(CPC3_conc_aligned, temperature, pressure):
-    if np.isnan(CPC3) or np.isnan(T) or np.isnan(P):
-        ##--Append with NaN if any input is NaN--##
-        CPC3_conc_STP.append(np.nan)
-    else:
-        ##--Perform conversion if all inputs are valid--##
-        CPC3_conversion = CPC3 * (P_STP / P) * (T / T_STP)
-        CPC3_conc_STP.append(CPC3_conversion)
-    
-##--Create empty list for CPC10 particles--##
-CPC10_conc_STP = []
-
-for CPC10, T, P in zip(CPC10_conc_aligned, temperature, pressure):
-    if np.isnan(CPC10) or np.isnan(T) or np.isnan(P):
-        ##--Append with NaN if any input is NaN--##
-        CPC10_conc_STP.append(np.nan)
-    else:
-        ##--Perform conversion if all inputs are valid--##
-        CPC10_conversion = CPC10 * (P_STP / P) * (T / T_STP)
-        CPC10_conc_STP.append(CPC10_conversion)
-
 ###########################
 ##--Create 2D histogram--##
 ###########################
-
-##--Float type NaNs in potential_temp cannot convert to int, so must be removed--##
-CPC3_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'CPC3':CPC3_conc_STP})
-CPC3_clean_df = CPC3_df.dropna()
-
-##--Make separate df for CPC10 and N3-10 to preserve as much data as possible--##
-CPC10_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'CPC10': CPC10_conc_STP})
-CPC10_clean_df = CPC10_df.dropna()
-
-##--Calculate N3-10 particles--##
-nuc_particles = (CPC3_df['CPC3'] - CPC10_df['CPC10'])
-
-##--Change calculated particle counts less than zero to NaN--##
-nuc_particles = np.where(nuc_particles >= 0, nuc_particles, np.nan)
 
 ##--Creates separate dfs to preserve data--##
 ##--Including nuc_particles downsizes dataset to instances of N3-10. Comment out if full dataset desired--##
@@ -273,10 +167,6 @@ temp_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'Temperat
 clean_w_df = w_df.dropna()
 clean_i_df = i_df.dropna()
 clean_temp_df = temp_df.dropna()
-
-##--Define number of bins--##
-num_bins_lat = 4
-num_bins_ptemp = 12
 
 ##--Compute global min/max values across all data BEFORE dropping NaNs--##
 lat_min, lat_max = np.nanmin(latitude), np.nanmax(latitude)
@@ -332,12 +222,9 @@ ax1.set_title(f"Relative Humidity wrt Water - {flight.replace('Flight', 'Flight 
 #ax1.set_ylim(244, 301)
 #ax1.set_xlim(82.4, 83.4)
 
-##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude"
-
 ##--Use f-string to save file with flight# appended--##
-output_path = f"{output_path}\\{flight}_RHwrtWater.png"
-plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+RH_w_output_path = f"{output_path}\\{flight}_RHwrtWater.png"
+plt.savefig(RH_w_output_path, dpi=600, bbox_inches='tight') 
 plt.tight_layout()
 plt.show()
 
@@ -366,12 +253,9 @@ ax2.set_title(f"Relative Humidity wrt Ice - {flight.replace('Flight', 'Flight ')
 #ax2.set_ylim(244, 301)
 #ax2.set_xlim(82.4, 83.4)
 
-##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude"
-
 ##--Use f-string to save file with flight# appended--##
-output_path = f"{output_path}\\{flight}_RHwrtIce.png"
-plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+RH_i_output_path = f"{output_path}\\{flight}_RHwrtIce.png"
+plt.savefig(RH_i_output_path, dpi=600, bbox_inches='tight') 
 plt.tight_layout()
 plt.show()
 
@@ -400,12 +284,9 @@ ax3.set_title(f"Absolute Temperature - {flight.replace('Flight', 'Flight ')}", f
 #ax3.set_ylim(244, 301)
 #ax3.set_xlim(82.4, 83.4)
 
-##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude"
-
 ##--Use f-string to save file with flight# appended--##
-output_path = f"{output_path}\\{flight}_Temperature.png"
-plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+T_output_path = f"{output_path}\\{flight}_Temperature.png"
+plt.savefig(T_output_path, dpi=600, bbox_inches='tight') 
 plt.tight_layout()
 plt.show()
 
@@ -454,12 +335,9 @@ ax1.set_title(f"Relative Humidity wrt Water Counts per Bin - {flight.replace('Fl
 #ax1.set_ylim(238, 301)
 #ax1.set_xlim(82.4, 83.4)
 
-##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude"
-
 ##--Use f-string to save file with flight# appended--##
-output_path = f"{output_path}\\{flight}_RHwrtWater_diagnostic.png"
-plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+RH_w_diag_output_path = f"{output_path}\\{flight}_RHwrtWater_diagnostic.png"
+plt.savefig(RH_w_diag_output_path, dpi=600, bbox_inches='tight') 
 plt.tight_layout()
 plt.show()
 
@@ -486,12 +364,9 @@ ax2.set_title(f"Relative Humidity wrt Ice Counts per Bin - {flight.replace('Flig
 #ax2.set_ylim(238, 301)
 #ax2.set_xlim(79.5, 83.7)
 
-##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude"
-
 ##--Use f-string to save file with flight# appended--##
-output_path = f"{output_path}\\{flight}_RHwrtIce_diagnostic.png"
-plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+RH_i_output_path = f"{output_path}\\{flight}_RHwrtIce_diagnostic.png"
+plt.savefig(RH_i_output_path, dpi=600, bbox_inches='tight') 
 plt.tight_layout()
 plt.show()
 

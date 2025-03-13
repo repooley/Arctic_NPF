@@ -13,12 +13,23 @@ import pandas as pd
 import matplotlib.pyplot as plt 
 from scipy.stats import binned_statistic_2d
  
-#########################
-##--Open ICARTT Files--##
-#########################
+###################
+##--User inputs--##
+###################
  
 ##--Set the base directory to project folder--##
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw"
+
+##--Choose which flights to analyze here!--##
+flights_to_analyze = ["Flight1", "Flight2", "Flight3", "Flight4", "Flight5", "Flight6", "Flight7", "Flight8", "Flight9", "Flight10"]
+
+##--Define number of bins here--##
+num_bins_lat = 5
+num_bins_ptemp = 15
+
+#########################
+##--Open ICARTT Files--##
+#########################
  
 ##--Define a function to find all flight data--##
 def get_all_flights(directory):
@@ -31,11 +42,6 @@ def get_all_flights(directory):
 def find_files(flight_dir, partial_name):
     search_pattern = os.path.join(flight_dir, f"*{partial_name}*")
     return sorted(glob.glob(search_pattern))
- 
-##--Choose which flights to analyze here!--##
-##--Flight1 AIMMS file currently broken, Flight8 has very high O3, CO--##
-##--Flights 9 and 10 are in a different region, plot separately--##
-flights_to_analyze = ["Flight2", "Flight3", "Flight4", "Flight5", "Flight6", "Flight7"]
 
 ##--Store processed data here: --##
 O3_dfs = []
@@ -89,21 +95,18 @@ for flight in flights_to_analyze:
         O3 = icartt.Dataset(O3_files[0])
         O3_2 = icartt.Dataset(O3_files[1])
         
-    #################
-    ##--Pull data--##
-    #################
+    #########################
+    ##--Pull & align data--##
+    #########################
 
     ##--AIMMS Data--##
     altitude = aimms.data['Alt'] # in m
     latitude = aimms.data['Lat'] # in degrees
     aimms_time =aimms.data['TimeWave'] # in seconds since midnight
-    temperature = aimms.data['Temp'] #in C
+    temperature = aimms.data['Temp']
     pressure = aimms.data['BP'] #in pa
 
-    ##--Trace Gas Data--##
-    CO_conc = CO.data['CO_ppbv']
-    CO2_conc = CO2.data['CO2_ppmv']
-
+    ##--O3 data--##
     ##--Put O3 data in list to make concatenation easier--##
     O3_starttime = list(O3.data['Start_UTC'])
     O3_conc = list(O3.data['O3'])
@@ -112,16 +115,11 @@ for flight in flights_to_analyze:
     if O3_2 is not None:
         O3_starttime += list(O3_2.data['Start_UTC'])
         O3_conc += list(O3_2.data['O3'])
-        
-    ##################
-    ##--Align time--##
-    ##################
 
     ##--Arbitary reference date for datetime conversion--##
     reference_date = pd.to_datetime('2015-01-01')
 
     ##--O3 data: addressing different data resolution compared to AIMMS--##
-
     ##--Convert O3_starttime to a datetime object--##
     O3_starttime_dt = pd.to_datetime(O3_starttime, unit='s', origin=reference_date)
 
@@ -136,51 +134,17 @@ for flight in flights_to_analyze:
     O3_aligned['O3'] = O3_aligned['O3'].where(O3_aligned.index.isin(aimms_time), np.nan)
     O3_conc_aligned = O3_aligned['O3']
 
-    ##--Other trace gas data: addressing different start/stop times than AIMMS--##
-    aimms_start = aimms_time.min()
-    aimms_end = aimms_time.max()
-
-    ##--Handle CO data with different start/stop times than AIMMS--##
+    ##--CO and CO2--##
+    CO_conc = CO.data['CO_ppbv']
     CO_time = CO.data['Time_UTC']
-
-    ##--Trim CO data if it starts before AIMMS--##
-    if CO_time.min() < aimms_start:
-        mask_start = CO_time >= aimms_start
-        CO_time = CO_time[mask_start]
-        CO_conc = CO_conc[mask_start]
-        
-    ##--Append CO data with NaNs if it ends before AIMMS--##
-    if CO_time.max() < aimms_end: 
-        missing_times = np.arange(CO_time.max()+1, aimms_end +1)
-        CO_time = np.concatenate([CO_time, missing_times])
-        CO_conc = np.concatenate([CO_conc, [np.nan]*len(missing_times)])
-
-    ##--Create a DataFrame for CO data and reindex to AIMMS time, setting non-overlapping times to nan--##
-    CO_df = pd.DataFrame({'Time_UTC': CO_time, 'CO_ppbv': CO_conc})
-    CO_aligned = CO_df.set_index('Time_UTC').reindex(aimms_time)
-    CO_aligned['CO_ppbv']= CO_aligned['CO_ppbv'].where(CO_aligned.index.isin(aimms_time), np.nan)
-    CO_conc_aligned = CO_aligned['CO_ppbv']
-
-    ##--Handle CO2 data with different start/stop times than AIMMS--##
+    CO2_conc = CO2.data['CO2_ppmv']
     CO2_time = CO2.data['Time_UTC']
 
-    ##--Trim CO2 data if it starts before AIMMS--##
-    if CO2_time.min() < aimms_start:
-        mask_start = CO2_time >= aimms_start
-        CO2_time = CO2_time[mask_start]
-        CO2_conc = CO2_conc[mask_start]
-        
-    ##--Append CO2 data with NaNs if it ends before AIMMS--##
-    if CO2_time.max() < aimms_end: 
-        missing_times = np.arange(CO2_time.max()+1, aimms_end +1)
-        CO2_time = np.concatenate([CO2_time, missing_times])
-        CO2_conc = np.concatenate([CO2_conc, [np.nan]*len(missing_times)])
+    CO_df = pd.DataFrame({'time': CO_time, 'conc': CO_conc}).set_index('time')
+    CO_conc_aligned = CO_df.reindex(aimms_time)['conc']
 
-    ##--Create a DataFrame for CO2 data and reindex to AIMMS time, setting non-overlapping times to nan--##
-    CO2_df = pd.DataFrame({'Time_UTC': CO2_time, 'CO2_ppmv': CO2_conc})
-    CO2_aligned = CO2_df.set_index('Time_UTC').reindex(aimms_time)
-    CO2_aligned['CO2_ppmv']=CO2_aligned['CO2_ppmv'].where(CO2_aligned.index.isin(aimms_time), np.nan)
-    CO2_conc_aligned = CO2_aligned['CO2_ppmv']
+    CO2_df = pd.DataFrame({'time':CO2_time, 'conc': CO2_conc}).set_index('time')
+    CO2_conc_aligned = CO2_df.reindex(aimms_time)['conc']
     
     ####################
     ##--Calculations--##
@@ -219,10 +183,6 @@ for flight in flights_to_analyze:
 ###########################
 ##--Prepare for Binning--##
 ###########################
- 
-##--Define number of bins here--##
-num_bins_lat = 5
-num_bins_ptemp = 15
  
 ##--Binning for O3 data--##
 all_latitudes_O3 = np.concatenate([df["Latitude"].values for df in O3_dfs])
@@ -280,7 +240,7 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, o
     ##--Boundaries are defined from Bozem et al 2019 (ACP)--##
     ax.axhline(y=275, color='k', linestyle='--', linewidth=1)
     ax.axhline(y=299, color='k', linestyle='--', linewidth=1)
-    
+    '''
     ##--Add text labels on the left-hand side within the plot area--##
     ##--Compute midpoints for label placement--##
     polar_dome_mid = (238 + 275) / 2
@@ -293,14 +253,14 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, o
     ax.text(x_text, marginal_polar_dome_mid, 'Marginal Polar Dome',
             rotation=90, fontsize=10, color='k',
             verticalalignment='center', horizontalalignment='center')
- 
+    '''
     ##--Set axis labels and title--##
     ax.set_xlabel("Latitude (°)", fontsize=12)
     ax.set_ylabel("Potential Temperature \u0398 (K)", fontsize=12)
     ax.set_title(title)
-    ax.set_ylim(238, 301)
-    ax.set_xlim(79.5, 83.7)
- 
+    #ax.set_ylim(238, 301)
+    #ax.set_xlim(79.5, 83.7)
+    
     ##--Save the plot--##
     plt.savefig(output_path, dpi=600, bbox_inches="tight")
     plt.tight_layout()
@@ -361,6 +321,7 @@ def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label, ou
     ax.axhline(y=275, color='k', linestyle='--', linewidth=1)
     ax.axhline(y=299, color='k', linestyle='--', linewidth=1)
     
+    '''
     ##--Add labels on the left-hand side within the plot area--##
     polar_dome_mid = (238 + 275) / 2
     marginal_polar_dome_mid = (275 + 299) / 2
@@ -372,14 +333,14 @@ def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label, ou
     ax.text(x_text, marginal_polar_dome_mid, 'Marginal Polar Dome',
             rotation=90, fontsize=10, color='k',
             verticalalignment='center', horizontalalignment='center')
- 
+    '''
     ##--Set axis labels and title--##
     ax.set_xlabel("Latitude (°)", fontsize=12)
     ax.set_ylabel("Potential Temperature Θ (K)", fontsize=12)
     ax.set_title(title)
-    ax.set_ylim(238, 301)
-    ax.set_xlim(79.5, 83.7)
- 
+    #ax.set_ylim(238, 301)
+    #ax.set_xlim(79.5, 83.7)
+    
     ##--Save the plot--##
     plt.savefig(output_path, dpi=600, bbox_inches="tight")
     plt.tight_layout()

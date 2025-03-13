@@ -12,13 +12,23 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt 
 from scipy.stats import binned_statistic_2d
- 
-#########################
-##--Open ICARTT Files--##
-#########################
+
+###################
+##--User inputs--##
+###################
  
 ##--Set the base directory to project folder--##
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw"
+ 
+##--Define number of bins here--##
+num_bins_lat = 5
+num_bins_ptemp = 15
+
+# add base output path
+
+#########################
+##--Open ICARTT Files--##
+#########################
  
 ##--Define a function to find all flight data--##
 def get_all_flights(directory):
@@ -64,47 +74,23 @@ for flight in flights_to_analyze:
         print(f"Missing H2O data for {flight}. Skipping...")
         continue
  
-    #################
-    ##--Pull data--##
-    #################
+    #########################
+    ##--Pull & align data--##
+    #########################
     
     ##--AIMMS Data--##
     altitude = aimms.data['Alt'] # in m
     latitude = aimms.data['Lat'] # in degrees
-    temperature = aimms.data['Temp']# in C
+    temperature = aimms.data['Temp'] 
     pressure = aimms.data['BP'] # in pa
     aimms_time =aimms.data['TimeWave'] # seconds since midnight
     
     ##--H2O data--##
-    H2O_time = H2O.data['Time_UTC']
+    H2O_time = H2O.data['Time_UTC'] # seconds since midnight
     H2O_conc = H2O.data['H2O_ppmv'] # ppmv
     
-    ##################
-    ##--Align data--##
-    ##################
-    
-    ##--Establish AIMMS start/stop times--##
-    aimms_end = aimms_time.max()
-    aimms_start = aimms_time.min()
-    
-    ##--Handle H2O data with different start/stop times than AIMMS--##
-    ##--Trim H2O data if it starts before AIMMS--##
-    if H2O_time.min() < aimms_start:
-        mask_start = H2O_time >= aimms_start
-        H2O_time = H2O_time[mask_start]
-        H2O_conc = H2O_conc[mask_start]
-        
-    ##--Append H2O data with NaNs if it ends before AIMMS--##
-    if H2O_time.max() < aimms_end: 
-        missing_times = np.arange(H2O_time.max()+1, aimms_end +1)
-        H2O_time = np.concatenate([H2O_time, missing_times])
-        H2O_conc = np.concatenate([H2O_conc, [np.nan]*len(missing_times)])
-        
-    ##--Create a DataFrame for H2O and reindex to AIMMS time, setting non-overlapping times to nan--##
-    H2O_df = pd.DataFrame({'time': H2O_time, 'conc': H2O_conc})
-    H2O_aligned = H2O_df.set_index('time').reindex(aimms_time)
-    H2O_aligned['conc']=H2O_aligned['conc'].where(H2O_aligned.index.isin(aimms_time), np.nan)
-    H2O_conc_aligned = H2O_aligned['conc']
+    H2O_df = pd.DataFrame({'time': H2O_time, 'conc': H2O_conc}).set_index('time')
+    H2O_conc_aligned = H2O_df.reindex(aimms_time)['conc']
 
     ####################
     ##--Calculations--##
@@ -210,10 +196,6 @@ for flight in flights_to_analyze:
 ###########################
 ##--Prepare for Binning--##
 ###########################
- 
-##--Define number of bins here--##
-num_bins_lat = 5
-num_bins_ptemp = 15
  
 ##--Binning for RH wrt water data--##
 all_latitudes_RH_w = np.concatenate([df["Latitude"].values for df in RH_w_dfs])

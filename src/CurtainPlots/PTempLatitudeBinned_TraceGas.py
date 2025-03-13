@@ -13,15 +13,26 @@ import pandas as pd
 import matplotlib.pyplot as plt 
 from scipy.stats import binned_statistic_2d
 
-#########################
-##--Open ICARTT Files--##
-#########################
+###################
+##--User inputs--##
+###################
 
 ##--Set the base directory to project folder--##
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
 flight = "Flight1" 
+
+##--Define number of bins--##
+num_bins_lat = 4
+num_bins_ptemp = 8
+
+##--Base output path in directory--##
+output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude"
+
+#########################
+##--Open ICARTT Files--##
+#########################
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -32,10 +43,6 @@ def find_files(directory, flight, partial_name):
 
 ##--Meterological data from AIMMS monitoring system--##
 aimms = icartt.Dataset(find_files(directory, flight, "AIMMS_POLAR6")[0])
-
-##--CPC data--##
-CPC10 = icartt.Dataset(find_files(directory, flight, 'CPC3772')[0])
-CPC3 = icartt.Dataset(find_files(directory, flight, 'CPC3776')[0])
 
 ##--Trace gases--##
 CO = icartt.Dataset(find_files(directory, flight, "CO_POLAR6")[0])
@@ -53,9 +60,9 @@ else:
     O3 = icartt.Dataset(O3_files[0])
     O3_2 = icartt.Dataset(O3_files[1])
 
-#################
-##--Pull data--##
-#################
+#########################
+##--Pull & align data--##
+#########################
 
 ##--AIMMS Data--##
 altitude = aimms.data['Alt'] # in m
@@ -64,10 +71,7 @@ aimms_time =aimms.data['TimeWave'] # in seconds since midnight
 temperature = aimms.data['Temp'] + 273.15 #in K
 pressure = aimms.data['BP'] #in pa
 
-##--Trace Gas Data--##
-CO_conc = CO.data['CO_ppbv']
-CO2_conc = CO2.data['CO2_ppmv']
-
+##--O3 data--##
 ##--Put O3 data in list to make concatenation easier--##
 O3_starttime = list(O3.data['Start_UTC'])
 O3_conc = list(O3.data['O3'])
@@ -77,23 +81,10 @@ if O3_2 is not None:
     O3_starttime += list(O3_2.data['Start_UTC'])
     O3_conc += list(O3_2.data['O3'])
 
-##--10 nm CPC data--##
-CPC10_time = CPC10.data['time']
-CPC10_conc = CPC10.data['conc'] # count/cm^3
-
-##--2.5 nm CPC data--##
-CPC3_time = CPC3.data['time']
-CPC3_conc = CPC3.data['conc'] # count/cm^3
-    
-##################
-##--Align time--##
-##################
-
 ##--Arbitary reference date for datetime conversion--##
 reference_date = pd.to_datetime('2015-01-01')
 
 ##--O3 data: addressing different data resolution compared to AIMMS--##
-
 ##--Convert O3_starttime to a datetime object--##
 O3_starttime_dt = pd.to_datetime(O3_starttime, unit='s', origin=reference_date)
 
@@ -108,121 +99,17 @@ O3_aligned = O3_df.set_index('Time_UTC').reindex(aimms_time)
 O3_aligned['O3'] = O3_aligned['O3'].where(O3_aligned.index.isin(aimms_time), np.nan)
 O3_conc_aligned = O3_aligned['O3']
 
-##--Other trace gas data: addressing different start/stop times than AIMMS--##
-aimms_start = aimms_time.min()
-aimms_end = aimms_time.max()
-
-##--Handle CO data with different start/stop times than AIMMS--##
+##--CO and CO2--##
+CO_conc = CO.data['CO_ppbv']
 CO_time = CO.data['Time_UTC']
-
-##--Trim CO data if it starts before AIMMS--##
-if CO_time.min() < aimms_start:
-    mask_start = CO_time >= aimms_start
-    CO_time = CO_time[mask_start]
-    CO_conc = CO_conc[mask_start]
-    
-##--Append CO data with NaNs if it ends before AIMMS--##
-if CO_time.max() < aimms_end: 
-    missing_times = np.arange(CO_time.max()+1, aimms_end +1)
-    CO_time = np.concatenate([CO_time, missing_times])
-    CO_conc = np.concatenate([CO_conc, [np.nan]*len(missing_times)])
-
-##--Create a DataFrame for CO data and reindex to AIMMS time, setting non-overlapping times to nan--##
-CO_df = pd.DataFrame({'Time_UTC': CO_time, 'CO_ppbv': CO_conc})
-CO_aligned = CO_df.set_index('Time_UTC').reindex(aimms_time)
-CO_aligned['CO_ppbv']= CO_aligned['CO_ppbv'].where(CO_aligned.index.isin(aimms_time), np.nan)
-CO_conc_aligned = CO_aligned['CO_ppbv']
-
-##--Handle CO2 data with different start/stop times than AIMMS--##
+CO2_conc = CO2.data['CO2_ppmv']
 CO2_time = CO2.data['Time_UTC']
 
-##--Trim CO2 data if it starts before AIMMS--##
-if CO2_time.min() < aimms_start:
-    mask_start = CO2_time >= aimms_start
-    CO2_time = CO2_time[mask_start]
-    CO2_conc = CO2_conc[mask_start]
-    
-##--Append CO2 data with NaNs if it ends before AIMMS--##
-if CO2_time.max() < aimms_end: 
-    missing_times = np.arange(CO2_time.max()+1, aimms_end +1)
-    CO2_time = np.concatenate([CO2_time, missing_times])
-    CO2_conc = np.concatenate([CO2_conc, [np.nan]*len(missing_times)])
+CO_df = pd.DataFrame({'time': CO_time, 'conc': CO_conc}).set_index('time')
+CO_conc_aligned = CO_df.reindex(aimms_time)['conc']
 
-##--Create a DataFrame for CO2 data and reindex to AIMMS time, setting non-overlapping times to nan--##
-CO2_df = pd.DataFrame({'Time_UTC': CO2_time, 'CO2_ppmv': CO2_conc})
-CO2_aligned = CO2_df.set_index('Time_UTC').reindex(aimms_time)
-CO2_aligned['CO2_ppmv']=CO2_aligned['CO2_ppmv'].where(CO2_aligned.index.isin(aimms_time), np.nan)
-CO2_conc_aligned = CO2_aligned['CO2_ppmv']
-
-##--Trim CPC3 data if it starts before AIMMS--##
-if CPC3_time.min() < aimms_start:
-    mask_start = CPC3_time >= aimms_start
-    CPC3_time = CPC3_time[mask_start]
-    CPC3_conc = CPC3_conc[mask_start]
-    
-##--Append CPC3 data with NaNs if it ends before AIMMS--##
-if CPC3_time.max() < aimms_end: 
-    missing_times = np.arange(CPC3_time.max()+1, aimms_end +1)
-    CPC3_time = np.concatenate([CPC3_time, missing_times])
-    CPC3_conc = np.concatenate([CPC3_conc, [np.nan]*len(missing_times)])
-
-##--Create a DataFrame for CPC3 data and reindex to AIMMS time, setting non-overlapping times to nan--##
-CPC3_df = pd.DataFrame({'time': CPC3_time, 'conc': CPC3_conc})
-CPC3_aligned = CPC3_df.set_index('time').reindex(aimms_time)
-CPC3_aligned['conc']=CPC3_aligned['conc'].where(CPC3_aligned.index.isin(aimms_time), np.nan)
-CPC3_conc_aligned = CPC3_aligned['conc']
-
-##--Handle CPC10 data with different start/stop times than AIMMS--##
-CPC10_time = CPC10.data['time']
-
-##--Trim CPC10 data if it starts before AIMMS--##
-if CPC10_time.min() < aimms_start:
-    mask_start = CPC10_time >= aimms_start
-    CPC10_time = CPC10_time[mask_start]
-    CPC10_conc = CPC10_conc[mask_start]
-    
-##--Append CPC10 data with NaNs if it ends before AIMMS--##
-if CPC10_time.max() < aimms_end: 
-    missing_times = np.arange(CPC10_time.max()+1, aimms_end +1)
-    CPC10_time = np.concatenate([CPC10_time, missing_times])
-    CPC10_conc = np.concatenate([CPC10_conc, [np.nan]*len(missing_times)])
-
-##--Create a DataFrame for CPC10 data and reindex to AIMMS time, setting non-overlapping times to nan--##
-CPC10_df = pd.DataFrame({'time': CPC10_time, 'conc': CPC10_conc})
-CPC10_aligned = CPC10_df.set_index('time').reindex(aimms_time)
-CPC10_aligned['conc']=CPC10_aligned['conc'].where(CPC10_aligned.index.isin(aimms_time), np.nan)
-CPC10_conc_aligned = CPC10_aligned['conc']
-
-######################
-##--Convert to STP--##
-######################
-
-P_STP = 101325  # Pa
-T_STP = 273.15  # K
-
-##--Create empty list for CPC3 particles--##
-CPC3_conc_STP = []
-
-for CPC3, T, P in zip(CPC3_conc_aligned, temperature, pressure):
-    if np.isnan(CPC3) or np.isnan(T) or np.isnan(P):
-        ##--Append with NaN if any input is NaN--##
-        CPC3_conc_STP.append(np.nan)
-    else:
-        ##--Perform conversion if all inputs are valid--##
-        CPC3_conversion = CPC3 * (P_STP / P) * (T / T_STP)
-        CPC3_conc_STP.append(CPC3_conversion)
-    
-##--Create empty list for CPC10 particles--##
-CPC10_conc_STP = []
-
-for CPC10, T, P in zip(CPC10_conc_aligned, temperature, pressure):
-    if np.isnan(CPC10) or np.isnan(T) or np.isnan(P):
-        ##--Append with NaN if any input is NaN--##
-        CPC10_conc_STP.append(np.nan)
-    else:
-        ##--Perform conversion if all inputs are valid--##
-        CPC10_conversion = CPC10 * (P_STP / P) * (T / T_STP)
-        CPC10_conc_STP.append(CPC10_conversion)
+CO2_df = pd.DataFrame({'time':CO2_time, 'conc': CO2_conc}).set_index('time')
+CO2_conc_aligned = CO2_df.reindex(aimms_time)['conc']
 
 #######################################
 ##--Calculate potential temperature--##
@@ -244,36 +131,16 @@ for T, P in zip(temperature, pressure):
 ##--Create 2D histogram--##
 ###########################
 
-##--Float type NaNs in potential_temp cannot convert to int, so must be removed--##
-CPC3_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'CPC3':CPC3_conc_STP})
-CPC3_clean_df = CPC3_df.dropna()
-
-##--Make separate df for CPC10 and N3-10 to preserve as much data as possible--##
-CPC10_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'CPC10': CPC10_conc_STP})
-CPC10_clean_df = CPC10_df.dropna()
-
-##--Calculate N3-10 particles--##
-nuc_particles = (CPC3_df['CPC3'] - CPC10_df['CPC10'])
-
-##--Change calculated particle counts less than zero to NaN--##
-nuc_particles = np.where(nuc_particles >= 0, nuc_particles, np.nan)
-
-nuc_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'nuc_particles': nuc_particles})
-
 ##--Creates separate dfs to preserve data--##
 ##--Including nuc_particles downsizes dataset to instances of N3-10. Comment out if full dataset desired--##
-O3_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'O3_conc': O3_conc_aligned, 'nuc_particles': nuc_particles})
-CO_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'CO_conc': CO_conc_aligned, 'nuc_particles': nuc_particles})
-CO2_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'CO2_conc': CO2_conc_aligned, 'nuc_particles': nuc_particles})
+O3_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'O3_conc': O3_conc_aligned})
+CO_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'CO_conc': CO_conc_aligned})
+CO2_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'CO2_conc': CO2_conc_aligned})
 
 ##--Drop NaNs to prevent issues with potential_temp floats--##
 clean_O3_df = O3_df.dropna()
 clean_CO_df = CO_df.dropna()
 clean_CO2_df = CO2_df.dropna()
-
-##--Define number of bins--##
-num_bins_lat = 4
-num_bins_ptemp = 8
 
 ##--Compute global min/max values across all data BEFORE dropping NaNs--##
 lat_min, lat_max = np.nanmin(latitude), np.nanmax(latitude)
@@ -331,12 +198,9 @@ ax1.set_title(f"O\u2083 Mixing Ratio - {flight.replace('Flight', 'Flight ')}", f
 #ax1.set_ylim(238, 301)
 #ax1.set_xlim(82.4, 83.4)
 
-##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude"
-
 ##--Use f-string to save file with flight# appended--##
-output_path = f"{output_path}\\{flight}_O3.png"
-plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+O3_output_path = f"{output_path}\\{flight}_O3.png"
+plt.savefig(O3_output_path, dpi=600, bbox_inches='tight') 
 plt.tight_layout()
 plt.show()
 
@@ -365,12 +229,9 @@ ax2.set_title(f"CO Mixing Ratio - {flight.replace('Flight', 'Flight ')}", fontsi
 #ax2.set_ylim(238, 301)
 #ax2.set_xlim(82.4, 83.4)
 
-##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude"
-
 ##--Use f-string to save file with flight# appended--##
-output_path = f"{output_path}\\{flight}_CO.png"
-plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+CO_output_path = f"{output_path}\\{flight}_CO.png"
+plt.savefig(CO_output_path, dpi=600, bbox_inches='tight') 
 plt.tight_layout()
 plt.show()
 
@@ -399,12 +260,9 @@ ax3.set_title(f"CO\u2082 Mixing Ratio - {flight.replace('Flight', 'Flight ')}", 
 #ax3.set_ylim(238, 301)
 #ax3.set_xlim(82.4, 83.4)
 
-##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude"
-
 ##--Use f-string to save file with flight# appended--##
-output_path = f"{output_path}\\{flight}_CO2.png"
-plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+CO2_output_path = f"{output_path}\\{flight}_CO2.png"
+plt.savefig(CO2_output_path, dpi=600, bbox_inches='tight') 
 plt.tight_layout()
 plt.show()
 
@@ -460,12 +318,9 @@ ax1.set_title(f"O\u2083 Counts per Bin - {flight.replace('Flight', 'Flight ')}",
 #ax1.set_ylim(238, 301)
 #ax1.set_xlim(79.5, 83.7)
 
-##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude"
-
 ##--Use f-string to save file with flight# appended--##
-output_path = f"{output_path}\\{flight}_O3_diagnostic.png"
-plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+O3_diag_output_path = f"{output_path}\\{flight}_O3_diagnostic.png"
+plt.savefig(O3_diag_output_path, dpi=600, bbox_inches='tight') 
 plt.tight_layout()
 plt.show()
 
@@ -494,12 +349,9 @@ ax2.set_title(f"CO Counts per Bin - {flight.replace('Flight', 'Flight ')}", font
 #ax2.set_ylim(238, 301)
 #ax2.set_xlim(79.5, 83.7)
 
-##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude"
-
 ##--Use f-string to save file with flight# appended--##
-output_path = f"{output_path}\\{flight}_CO_diagnostic.png"
-plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+CO_diag_output_path = f"{output_path}\\{flight}_CO_diagnostic.png"
+plt.savefig(CO_diag_output_path, dpi=600, bbox_inches='tight') 
 plt.tight_layout()
 plt.show()
 
@@ -528,11 +380,8 @@ ax3.set_title(f"CO\u2082 Counts per Bin - {flight.replace('Flight', 'Flight ')}"
 #ax3.set_ylim(238, 301)
 #ax3.set_xlim(79.5, 83.7)
 
-##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude"
-
 ##--Use f-string to save file with flight# appended--##
-output_path = f"{output_path}\\{flight}_CO2_diagnostic.png"
-plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+CO2_diag_output_path = f"{output_path}\\{flight}_CO2_diagnostic.png"
+plt.savefig(CO2_diag_output_path, dpi=600, bbox_inches='tight') 
 plt.tight_layout()
 plt.show()
