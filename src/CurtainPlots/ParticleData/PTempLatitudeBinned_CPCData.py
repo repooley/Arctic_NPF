@@ -21,11 +21,11 @@ from scipy.stats import binned_statistic_2d
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight to analyze (Flight1 thru Flight10)--##
-flight = "Flight1"
+flight = "Flight10"
 
 ##--Set binning for PTemp and Latitude--##
 num_bins_lat = 4
-num_bins_ptemp = 12
+num_bins_ptemp = 8
 
 ##--Base output path for figures in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\PTempLatitude"
@@ -244,7 +244,7 @@ fig3, ax3 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot and use viridis for values greater than 1--##
 nuc_plot = ax3.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, nuc_bin_medians.T,  # Transpose to align correctly
-    shading='auto', cmap=new_cmap, vmin=0, vmax=1000)
+    shading='auto', cmap=new_cmap, vmin=0, vmax=600)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
 ax3.axhline(y=275, color='k', linestyle='--', linewidth=1)

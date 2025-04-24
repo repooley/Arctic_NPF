@@ -21,11 +21,12 @@ from scipy.stats import binned_statistic_2d
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw"
 
 ##--Choose which flights to analyze here!--##
-flights_to_analyze = [ "Flight1", "Flight2", "Flight3", "Flight4", "Flight5", "Flight6", "Flight7", "Flight8", "Flight9", "Flight10"]
+flights_to_analyze = ["Flight2", "Flight3", "Flight4", "Flight5", "Flight6", "Flight7", "Flight8", "Flight9", "Flight10"]
 
 ##--Set binning for PTemp and Latitude--##
-num_bins_lat = 8
-num_bins_ptemp = 7
+##--Define number of bins here--##
+num_bins_lat = 10
+num_bins_ptemp = 10
  
 #########################
 ##--Open ICARTT Files--##
@@ -179,10 +180,6 @@ for flight in flights_to_analyze:
 ###########################
 ##--Prepare for Binning--##
 ###########################
- 
-##--Define number of bins here--##
-num_bins_lat = 8
-num_bins_ptemp = 7
  
 ##--Binning for CPC3 data--##
 all_latitudes_CPC3 = np.concatenate([df["Latitude"].values for df in CPC3_dfs])

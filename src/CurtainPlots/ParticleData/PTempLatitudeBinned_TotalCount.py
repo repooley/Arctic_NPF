@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Mar 17 11:45:23 2025
+Created on Tue Apr 22 18:44:49 2025
 
 @author: repooley
 """
@@ -11,18 +11,29 @@ import glob
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt 
-import matplotlib.ticker as ticker
+from scipy.stats import binned_statistic_2d
 
-#########################
-##--Open ICARTT Files--##
-#########################
+###################
+##--User inputs--##
+###################
 
 ##--Set the base directory to project folder--##
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight2 thru Flight10)--##
 ##--NO UHSAS FILES FOR FLIGHT1--##
-flight = "Flight8"
+flight = "Flight10"
+
+##--Set binning for PTemp and Latitude--##
+num_bins_lat = 4
+num_bins_ptemp = 8
+
+##--Base output path for figures in directory--##
+output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TotalCount"
+
+#########################
+##--Open ICARTT Files--##
+#########################
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -241,12 +252,9 @@ n_10_89_center = pd.DataFrame([49.5])
 ##--Convert n_10_85 to a df--##
 n_10_89 = pd.DataFrame({'49.5': n_10_89, 'time':aimms_time}).set_index('time')
 
-################
-##--Plotting--##
-################
-
-##--Concatenate bin centers and reindex--##
-bin_centers = pd.concat([n_3_10_center, n_10_89_center, UHSAS_bin_center, OPC_bin_center], axis=0).reset_index(drop=True)
+###########################
+##--Wrangle binned data--##
+###########################
 
 ##--Concatenate bin edges--##
 combined_bin_edges = np.concatenate([
@@ -261,40 +269,88 @@ combined_bin_edges = np.concatenate([
 time_step = aimms_time[1] - aimms_time[0]  
 time_edges = np.append(aimms_time, aimms_time[-1] + time_step)  # length N + 1
 
-##--Create df containing UHSAS and OPC columns--##
-optical_bins_aligned = pd.concat([n_3_10, n_10_89, UHSAS_bins_aligned, OPC_conc_STP], axis=1)
+##--Concatenate bin centers and reindex--##
+bin_centers = pd.concat([n_10_89_center, UHSAS_bin_center, OPC_bin_center], axis=0).reset_index(drop=True)
 
-##--Apply rolling average to all other particle data--##
-optical_bins_smoothed = optical_bins_aligned.rolling(window=30, min_periods=1, center=True).mean()
+##--Place all binned data in a single df--##
+all_bins_aligned = pd.concat([n_10_89, UHSAS_bins_aligned, OPC_bins_filled], axis=1)
+total_particle_count = all_bins_aligned.sum(axis=1, numeric_only=True) 
 
-##--Numpy array expected by pcolormesh--##
-optical_conc = optical_bins_smoothed.to_numpy().T  
+#######################################
+##--Calculate potential temperature--##
+#######################################
 
-##--Use pcolormesh which is more flexible than imshow--## 
-fig, ax1 = plt.subplots(figsize=(12, 8))
-c = ax1.pcolormesh(time_edges, combined_bin_edges, optical_conc, shading='auto', cmap='viridis')
+##--Constants--##
+p_0 = 1E5 # Reference pressure in Pa (1000 hPa)
+k = 0.286 # Poisson constant for dry air
 
-# Labels and colorbar
-cb = plt.colorbar(c, ax=ax1, location='bottom', pad=0.1, shrink=0.65)
-cb.set_label(label='Normalized Particle Concentration (dN/dlogDp) [scm⁻³]', fontsize=14)
-cb.ax.tick_params(labelsize=14)
+##--Generate empty list for potential temperature output--##
+potential_temp = []
 
-# Optional adjustments
-ax1.set_title(f"Optical Data Time Series - {flight.replace('Flight', 'Flight ')}", fontsize=20, pad=20)
-ax1.set_xlim([aimms_time.min(), aimms_time.max()])
-#ax1.set_ylim([bin_center.min(), bin_center.max()])
-ax1.set_yscale('log')
-custom_ticks = [10, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
-##--Apply custom ticks--##
-ax1.yaxis.set_major_locator(ticker.FixedLocator(custom_ticks))
+##--Calculate potential temperature from ambient temp & pressure--##
+for T, P in zip(temperature, pressure):
+    p_t = T*(p_0/P)**k
+    potential_temp.append(p_t)
 
-# Optional: format them normally (just numbers)
-ax1.yaxis.set_major_formatter(ticker.FormatStrFormatter('%d'))
-ax1.tick_params(axis='y', labelsize=14)
-ax1.tick_params(axis='x', labelsize=14)
+###########################
+##--Create 2D histogram--##
+###########################
 
-ax1.set_xlabel('Time (seconds since midnight UTC)', fontsize=14)
-ax1.set_ylabel('Log of Particle Diameter (nm)', fontsize=14)
+##--Float type NaNs in potential_temp cannot convert to int, so must be removed--##
+Count_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 
+                               'Count': total_particle_count})
+Count_clean_df = Count_df.dropna()
+
+##--Compute global min/max values across all data BEFORE dropping NaNs--##
+lat_min, lat_max = np.nanmin(latitude), np.nanmax(latitude)
+ptemp_min, ptemp_max = np.nanmin(potential_temp), np.nanmax(potential_temp)
+
+##--Generate common bin edges using specified number of bins--##
+common_lat_bin_edges = np.linspace(lat_min, lat_max, num_bins_lat + 1)
+common_ptemp_bin_edges = np.linspace(ptemp_min, ptemp_max, num_bins_ptemp + 1)
+
+##--Make 2D histograms using common bins--##
+Count_bin_medians, _, _, _ = binned_statistic_2d(Count_clean_df['Latitude'], 
+    Count_clean_df['PTemp'], Count_clean_df['Count'], statistic='median', 
+    bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+
+################
+##--PLOTTING--##
+################
+
+##--Particles larger than 3 nm--##
+fig1, ax1 = plt.subplots(figsize=(8, 6))
+
+##--Make special color map where 0 values are white--##
+new_cmap = plt.get_cmap('viridis')
+##--Values under specified minimum will be white--##
+new_cmap.set_under('w')
+
+##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
+Count_plot = ax1.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, Count_bin_medians.T,  # Transpose to align correctly
+    shading='auto', cmap=new_cmap, vmin=0, vmax=50000)
+
+##--Add dashed horizontal lines for the polar dome boundaries--##
+ax1.axhline(y=275, color='k', linestyle='--', linewidth=1)
+ax1.axhline(y=299, color='k', linestyle='--', linewidth=1)
+
+##--Add colorbar--##
+cb = fig1.colorbar(Count_plot, ax=ax1)
+cb.minorticks_on()
+cb.ax.tick_params(labelsize=16)
+cb.set_label('Total Count $(STP/cm^{3})$', fontsize=16)
+
+##--Set axis labels--##
+ax1.set_xlabel('Latitude (°)', fontsize=16)
+ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=16)
+ax1.tick_params(axis='both', labelsize=16)
+ax1.set_title(f"Total Particle Count - {flight.replace('Flight', 'Flight ')}", fontsize=18)
+#ax1.set_ylim(245, 301)
+#ax1.set_xlim(79.5, 83.7)
+
+##--Use f-string to save file with flight# appended--##
+Count_output_path = f"{output_path}\\{flight}"
+plt.savefig(Count_output_path, dpi=600, bbox_inches='tight') 
 
 plt.tight_layout()
 plt.show()
