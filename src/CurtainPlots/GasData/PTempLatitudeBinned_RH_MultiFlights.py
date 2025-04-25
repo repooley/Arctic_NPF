@@ -227,7 +227,7 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, o
     fig, ax = plt.subplots(figsize=(8, 6))
  
     ##--Make special color map where 0 values are white--##
-    new_cmap = plt.get_cmap('viridis')
+    new_cmap = plt.get_cmap('magma')
     new_cmap.set_under('w')
  
     ##--Plot the 2D data using pcolormesh--##
@@ -240,13 +240,13 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, o
     
     ##--Add dashed horizontal lines for the polar dome boundaries--##
     ##--Boundaries are defined from Bozem et al 2019 (ACP)--##
-    ax.axhline(y=275, color='k', linestyle='--', linewidth=1)
+    ax.axhline(y=285, color='k', linestyle='--', linewidth=1)
     ax.axhline(y=299, color='k', linestyle='--', linewidth=1)
     
     ##--Add text labels on the left-hand side within the plot area--##
     ##--Compute midpoints for label placement--##
-    polar_dome_mid = (238 + 275) / 2
-    marginal_polar_dome_mid = (275 + 299) / 2
+    polar_dome_mid = (238 + 285) / 2
+    marginal_polar_dome_mid = (285 + 299) / 2
     x_text = ax.get_xlim()[0] - 0.25  # left edge plus a small offset
     
     ax.text(x_text, polar_dome_mid, 'Polar Dome',
@@ -311,12 +311,12 @@ def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label, ou
     cb.set_label(cbar_label, fontsize=12)
     
     ##--Add dashed horizontal lines for the polar dome boundaries--##
-    ax.axhline(y=275, color='k', linestyle='--', linewidth=1)
+    ax.axhline(y=285, color='k', linestyle='--', linewidth=1)
     ax.axhline(y=299, color='k', linestyle='--', linewidth=1)
     
     ##--Add labels on the left-hand side within the plot area--##
-    polar_dome_mid = (238 + 275) / 2
-    marginal_polar_dome_mid = (275 + 299) / 2
+    polar_dome_mid = (248 + 285) / 2
+    marginal_polar_dome_mid = (285 + 299) / 2
     x_text = ax.get_xlim()[0] - 0.25 
     
     ax.text(x_text, polar_dome_mid, 'Polar Dome',

@@ -21,7 +21,7 @@ from scipy.stats import binned_statistic_2d
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight to analyze (Flight1 thru Flight10)--##
-flight = "Flight10"
+flight = "Flight7"
 
 ##--Set binning for PTemp and Latitude--##
 num_bins_lat = 4
@@ -183,7 +183,7 @@ CPC3_plot = ax1.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, CPC3_bi
     shading='auto', cmap=new_cmap, vmin=0, vmax=2500)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax1.axhline(y=275, color='k', linestyle='--', linewidth=1)
+ax1.axhline(y=285, color='k', linestyle='--', linewidth=1)
 ax1.axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Add colorbar--##
@@ -215,7 +215,7 @@ CPC10_plot = ax2.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, CPC10_
     shading='auto', cmap=new_cmap, vmin=0, vmax=2000)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax2.axhline(y=275, color='k', linestyle='--', linewidth=1)
+ax2.axhline(y=285, color='k', linestyle='--', linewidth=1)
 ax2.axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Add colorbar--##
@@ -244,10 +244,10 @@ fig3, ax3 = plt.subplots(figsize=(8, 6))
 
 ##--Use pcolormesh for the plot and use viridis for values greater than 1--##
 nuc_plot = ax3.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, nuc_bin_medians.T,  # Transpose to align correctly
-    shading='auto', cmap=new_cmap, vmin=0, vmax=600)
+    shading='auto', cmap=new_cmap, vmin=0, vmax=1000)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax3.axhline(y=275, color='k', linestyle='--', linewidth=1)
+ax3.axhline(y=285, color='k', linestyle='--', linewidth=1)
 ax3.axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Add colorbar--##

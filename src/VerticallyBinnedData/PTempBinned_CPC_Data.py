@@ -270,14 +270,14 @@ axs[0].set_xlim(-50, 2000)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
 ##--Boundaries are defined from Bozem et al 2019 (ACP)--##
-axs[0].axhline(y=275, color='k', linestyle='--', linewidth=1)
+axs[0].axhline(y=285, color='k', linestyle='--', linewidth=1)
 axs[0].axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Add text labels on the left-hand side within the plot area--##
 ##--Compute midpoints for label placement--##
-polar_dome_label = 272
-marginal_polar_dome_label = 278
-x_text = axs[0].get_xlim()[0] + 750  # offset from left edge
+polar_dome_label = 282
+marginal_polar_dome_label = 288
+x_text = axs[0].get_xlim()[0] + 1050  # offset from left edge
 
 axs[0].text(x_text, polar_dome_label, 'Polar Dome',
         rotation=0, fontsize=10, color='k',
@@ -295,7 +295,7 @@ axs[1].fill_betweenx(binned_df['PTemp_center'], binned_df['CPC3_conc_25th'],
 axs[1].set_title('N \u2265 2.5 nm')
 axs[1].set_xlim(-50, 3200)
 
-axs[1].axhline(y=275, color='k', linestyle='--', linewidth=1)
+axs[1].axhline(y=285, color='k', linestyle='--', linewidth=1)
 axs[1].axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Third subplot: Nuc particles vs PTemp--##
@@ -312,7 +312,7 @@ axs[2].plot(binned_df['nuc_error_center'], binned_df['PTemp_center'], color='cri
 axs[2].set_title('$N_{2.5-10}$')
 axs[2].set_xlim(-50, 1500)
 
-axs[2].axhline(y=275, color='k', linestyle='--', linewidth=1)
+axs[2].axhline(y=285, color='k', linestyle='--', linewidth=1)
 axs[2].axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 axs[2].legend()

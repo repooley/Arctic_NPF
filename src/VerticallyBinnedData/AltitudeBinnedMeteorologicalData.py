@@ -238,7 +238,7 @@ axs[0].set_ylabel('Altitude (m)')
 axs[0].set_title('Absolute Temperature')
 #axs[0].set_xlim(-45, -16)
 
-##--Second subplot: Potential Temperature vs Altitude--##
+##--Second subplot: Altitude vs Potential Temperature--##
 axs[1].plot(binned_df['Potential_temp_avg'], binned_df['Altitude_center'], color='#004242', label='Potential Temperature')
 axs[1].fill_betweenx(binned_df['Altitude_center'], binned_df['Potential_temp_25th'], binned_df['Potential_temp_75th'], color='seagreen', alpha=0.4)
 axs[1].fill_betweenx(binned_df['Altitude_center'], binned_df['Potential_temp_min'], binned_df['Potential_temp_max'], color='seagreen', alpha=0.2)

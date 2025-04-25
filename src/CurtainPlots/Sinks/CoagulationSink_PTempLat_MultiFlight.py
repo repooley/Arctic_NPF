@@ -467,7 +467,7 @@ coagulation_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_coagulation
 fig1, ax1 = plt.subplots(figsize=(8, 6))
 
 ##--Make special color map where 0 values are white--##
-new_cmap = plt.get_cmap('viridis')
+new_cmap = plt.get_cmap('plasma')
 ##--Values under specified minimum will be white--##
 new_cmap.set_under('w')
 
@@ -476,7 +476,7 @@ Coagulation_plot = ax1.pcolormesh(lat_bin_edges_coagulation, ptemp_bin_edges_coa
     shading='auto', cmap=new_cmap, vmin=0, vmax=0.0014)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax1.axhline(y=275, color='k', linestyle='--', linewidth=1)
+ax1.axhline(y=285, color='k', linestyle='--', linewidth=1)
 ax1.axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Add colorbar--##
@@ -524,7 +524,7 @@ Coagulation_plot = ax1.pcolormesh(lat_bin_edges_coagulation, ptemp_bin_edges_coa
     shading='auto', cmap=new_cmap, vmin=1, vmax=10000)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax1.axhline(y=275, color='k', linestyle='--', linewidth=1)
+ax1.axhline(y=285, color='k', linestyle='--', linewidth=1)
 ax1.axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Add colorbar--##

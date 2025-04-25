@@ -21,7 +21,7 @@ from scipy.stats import binned_statistic_2d
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight1" 
+flight = "Flight10" 
 
 ##--Define number of bins--##
 num_bins_lat = 4
@@ -171,7 +171,7 @@ CO2_bin_medians, _, _, _ = binned_statistic_2d(
 fig1, ax1 = plt.subplots(figsize=(8, 6))
 
 ##--Make special color map where 0 values are white--##
-new_cmap = plt.get_cmap('viridis')
+new_cmap = plt.get_cmap('cividis')
 
 ##--Values under specified minimum will be white--##
 new_cmap.set_under('w')
@@ -181,7 +181,7 @@ O3_plot = ax1.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, O3_bin_me
     shading='auto', cmap=new_cmap, vmin=0, vmax=80)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax1.axhline(y=275, color='k', linestyle='--', linewidth=1)
+ax1.axhline(y=285, color='k', linestyle='--', linewidth=1)
 ax1.axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Add colorbar--##

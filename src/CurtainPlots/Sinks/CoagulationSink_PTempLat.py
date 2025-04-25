@@ -22,7 +22,7 @@ directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight2 thru Flight10)--##
 ##--FLIGHT1 HAS NO UHSAS FILES--##
-flight = "Flight8"
+flight = "Flight10"
 
 ##--Set number of bins for latitude and potential temperature--##
 num_bins_lat = 4
@@ -446,7 +446,7 @@ Coagulation_bin_medians, _, _, _ = binned_statistic_2d(Coagulation_clean_df['Lat
 fig1, ax1 = plt.subplots(figsize=(8, 6))
 
 ##--Make special color map where 0 values are white--##
-new_cmap = plt.get_cmap('viridis')
+new_cmap = plt.get_cmap('plasma')
 ##--Values under specified minimum will be white--##
 new_cmap.set_under('w')
 
@@ -455,7 +455,7 @@ Coagulation_plot = ax1.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, 
     shading='auto', cmap=new_cmap, vmin=0, vmax=0.0012)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax1.axhline(y=275, color='k', linestyle='--', linewidth=1)
+ax1.axhline(y=285, color='k', linestyle='--', linewidth=1)
 ax1.axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Add colorbar--##
@@ -502,7 +502,7 @@ Coagulation_plot = ax1.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, 
     shading='auto', cmap=new_cmap, vmin=1, vmax=1250)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax1.axhline(y=275, color='k', linestyle='--', linewidth=1)
+ax1.axhline(y=285, color='k', linestyle='--', linewidth=1)
 ax1.axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Add colorbar--##

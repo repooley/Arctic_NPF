@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt 
 import matplotlib.ticker as ticker
+from datetime import datetime, timedelta
 
 #########################
 ##--Open ICARTT Files--##
@@ -22,7 +23,7 @@ directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight2 thru Flight10)--##
 ##--NO UHSAS FILES FOR FLIGHT1--##
-flight = "Flight8"
+flight = "Flight10"
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -257,7 +258,15 @@ combined_bin_edges = np.concatenate([
     OPC_upper_bound.values     # OPC bins continue from last UHSAS
 ])
 
-##--Calculate time edges for each bin--##
+##--Convert seconds since midnight to date time--##
+aimms_hhmm = []
+
+for seconds in aimms_time:
+    ##--Choose arbitary start date--##
+    time_obj = (datetime(1900, 1, 1) + timedelta(seconds=seconds)).time()
+    aimms_hhmm.append(time_obj)
+
+##--Calculate time edges for each bin, pcmesh doesn't expect time objects!--##
 time_step = aimms_time[1] - aimms_time[0]  
 time_edges = np.append(aimms_time, aimms_time[-1] + time_step)  # length N + 1
 
@@ -274,27 +283,35 @@ optical_conc = optical_bins_smoothed.to_numpy().T
 fig, ax1 = plt.subplots(figsize=(12, 8))
 c = ax1.pcolormesh(time_edges, combined_bin_edges, optical_conc, shading='auto', cmap='viridis')
 
-# Labels and colorbar
-cb = plt.colorbar(c, ax=ax1, location='bottom', pad=0.1, shrink=0.65)
-cb.set_label(label='Normalized Particle Concentration (dN/dlogDp) [scm⁻³]', fontsize=14)
-cb.ax.tick_params(labelsize=14)
+##--Grab ticks--##
+tick_seconds = ax1.get_xticks()
+##--Convert from seconds since midnight to HH:MM using an arbitary date for datetime--##
+tick_labels = [(datetime(1900, 1, 1) + timedelta(seconds=s)).strftime("%H") for s in tick_seconds]
+ax1.set_xticks(tick_seconds)
+ax1.set_xticklabels(tick_labels)
+ax1.set_xlabel("Hour", fontsize=14)
 
-# Optional adjustments
-ax1.set_title(f"Optical Data Time Series - {flight.replace('Flight', 'Flight ')}", fontsize=20, pad=20)
-ax1.set_xlim([aimms_time.min(), aimms_time.max()])
+ax1.set_title(f"Particle Size Distribution - {flight.replace('Flight', 'Flight ')}", fontsize=20, pad=20)
+##--Set axis limits to match data range--##
+ax1.set_xlim(time_edges[0], time_edges[-1])
 #ax1.set_ylim([bin_center.min(), bin_center.max()])
 ax1.set_yscale('log')
 custom_ticks = [10, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
 ##--Apply custom ticks--##
 ax1.yaxis.set_major_locator(ticker.FixedLocator(custom_ticks))
 
-# Optional: format them normally (just numbers)
+##--Format y-axis as regular numbers--##
 ax1.yaxis.set_major_formatter(ticker.FormatStrFormatter('%d'))
 ax1.tick_params(axis='y', labelsize=14)
 ax1.tick_params(axis='x', labelsize=14)
 
-ax1.set_xlabel('Time (seconds since midnight UTC)', fontsize=14)
+#ax1.set_xlabel('Time (seconds since midnight UTC)', fontsize=14)
 ax1.set_ylabel('Log of Particle Diameter (nm)', fontsize=14)
+
+##--Add a colorbar below the plot--##
+cb = plt.colorbar(c, ax=ax1, location='bottom', pad=0.13, shrink=0.65)
+cb.set_label(label='Normalized Particle Concentration (dN/dlogDp) [scm⁻³]', fontsize=14)
+cb.ax.tick_params(labelsize=14)
 
 plt.tight_layout()
 plt.show()

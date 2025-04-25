@@ -22,7 +22,7 @@ directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight2 thru Flight10)--##
 ##--NO UHSAS FILES FOR FLIGHT1--##
-flight = "Flight10"
+flight = "Flight2"
 
 ##--Set binning for PTemp and Latitude--##
 num_bins_lat = 4
@@ -331,7 +331,7 @@ Count_plot = ax1.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, Count_
     shading='auto', cmap=new_cmap, vmin=0, vmax=50000)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax1.axhline(y=275, color='k', linestyle='--', linewidth=1)
+ax1.axhline(y=285, color='k', linestyle='--', linewidth=1)
 ax1.axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Add colorbar--##

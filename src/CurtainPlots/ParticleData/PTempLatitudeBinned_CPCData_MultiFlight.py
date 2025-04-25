@@ -21,7 +21,7 @@ from scipy.stats import binned_statistic_2d
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw"
 
 ##--Choose which flights to analyze here!--##
-flights_to_analyze = ["Flight2", "Flight3", "Flight4", "Flight5", "Flight6", "Flight7", "Flight8", "Flight9", "Flight10"]
+flights_to_analyze = ["Flight1", "Flight2", "Flight3", "Flight4", "Flight5", "Flight6", "Flight7", "Flight8", "Flight9", "Flight10"]
 
 ##--Set binning for PTemp and Latitude--##
 ##--Define number of bins here--##
@@ -236,7 +236,7 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, o
     
     ##--Add dashed horizontal lines for the polar dome boundaries--##
     ##--Boundaries are defined from Bozem et al 2019 (ACP)--##
-    ax.axhline(y=275, color='k', linestyle='--', linewidth=1)
+    ax.axhline(y=285, color='k', linestyle='--', linewidth=1)
     ax.axhline(y=299, color='k', linestyle='--', linewidth=1)
     
     '''
@@ -277,7 +277,7 @@ plot_curtain(CPC10_bin_medians, lat_bin_edges_CPC10, ptemp_bin_edges_CPC10, vmin
     output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC10\PTempLatitude\MultiFlights.png")
  
 ##--Plot for nucleating particles--##
-plot_curtain(nuc_bin_medians, lat_bin_edges_nuc, ptemp_bin_edges_nuc, vmin=1, vmax=500,
+plot_curtain(nuc_bin_medians, lat_bin_edges_nuc, ptemp_bin_edges_nuc, vmin=1, vmax=1000,
     title="2.5-10 nm Particle Abundance", cbar_label="2.5-10 nm Particles $(Counts/cm^{3})$",
     output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\PTempLatitude\MultiFlights.png")
 
@@ -320,7 +320,7 @@ def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label, ou
     cb.set_label(cbar_label, fontsize=16)
     
     ##--Add dashed horizontal lines for the polar dome boundaries--##
-    ax.axhline(y=275, color='k', linestyle='--', linewidth=1)
+    ax.axhline(y=285, color='k', linestyle='--', linewidth=1)
     ax.axhline(y=299, color='k', linestyle='--', linewidth=1)
     
     '''

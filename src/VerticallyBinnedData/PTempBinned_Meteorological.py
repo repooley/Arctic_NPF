@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight2" #Flight1 AIMMS file currently broken at line 13234
+flight = "Flight10" 
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -236,13 +236,13 @@ axs[0].set_title('Absolute Temperature')
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
 ##--Boundaries are defined from Bozem et al 2019 (ACP)--##
-axs[0].axhline(y=275, color='k', linestyle='--', linewidth=1)
+axs[0].axhline(y=285, color='k', linestyle='--', linewidth=1)
 axs[0].axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Add text labels on the left-hand side within the plot area--##
 ##--Compute midpoints for label placement--##
-polar_dome_label = 272
-marginal_polar_dome_label = 278
+polar_dome_label = 282
+marginal_polar_dome_label = 288
 x_text = axs[0].get_xlim()[0] + 1  # offset from left edge
 
 axs[0].text(x_text, polar_dome_label, 'Polar Dome',
@@ -260,7 +260,7 @@ axs[1].set_xlabel('Relative Humidity (%)')
 axs[1].set_title('RH from MR WRT Water')
 #axs[1].set_xlim(-45, -16)
 
-axs[1].axhline(y=275, color='k', linestyle='--', linewidth=1)
+axs[1].axhline(y=285, color='k', linestyle='--', linewidth=1)
 axs[1].axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Third subplot: RH wrt ice from H2O data--##
@@ -270,7 +270,7 @@ axs[2].fill_betweenx(binned_df['PTemp_center'], binned_df['Rel_humidity_i_min'],
 axs[2].set_xlabel('Relative Humidity (%)')
 axs[2].set_title('RH from MR WRT Ice')
 
-axs[2].axhline(y=275, color='k', linestyle='--', linewidth=1)
+axs[2].axhline(y=285, color='k', linestyle='--', linewidth=1)
 axs[2].axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Fourth subplot: RH from probe--##
@@ -281,7 +281,7 @@ axs[3].set_xlabel('Relative Humidity (%)')
 axs[3].set_title('RH from Probe') 
 #axs[4].set_xlim(0, 120)
 
-axs[3].axhline(y=275, color='k', linestyle='--', linewidth=1)
+axs[3].axhline(y=285, color='k', linestyle='--', linewidth=1)
 axs[3].axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Use f-string to embed flight # variable in plot title--##
