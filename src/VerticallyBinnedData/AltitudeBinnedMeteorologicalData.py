@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight10" #Flight1 AIMMS file currently broken at line 13234
+flight = "Flight10" 
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):

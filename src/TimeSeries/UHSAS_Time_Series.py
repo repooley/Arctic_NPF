@@ -149,7 +149,7 @@ nuc_particles = (CPC_df['CPC3_conc'] - CPC_df['CPC10_conc'])
 ##--Change calculated particle counts less than zero to NaN--##
 nuc_particles = np.where(nuc_particles >= 0, nuc_particles, np.nan)
 
-# Smooth with rolling average (window size in seconds, adjust 'window' as needed)
+##--Smooth with rolling average (window size in seconds)--##
 window_size = 30  # e.g., 30 seconds
 nuc_particles_smooth = pd.Series(nuc_particles).rolling(window=window_size, center=True, min_periods=1).mean()
 
@@ -167,26 +167,25 @@ time_mesh, diameter_mesh = np.meshgrid(aimms_time, bin_center)
 fig, ax1 = plt.subplots(figsize=(12, 8))
 c = ax1.pcolormesh(time_mesh, diameter_mesh, uhsas_conc, shading='auto', cmap='viridis')
 
-# Labels and colorbar
+##--Labels and colorbar--##
 cb = plt.colorbar(c, ax=ax1, location='bottom', pad=0.1, shrink=0.65)
 cb.set_label(label='Normalized UHSAS Particle Concentration (dN/dlogDp) [cm⁻³]', fontsize=14)
 cb.ax.tick_params(labelsize=14)
-
-# Optional adjustments
 ax1.set_title(f"UHSAS Time Series - {flight.replace('Flight', 'Flight ')}", fontsize=20, pad=20)
 ax1.set_xlim([aimms_time.min(), aimms_time.max()])
 #ax1.set_ylim([bin_center.min(), bin_center.max()])
 ax1.set_yscale('log')
 custom_ticks = [100, 200, 300, 400, 500, 600, 700, 800, 900]
-# Apply custom ticks
+
+##--Apply custom ticks--##
 ax1.yaxis.set_major_locator(ticker.FixedLocator(custom_ticks))
 
-# Optional: format them normally (just numbers)
+##--Re-format y-axis labels to be just numbers--##
 ax1.yaxis.set_major_formatter(ticker.FormatStrFormatter('%d'))
 ax1.tick_params(axis='y', labelsize=14)
 ax1.tick_params(axis='x', labelsize=14)
 
-# Secondary y-axis for altitude
+##--Secondary y-axis for altitude--##
 ax2 = ax1.twinx()
 ax2.plot(aimms_time, nuc_particles_smooth, 'k', label='N(2.5-10)')
 ax2.set_ylabel('N(2.5-10) Abundance (particles/cm³)', fontsize=14)

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Apr  4 09:48:34 2025
+Created on Wed May  7 09:42:11 2025
 
 @author: repooley
 """
@@ -22,14 +22,14 @@ directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight2 thru Flight10)--##
 ##--FLIGHT1 HAS NO UHSAS FILES--##
-flight = "Flight2"
+flight = "Flight6"
 
 ##--Set number of bins for latitude and potential temperature--##
 num_bins_lat = 4
 num_bins_ptemp = 8
 
 ##--Base output path for figures in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CoagulationSink"
+output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CondensationSink"
 
 #########################
 ##--Open ICARTT Files--##
@@ -283,22 +283,22 @@ Mair = MMair/(6.022E23 * 1000) # kg
 ##--Diameter average air molecule--##
 Dair = 3.61E-10 # in m
 
-##--For N(2.5-10)--##
+##--For sulfuric acid--##
 
-##--Median particle diameter--##
-nuc_diam = 6.25E-9 # m
+##--Median sulfuric acid diameter--##
+s_diam = 6.25E-9 # m
 
-##--Vol spherical particle--##
-nuc_vol = (4/3) * np.pi * (nuc_diam / 2) ** 3 #m^3
+##--Vol sulfuric acid molecule--##
+s_vol = (4/3) * np.pi * (s_diam / 2) ** 3 #m^3
 
-##--Mass particle assuming density of 1--##
-nuc_mass = nuc_vol #kg
+##--Mass sulfuric acid--##
+s_mass = 98.079 # g/mol
 
 ##--Reduced mass ratio--##
-z_nuc = nuc_mass/Mair
+z_s = s_mass/Mair
 
-##--Collision cross section nuc particle + air--##
-sigma_nuc = (Dair + nuc_diam) / 2
+##--Collision cross section sulfuric acid + air--##
+sigma_s = (Dair + s_diam) / 2
 
 ##--Variables--##
 
@@ -308,34 +308,34 @@ pressure_series = pd.Series(pressure, index=aimms_time)
 ##--Concentration air molecules--##
 Nair = (6.022E23 * pressure) / (R * temperature) # num/m^3
 
-##--For N(2.5-10)--##
+##--For Sulfuric Acid--##
 
-##--Mean particle speed--##
-nuc_speed = ((8 * k * temperature_series) / (np.pi * nuc_mass))**(1/2)
+##--Mean sulfuric speed--##
+s_speed = ((8 * k * temperature_series) / (np.pi * s_mass))**(1/2)
 
-##--Collision cross section, assumes collision with equal size particle--##
-nuc_collision_cross = np.pi * (nuc_diam )**2 # m^2
+##--Collision cross section, assumes collision with equal size molecule--##
+s_collision_cross = np.pi * (s_diam )**2 # m^2
 
 ##--Estimate of mean free path against air for use in slip correction--##
-nuc_mfp_estimate = 1/(np.pi * (1 + z_nuc)**(1/2) * Nair * sigma_nuc**2) # m
+s_mfp_estimate = 1/(np.pi * (1 + z_s)**(1/2) * Nair * sigma_s**2) # m
 
 ##--Knudsen number--##
-nuc_knudsen = nuc_mfp_estimate / (nuc_diam/2) # unitless 
+s_knudsen = s_mfp_estimate / (s_diam/2) # unitless 
 
 ##--Cunningham slip correction--##
-nuc_slip = 1 + 2 * nuc_knudsen * (2.514 + 0.800 * np.exp(-0.550 / nuc_knudsen))
+s_slip = 1 + 2 * s_knudsen * (2.514 + 0.800 * np.exp(-0.550 / s_knudsen))
 
 ##--Dynamic viscosity--##
 dynam_viscosity = (C * temperature_series ** (3/2)) / (temperature_series + S)
 
 ##--Diffusivity--##
-nuc_diffusivity = (k * temperature_series * nuc_slip / (3 * np.pi * dynam_viscosity * nuc_diam)) # m^2/s
+s_diffusivity = (k * temperature_series * s_slip / (3 * np.pi * dynam_viscosity * s_diam)) # m^2/s
 
 ##--Mean free path--##
-nuc_mfp = ((8 * nuc_diffusivity) / (np.pi * nuc_speed)) # m 
+s_mfp = ((8 * s_diffusivity) / (np.pi * s_speed)) # m 
 
 ##--Calculate g coefficient--##
-nuc_g = (2**(1/2) / (3 * nuc_diam * nuc_mfp)) * ((nuc_diam + nuc_mfp)**3 - (nuc_diam**2 + nuc_mfp**2)**(3/2)) - nuc_diam
+s_g = (2**(1/2) / (3 * s_diam * s_mfp)) * ((s_diam + s_mfp)**3 - (s_diam**2 + s_mfp**2)**(3/2)) - s_diam
 
 
 ##--Loop through dfs in diameter_dfs and calculate needed variables for each bin--##
@@ -375,7 +375,7 @@ for diameter, df in diameter_dfs.items():
     slip = 1 + 2 * df['Knudsen_number'] * (2.514 + 0.800 * np.exp(-0.550 / df['Knudsen_number'])) # unitless
     
     ##--Particle diffusivity--##
-    diffusivity = (k * temperature_series * nuc_slip / (3 * np.pi * dynam_viscosity * mean_diameter)) # m^2/s
+    diffusivity = (k * temperature_series * s_slip / (3 * np.pi * dynam_viscosity * mean_diameter)) # m^2/s
     
     ##--Calculate mean free path of H2SO4 from molecular diameter--##
     df['mean_free_path'] = ((8 * diffusivity) / (np.pi * speed)) # m
@@ -385,10 +385,10 @@ for diameter, df in diameter_dfs.items():
                                       - (mean_diameter**2 + df['mean_free_path']**2)**(3/2)) - mean_diameter)
     
     ##--Compute the coagulation kernel per bin--##
-    df['Coagulation_kernel'] = (2 * np.pi * (nuc_diffusivity + diffusivity) * (nuc_diam + mean_diameter) * 
-                          ((nuc_diam + mean_diameter) / (nuc_diam + mean_diameter + 2*(nuc_g**2 + g**2)**(1/2))
-                           + (8 * (nuc_diffusivity + diffusivity)) / ((nuc_speed**2 + speed**2)**(1/2) * 
-                                                                      (nuc_diam + mean_diameter)))**-1)
+    df['Coagulation_kernel'] = (2 * np.pi * (s_diffusivity + diffusivity) * (s_diam + mean_diameter) * 
+                          ((s_diam + mean_diameter) / (s_diam + mean_diameter + 2*(s_g**2 + g**2)**(1/2))
+                           + (8 * (s_diffusivity + diffusivity)) / ((s_speed**2 + speed**2)**(1/2) * 
+                                                                      (s_diam + mean_diameter)))**-1)
     
     ##--Calculate coagulation by multiplying kernel by particle concentration per bin--##
     df['Coagulation'] = df['Coagulation_kernel'] * df['Particle_concentration'] # s^-1
@@ -452,7 +452,7 @@ new_cmap.set_under('w')
 
 ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
 Coagulation_plot = ax1.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, Coagulation_bin_medians.T,  # Transpose to align correctly
-    shading='auto', cmap=new_cmap, vmin=0, vmax=0.0012)
+    shading='auto', cmap=new_cmap, vmin=0, vmax=0.005)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
 ax1.axhline(y=285, color='k', linestyle='--', linewidth=1)
@@ -462,19 +462,19 @@ ax1.axhline(y=299, color='k', linestyle='--', linewidth=1)
 cb = fig1.colorbar(Coagulation_plot, ax=ax1)
 cb.minorticks_on()
 cb.ax.tick_params(labelsize=16)
-cb.set_label('N(2.5-10) Coagulation Sink (s-1)', fontsize=16)
+cb.set_label('Condensation Sink (s-1)', fontsize=16)
 
 ##--Set axis labels--##
 ax1.set_xlabel('Latitude (°)', fontsize=16)
 ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=16)
 ax1.tick_params(axis='both', labelsize=16)
-ax1.set_title(f"N(2.5-10) Coagulation Sink - {flight.replace('Flight', 'Flight ')}", fontsize=18)
+ax1.set_title(f"Williamson Method Condensation Sink - {flight.replace('Flight', 'Flight ')}", fontsize=18)
 #ax1.set_ylim(245, 301)
 #ax1.set_xlim(79.5, 83.7)
 
 ##--Use f-string to save file with flight# appended--##
-Coagulation_output_path = f"{output_path}\\{flight}"
-plt.savefig(Coagulation_output_path, dpi=600, bbox_inches='tight') 
+Condensation_output_path = f"{output_path}\\{flight}_Williamson"
+plt.savefig(Condensation_output_path, dpi=600, bbox_inches='tight') 
 
 plt.tight_layout()
 plt.show()
@@ -515,13 +515,13 @@ cb.set_label('Number of Data Points', fontsize=16)
 ax1.set_xlabel('Latitude (°)', fontsize=16)
 ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=16)
 ax1.tick_params(axis='both', labelsize=16)
-ax1.set_title(f"Coagulation Sink Counts per Bin - {flight.replace('Flight', 'Flight ')}", fontsize=18)
+ax1.set_title(f"Condensation Sink Counts per Bin - {flight.replace('Flight', 'Flight ')}", fontsize=18)
 #ax1.set_ylim(238, 301)
 #ax1.set_xlim(79.5, 83.7)
 
 ##--Use f-string to save file with flight# appended--##
-CS10_diag_output_path = f"{output_path}\\{flight}_diagnostic"
-plt.savefig(CS10_diag_output_path, dpi=600, bbox_inches='tight') 
+Condensation_diag_output_path = f"{output_path}\\{flight}_diagnostic_Williamson"
+plt.savefig(Condensation_diag_output_path, dpi=600, bbox_inches='tight') 
 
 plt.tight_layout()
 plt.show()

@@ -21,7 +21,7 @@ from scipy.stats import binned_statistic_2d
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight10" 
+flight = "Flight2" 
 
 ##--Define number of bins--##
 num_bins_lat = 4
@@ -212,7 +212,7 @@ CO_plot = ax2.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, CO_bin_me
     shading='auto', cmap=new_cmap, vmin=100, vmax=250)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax2.axhline(y=275, color='k', linestyle='--', linewidth=1)
+ax2.axhline(y=285, color='k', linestyle='--', linewidth=1)
 ax2.axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Add colorbar--##
@@ -243,7 +243,7 @@ CO2_plot = ax3.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, CO2_bin_
     shading='auto', cmap=new_cmap, vmin=400, vmax=410)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax3.axhline(y=275, color='k', linestyle='--', linewidth=1)
+ax3.axhline(y=285, color='k', linestyle='--', linewidth=1)
 ax3.axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Add colorbar--##
@@ -301,7 +301,7 @@ O3_plot = ax1.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, O3_bin_co
     shading='auto', cmap=new_cmap, vmin=1, vmax=150)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax1.axhline(y=275, color='k', linestyle='--', linewidth=1)
+ax1.axhline(y=285, color='k', linestyle='--', linewidth=1)
 ax1.axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Add colorbar--##
@@ -332,7 +332,7 @@ CO_plot = ax2.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, CO_bin_co
     shading='auto', cmap=new_cmap, vmin=1, vmax=1500)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax2.axhline(y=275, color='k', linestyle='--', linewidth=1)
+ax2.axhline(y=285, color='k', linestyle='--', linewidth=1)
 ax2.axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Add colorbar--##
@@ -363,7 +363,7 @@ CO2_plot = ax3.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, CO2_bin_
     shading='auto', cmap=new_cmap, vmin=1, vmax=1500)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax3.axhline(y=275, color='k', linestyle='--', linewidth=1)
+ax3.axhline(y=285, color='k', linestyle='--', linewidth=1)
 ax3.axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Add colorbar--##

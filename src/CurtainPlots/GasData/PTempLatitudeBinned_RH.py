@@ -21,7 +21,7 @@ from scipy.stats import binned_statistic_2d
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight10" 
+flight = "Flight2" 
 
 ##--Define number of bins--##
 num_bins_lat = 4
@@ -205,7 +205,7 @@ RH_w_plot = ax1.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, RH_w_bi
     shading='auto', cmap=new_cmap, vmin=0, vmax=120)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax1.axhline(y=275, color='k', linestyle='--', linewidth=1)
+ax1.axhline(y=285, color='k', linestyle='--', linewidth=1)
 ax1.axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Add colorbar--##
@@ -236,7 +236,7 @@ RH_i_plot = ax2.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, RH_i_bi
     shading='auto', cmap=new_cmap, vmin=0, vmax=120)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax2.axhline(y=275, color='k', linestyle='--', linewidth=1)
+ax2.axhline(y=285, color='k', linestyle='--', linewidth=1)
 ax2.axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Add colorbar--##
@@ -267,7 +267,7 @@ temp_plot = ax3.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, temp_bi
     shading='auto', cmap=new_cmap, vmin=200, vmax=300)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax3.axhline(y=275, color='k', linestyle='--', linewidth=1)
+ax3.axhline(y=285, color='k', linestyle='--', linewidth=1)
 ax3.axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Add colorbar--##

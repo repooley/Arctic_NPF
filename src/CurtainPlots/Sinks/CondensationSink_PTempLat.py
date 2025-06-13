@@ -22,7 +22,7 @@ directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight2 thru Flight10)--##
 ##--FLIGHT1 HAS NO UHSAS FILES--##
-flight = "Flight10"
+flight = "Flight2"
 
 ##--Set number of bins for latitude and potential temperature--##
 num_bins_lat = 4
