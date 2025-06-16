@@ -21,14 +21,17 @@ from scipy.stats import binned_statistic_2d
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight to analyze (Flight1 thru Flight10)--##
-flight = "Flight7"
+flight = "Flight10"
 
 ##--Set binning for PTemp and Latitude--##
 num_bins_lat = 4
 num_bins_ptemp = 8
 
+##--Bin data are in a CSV file--##
+UHSAS_bins = pd.read_csv(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv")
+
 ##--Base output path for figures in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\PTempLatitude"
+output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots"
 
 #########################
 ##--Open ICARTT Files--##
@@ -44,6 +47,9 @@ def find_files(directory, flight, partial_name):
 ##--Meterological data from AIMMS monitoring system--##
 aimms = icartt.Dataset(find_files(directory, flight, "AIMMS_POLAR6")[0])
 
+##--UHSAS data--##
+UHSAS = icartt.Dataset(find_files(directory, flight, 'UHSAS')[0])
+
 ##--CPC data--##
 CPC10 = icartt.Dataset(find_files(directory, flight, 'CPC3772')[0])
 CPC3 = icartt.Dataset(find_files(directory, flight, 'CPC3776')[0])
@@ -58,6 +64,36 @@ latitude = aimms.data['Lat'] # in degrees
 temperature = aimms.data['Temp'] + 273.15 # in K
 pressure = aimms.data['BP'] # in pa
 aimms_time =aimms.data['TimeWave'] # seconds since midnight
+
+##--USHAS Data--##
+UHSAS_time = UHSAS.data['time'] # seconds since midnight
+##--Total count is computed for N > 85 nm--##
+UHSAS_total_num = UHSAS.data['total_number_conc'] # particles/cm^3
+
+##--Make list of columns to pull, each named bin_x--##
+##--Bins 1-13 not trustworthy. Bins 76-99 overlap with OPC, discard--##
+##--Trim to use bins 14-76 (500>85 nm)--##
+UHSAS_bin_num = [f'bin_{i}' for i in range(14, 75)]
+
+##--Information for bins 14 thru 99--##
+UHSAS_bin_center = UHSAS_bins['bin_avg'].iloc[14:75]
+UHSAS_lower_bound = UHSAS_bins['lower_bound'].iloc[14:75]
+UHSAS_upper_bound = UHSAS_bins['upper_bound'].iloc[14:75]
+
+##--Put column names and content in a dictionary and then convert to a Pandas df--##
+UHSAS_bins = pd.DataFrame({col: UHSAS.data[col] for col in UHSAS_bin_num})
+
+##--Create new column names by rounding the bin center values to the nearest integer--##
+UHSAS_new_col_names = UHSAS_bin_center.round().astype(int).tolist()
+
+##--Rename the UHSAS_bins df columns to bin average values--##
+UHSAS_bins.columns = UHSAS_new_col_names
+
+##--Add time, total_num to UHSAS_bins df--##
+UHSAS_bins.insert(0, 'Time', UHSAS_time)
+
+##--Align UHSAS_bins time to AIMMS time--##
+UHSAS_bins_aligned = UHSAS_bins.set_index('Time').reindex(aimms_time)
 
 ##--10 nm CPC data--##
 CPC10_time = CPC10.data['time']
@@ -77,10 +113,27 @@ CPC10_df = pd.DataFrame({'time': CPC10_time, 'conc': CPC10_conc}).set_index('tim
 ##--Make a new df reindexed to aimms_time. Populate with CPC10 conc--##
 CPC10_conc_aligned = CPC10_df.reindex(aimms_time)['conc']
 
+#######################################
+##--Calculate potential temperature--##
+#######################################
+
+##--Constants--##
+p_0 = 1E5 # Reference pressure in Pa (1000 hPa)
+k = 0.286 # Poisson constant for dry air
+
+##--Generate empty list for potential temperature output--##
+potential_temp = []
+
+##--Calculate potential temperature from ambient temp & pressure--##
+for T, P in zip(temperature, pressure):
+    p_t = T*(p_0/P)**k
+    potential_temp.append(p_t)
+    
 ######################
-##--Convert to STP--##
+##--Calc N(2.5-10)--##
 ######################
 
+##--Convert to STP--##
 P_STP = 101325  # Pa
 T_STP = 273.15  # K
 
@@ -108,21 +161,33 @@ for CPC10, T, P in zip(CPC10_conc_aligned, temperature, pressure):
         CPC10_conversion = CPC10 * (P_STP / P) * (T / T_STP)
         CPC10_conc_STP.append(CPC10_conversion)
 
-#######################################
-##--Calculate potential temperature--##
-#######################################
+##--Creates a Pandas dataframe for CPC data--##
+CPC_df = pd.DataFrame({'CPC3_conc':CPC3_conc_STP, 'CPC10_conc': CPC10_conc_STP})
 
-##--Constants--##
-p_0 = 1E5 # Reference pressure in Pa (1000 hPa)
-k = 0.286 # Poisson constant for dry air
+##--Calculate N3-10 particles--##
+nuc_particles = (CPC_df['CPC3_conc'] - CPC_df['CPC10_conc'])
 
-##--Generate empty list for potential temperature output--##
-potential_temp = []
+##--Change calculated particle counts less than zero to NaN--##
+nuc_particles = np.where(nuc_particles >= 0, nuc_particles, np.nan)
 
-##--Calculate potential temperature from ambient temp & pressure--##
-for T, P in zip(temperature, pressure):
-    p_t = T*(p_0/P)**k
-    potential_temp.append(p_t)
+#####################
+##--Calc N(10-89)--##
+#####################
+
+##--Create df with UHSAS total counts--##
+UHSAS_total = pd.DataFrame({'Time': UHSAS_time, 'Total_count': UHSAS_total_num})
+
+##--Reindex UHSAS_total df to AIMMS time--##
+UHSAS_total_aligned = UHSAS_total.set_index('Time').reindex(aimms_time)
+
+##--Create df with CPC10 counts and set index to time--##
+CPC10_counts = pd.DataFrame({'Time':aimms_time, 'Counts':CPC10_conc_STP}).set_index('Time')
+
+##--Calculate particles below UHSAS lower cutoff--##
+n_10_89 = (CPC10_counts['Counts'] - UHSAS_total_aligned['Total_count'])
+
+##--Change calculated particle counts less than zero to NaN--##
+n_10_89 = np.where(n_10_89 >= 0, n_10_89, np.nan)
 
 ###########################
 ##--Create 2D histogram--##
@@ -142,8 +207,13 @@ nuc_particles = (CPC3_df['CPC3'] - CPC10_df['CPC10'])
 ##--Change calculated particle counts less than zero to NaN--##
 nuc_particles = np.where(nuc_particles >= 0, nuc_particles, np.nan)
 
+##--2.5-10nm, 'nucleating'--##
 nuc_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'nuc_particles': nuc_particles})
 nuc_clean_df = nuc_df.dropna()
+
+##--10-89nm, 'growth'--##
+grow_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'n_10_89': n_10_89})
+grow_clean_df = grow_df.dropna()
 
 ##--Compute global min/max values across all data BEFORE dropping NaNs--##
 lat_min, lat_max = np.nanmin(latitude), np.nanmax(latitude)
@@ -165,6 +235,10 @@ CPC10_bin_medians, _, _, _ = binned_statistic_2d(CPC10_clean_df['Latitude'],
 ##--N(2.5-10)--##
 nuc_bin_medians, _, _, _ = binned_statistic_2d(nuc_clean_df['Latitude'], 
     nuc_clean_df['PTemp'], nuc_clean_df['nuc_particles'], statistic='median', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+
+##--N(10-89)--##
+grow_bin_medians, _, _, _ = binned_statistic_2d(grow_clean_df['Latitude'], 
+    grow_clean_df['PTemp'], grow_clean_df['n_10_89'], statistic='median', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
 
 ################
 ##--PLOTTING--##
@@ -201,7 +275,7 @@ ax1.set_title(f"Particles >2.5 nm Abundance - {flight.replace('Flight', 'Flight 
 #ax1.set_xlim(79.5, 83.7)
 
 ##--Use f-string to save file with flight# appended--##
-CPC3_output_path = f"{output_path}\\{flight}"
+CPC3_output_path = f"{output_path}\\CPC3/PTempLatitude/{flight}"
 plt.savefig(CPC3_output_path, dpi=600, bbox_inches='tight') 
 
 plt.tight_layout()
@@ -233,7 +307,7 @@ ax2.set_title(f"Particles >10 nm Abundance - {flight.replace('Flight', 'Flight '
 #ax2.set_xlim(79.5, 83.7)
 
 ##--Use f-string to save file with flight# appended--##
-CPC10_output_path = f"{output_path}\\{flight}"
+CPC10_output_path = f"{output_path}\\CPC10/PTempLatitude/{flight}"
 plt.savefig(CPC10_output_path, dpi=600, bbox_inches='tight') 
 
 plt.tight_layout()
@@ -265,8 +339,40 @@ ax3.set_title(f"2.5-10 nm Particle Abundance - {flight.replace('Flight', 'Flight
 #ax3.set_xlim(79.5, 83.7)
 
 ##--Use f-string to save file with flight# appended--##
-nuc_output_path = f"{output_path}\\{flight}"
+nuc_output_path = f"{output_path}\\Nucleating/PTempLatitude/{flight}"
 plt.savefig(nuc_output_path, dpi=600, bbox_inches='tight') 
+
+plt.tight_layout()
+plt.show()
+
+##--10-89nm particles--##
+fig4, ax4 = plt.subplots(figsize=(8, 6))
+
+##--Use pcolormesh for the plot and use viridis for values greater than 1--##
+grow_plot = ax4.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, grow_bin_medians.T,  # Transpose to align correctly
+    shading='auto', cmap=new_cmap, vmin=0, vmax=1000)
+
+##--Add dashed horizontal lines for the polar dome boundaries--##
+ax4.axhline(y=285, color='k', linestyle='--', linewidth=1)
+ax4.axhline(y=299, color='k', linestyle='--', linewidth=1)
+
+##--Add colorbar--##
+cb4 = fig4.colorbar(nuc_plot, ax=ax4)
+cb4.minorticks_on()
+cb4.ax.tick_params(labelsize=16)
+cb4.set_label('10-89 nm Particles $(Counts/cm^{3})$', fontsize=16)
+
+##--Set axis labels--##
+ax4.set_xlabel('Latitude (°)', fontsize=16)
+ax4.set_ylabel('Potential Temperature \u0398 (K)', fontsize=16)
+ax4.tick_params(axis='both', labelsize=16)
+ax4.set_title(f"10-89 nm Particle Abundance - {flight.replace('Flight', 'Flight ')}", fontsize=18)
+#ax4.set_ylim(238, 301)
+#ax4.set_xlim(79.5, 83.7)
+
+##--Use f-string to save file with flight# appended--##
+grow_output_path = f"{output_path}\\N_10_89/PTempLatitude/{flight}"
+plt.savefig(grow_output_path, dpi=600, bbox_inches='tight') 
 
 plt.tight_layout()
 plt.show()
@@ -289,6 +395,10 @@ CPC10_bin_counts, _, _, _ = binned_statistic_2d(CPC10_clean_df['Latitude'],
 ##--Counts per bin for N3-10 particles--##
 nuc_bin_counts, _, _, _ = binned_statistic_2d(nuc_clean_df['Latitude'], 
     nuc_clean_df['PTemp'], nuc_clean_df['nuc_particles'], statistic='count', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+
+##--Counts per bin for N10-89 particles--##
+grow_bin_counts, _, _, _ = binned_statistic_2d(grow_clean_df['Latitude'], 
+    grow_clean_df['PTemp'], grow_clean_df['n_10_89'], statistic='count', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
 
 ##--Plotting--##
 
@@ -319,7 +429,7 @@ ax1.set_title(f"Particles >2.5 nm Counts per Bin - {flight.replace('Flight', 'Fl
 #ax1.set_xlim(79.5, 83.7)
 
 ##--Use f-string to save file with flight# appended--##
-CPC3_diag_output_path = f"{output_path}\\{flight}_diagnostic"
+CPC3_diag_output_path = f"{output_path}\\CPC3/PTempLatitude/{flight}_diagnostic"
 plt.savefig(CPC3_diag_output_path, dpi=600, bbox_inches='tight') 
 
 plt.tight_layout()
@@ -347,7 +457,7 @@ ax2.set_title(f"Particles >10 nm Counts per Bin - {flight.replace('Flight', 'Fli
 #ax2.set_xlim(79.5, 83.7)
 
 ##--Use f-string to save file with flight# appended--##
-CPC10_diag_output_path = f"{output_path}\\{flight}_diagnostic"
+CPC10_diag_output_path = f"{output_path}\\CPC10/PTempLatitude/{flight}_diagnostic"
 plt.savefig(CPC10_diag_output_path, dpi=600, bbox_inches='tight') 
 
 plt.tight_layout()
@@ -375,8 +485,33 @@ ax3.set_title(f"2.5-10 nm Particle Counts per Bin - {flight.replace('Flight', 'F
 #ax3.set_xlim(79.5, 83.7)
 
 ##--Use f-string to save file with flight# appended--##
-nuc_diag_output_path = f"{output_path}\\{flight}_diagnostic"
+nuc_diag_output_path = f"{output_path}\\Nucleating/PTempLatitude/{flight}_diagnostic"
 plt.savefig(nuc_diag_output_path, dpi=600, bbox_inches='tight') 
+
+##--10-89 nm particles--##
+fig4, ax4 = plt.subplots(figsize=(8, 6))
+
+##--Use pcolormesh for the plot and use viridis for values greater than 1--##
+grow_plot = ax4.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, grow_bin_counts.T,  # Transpose to align correctly
+    shading='auto', cmap=new_cmap, vmin=1, vmax=1000)
+
+##--Add colorbar--##
+cb4 = fig4.colorbar(nuc_plot, ax=ax4)
+cb4.minorticks_on()
+cb4.ax.tick_params(labelsize=16)
+cb4.set_label('Number of Data Points', fontsize=16)
+
+##--Set axis labels--##
+ax4.set_xlabel('Latitude (°)', fontsize=16)
+ax4.set_ylabel('Potential Temperature \u0398 (K)', fontsize=16)
+ax4.tick_params(axis='both', labelsize=16)
+ax4.set_title(f"2.5-10 nm Particle Counts per Bin - {flight.replace('Flight', 'Flight ')}", fontsize=18)
+#ax4.set_ylim(238, 301)
+#ax4.set_xlim(79.5, 83.7)
+
+##--Use f-string to save file with flight# appended--##
+grow_diag_output_path = f"{output_path}\\Nucleating/PTempLatitude/{flight}_diagnostic"
+plt.savefig(grow_diag_output_path, dpi=600, bbox_inches='tight') 
 
 plt.tight_layout()
 plt.show()

@@ -24,10 +24,14 @@ directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw"
 flights_to_analyze = ["Flight2", "Flight3", "Flight4", "Flight5", "Flight6", "Flight7", "Flight8", "Flight9", "Flight10"]
 
 ##--Set binning for PTemp and Latitude--##
-num_bins_lat = 4
-num_bins_alt = 12
+num_bins_lat = 8
+num_bins_alt = 8
 
-# Add global output path here
+##--Base output path for figures in directory--##
+output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots"
+
+##--UHSAS bins--##
+bins_filepath = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv"
 
 #########################
 ##--Open ICARTT Files--##
@@ -49,6 +53,7 @@ def find_files(flight_dir, partial_name):
 CPC3_dfs = []
 CPC10_dfs = []
 nuc_dfs = []
+grow_dfs = []
  
 ##--Loop through each flight, pulling and analyzing data--##
 for flight in flights_to_analyze:
@@ -76,6 +81,14 @@ for flight in flights_to_analyze:
     else:
         print(f"Missing CPC data for {flight}. Skipping...")
         continue
+    
+    ##--Pull UHSAS files--##
+    UHSAS_files = find_files(flight_dir, "UHSAS")
+    if UHSAS_files: 
+        UHSAS = icartt.Dataset(UHSAS_files[0])
+    else: 
+        print(f"No UHSAS file found for {flight}. Skipping...")
+        continue
  
     #########################
     ##--Pull & align data--##
@@ -87,6 +100,39 @@ for flight in flights_to_analyze:
     temperature = aimms.data['Temp'] + 273.15 # in K
     pressure = aimms.data['BP'] # in pa
     aimms_time =aimms.data['TimeWave'] # seconds since midnight
+    
+    ##--Bin data are in a CSV file--##
+    UHSAS_bins = pd.read_csv(bins_filepath)
+    
+    ##--USHAS Data--##
+    UHSAS_time = UHSAS.data['time'] # seconds since midnight
+    ##--Total count is computed for N > 85 nm--##
+    UHSAS_total_num = UHSAS.data['total_number_conc'] # particles/cm^3
+
+    ##--Make list of columns to pull, each named bin_x--##
+    ##--Bins 1-13 not trustworthy. Bins 76-99 overlap with OPC, discard--##
+    ##--Trim to use bins 14-76 (500>85 nm)--##
+    UHSAS_bin_num = [f'bin_{i}' for i in range(14, 75)]
+
+    ##--Information for bins 14 thru 99--##
+    UHSAS_bin_center = UHSAS_bins['bin_avg'].iloc[14:75]
+    UHSAS_lower_bound = UHSAS_bins['lower_bound'].iloc[14:75]
+    UHSAS_upper_bound = UHSAS_bins['upper_bound'].iloc[14:75]
+
+    ##--Put column names and content in a dictionary and then convert to a Pandas df--##
+    UHSAS_bins = pd.DataFrame({col: UHSAS.data[col] for col in UHSAS_bin_num})
+
+    ##--Create new column names by rounding the bin center values to the nearest integer--##
+    UHSAS_new_col_names = UHSAS_bin_center.round().astype(int).tolist()
+
+    ##--Rename the UHSAS_bins df columns to bin average values--##
+    UHSAS_bins.columns = UHSAS_new_col_names
+
+    ##--Add time, total_num to UHSAS_bins df--##
+    UHSAS_bins.insert(0, 'Time', UHSAS_time)
+
+    ##--Align UHSAS_bins time to AIMMS time--##
+    UHSAS_bins_aligned = UHSAS_bins.set_index('Time').reindex(aimms_time)
     
     ##--10 nm CPC data--##
     CPC10_time = CPC10.data['time']
@@ -107,15 +153,16 @@ for flight in flights_to_analyze:
     CPC10_conc_aligned = CPC10_df.reindex(aimms_time)['conc']
     
     ######################
-    ##--Convert to STP--##
+    ##--Calc N(2.5-10)--##
     ######################
-    
-    ##--Constants--##
+
+    ##--Convert to STP--##
     P_STP = 101325  # Pa
     T_STP = 273.15  # K
-    
+
     ##--Create empty list for CPC3 particles--##
     CPC3_conc_STP = []
+
     for CPC3, T, P in zip(CPC3_conc_aligned, temperature, pressure):
         if np.isnan(CPC3) or np.isnan(T) or np.isnan(P):
             ##--Append with NaN if any input is NaN--##
@@ -124,9 +171,10 @@ for flight in flights_to_analyze:
             ##--Perform conversion if all inputs are valid--##
             CPC3_conversion = CPC3 * (P_STP / P) * (T / T_STP)
             CPC3_conc_STP.append(CPC3_conversion)
-            
+        
     ##--Create empty list for CPC10 particles--##
     CPC10_conc_STP = []
+
     for CPC10, T, P in zip(CPC10_conc_aligned, temperature, pressure):
         if np.isnan(CPC10) or np.isnan(T) or np.isnan(P):
             ##--Append with NaN if any input is NaN--##
@@ -135,19 +183,39 @@ for flight in flights_to_analyze:
             ##--Perform conversion if all inputs are valid--##
             CPC10_conversion = CPC10 * (P_STP / P) * (T / T_STP)
             CPC10_conc_STP.append(CPC10_conversion)
+
+    ##--Creates a Pandas dataframe for CPC data--##
+    CPC_df = pd.DataFrame({'CPC3_conc':CPC3_conc_STP, 'CPC10_conc': CPC10_conc_STP})
+
+    ##--Calculate N3-10 particles--##
+    nuc_particles = (CPC_df['CPC3_conc'] - CPC_df['CPC10_conc'])
+
+    ##--Change calculated particle counts less than zero to NaN--##
+    nuc_particles = np.where(nuc_particles >= 0, nuc_particles, np.nan)
+
+    #####################
+    ##--Calc N(10-89)--##
+    #####################
+
+    ##--Create df with UHSAS total counts--##
+    UHSAS_total = pd.DataFrame({'Time': UHSAS_time, 'Total_count': UHSAS_total_num})
+
+    ##--Reindex UHSAS_total df to AIMMS time--##
+    UHSAS_total_aligned = UHSAS_total.set_index('Time').reindex(aimms_time)
+
+    ##--Create df with CPC10 counts and set index to time--##
+    CPC10_counts = pd.DataFrame({'Time':aimms_time, 'Counts':CPC10_conc_STP}).set_index('Time')
+
+    ##--Calculate particles below UHSAS lower cutoff--##
+    n_10_89 = (CPC10_counts['Counts'] - UHSAS_total_aligned['Total_count'])
+
+    ##--Change calculated particle counts less than zero to NaN--##
+    n_10_89 = np.where(n_10_89 >= 0, n_10_89, np.nan)
             
     #########################
     ##--Create dataframes--##
     #########################
-    
-    ##--Calculate N3-10 nucleating particles--##
-    ##--Place required variables in a dataframe--##
-    CPC_df = pd.DataFrame({'CPC3_conc': CPC3_conc_STP,'CPC10_conc': CPC10_conc_STP})
-    nuc_particles = (CPC_df['CPC3_conc'] - CPC_df['CPC10_conc'])
-    
-    ##--Change values less than zero to NaN (instead of dropping) to ensure alignment--##
-    nuc_particles = np.where(nuc_particles >= 0, nuc_particles, np.nan)
-    
+
     ##--Drop NaNs, done for individual datasets for data preservation--##
     CPC3_df = pd.DataFrame({'Altitude': altitude, 'Latitude': latitude, 
                             'CPC3_conc': CPC3_conc_STP}).dropna()
@@ -155,11 +223,15 @@ for flight in flights_to_analyze:
                             'CPC10_conc': CPC10_conc_STP}).dropna()
     nuc_df = pd.DataFrame({'Altitude': altitude, 'Latitude': latitude, 
                            'nuc_particles': nuc_particles}).dropna()
+    ##--Calling n 10-89 'growth'--##
+    grow_df = pd.DataFrame({'Altitude': altitude, 'Latitude': latitude, 
+                           'n_10_89': n_10_89}).dropna()
 
     ##--Store all processed data and ensure in numpy arrays--##
     CPC3_dfs.append(CPC3_df[['Altitude', 'Latitude', 'CPC3_conc']])
     CPC10_dfs.append(CPC10_df[['Altitude', 'Latitude', 'CPC10_conc']])
     nuc_dfs.append(nuc_df[['Altitude', 'Latitude', 'nuc_particles']])
+    grow_dfs.append(grow_df[['Altitude', 'Latitude', 'n_10_89']])
 
 ###########################
 ##--Prepare for Binning--##
@@ -197,6 +269,17 @@ alt_bin_edges_nuc = np.linspace(all_altitudes_nuc.min(), all_altitudes_nuc.max()
  
 nuc_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_nuc, all_altitudes_nuc, 
     all_nuc_particles, statistic="mean", bins=[lat_bin_edges_nuc, alt_bin_edges_nuc])
+
+##--Binning for growth N(10-89) particle data--##
+all_latitudes_grow = np.concatenate([df["Latitude"].values for df in grow_dfs])
+all_altitudes_grow = np.concatenate([df["Altitude"].values for df in grow_dfs])
+all_grow_particles = np.concatenate([df["n_10_89"].values for df in grow_dfs])
+ 
+lat_bin_edges_grow = np.linspace(all_latitudes_grow.min(), all_latitudes_grow.max(), num_bins_lat + 1)
+alt_bin_edges_grow = np.linspace(all_altitudes_grow.min(), all_altitudes_grow.max(), num_bins_alt + 1)
+ 
+grow_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_grow, all_altitudes_grow, 
+    all_grow_particles, statistic="mean", bins=[lat_bin_edges_grow, alt_bin_edges_grow])
  
 ################
 ##--PLOTTING--##
@@ -232,17 +315,22 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, o
 ##--Plot for CPC3--##
 plot_curtain(CPC3_bin_medians, lat_bin_edges_CPC3, alt_bin_edges_CPC3, vmin=0, vmax=2250,
     title="Particles >2.5 nm Abundance", cbar_label="Particles >2.5 nm $(Counts/cm^{3})$",
-    output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC3\AltitudeLatitude\MultiFlights.png")
+    output_path=f"{output_path}\\CPC3/AltitudeLatitude/MultiFlights.png")
 
 ##--Plot for CPC10--##
 plot_curtain(CPC10_bin_medians, lat_bin_edges_CPC10, alt_bin_edges_CPC10, vmin=0, vmax=2000,
     title="Particles >10 nm Abundance", cbar_label="Particles >10 nm $(Counts/cm^{3})$",
-    output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC10\AltitudeLatitude\MultiFlights.png")
+    output_path=f"{output_path}\\CPC10/AltitudeLatitude/MultiFlights.png")
  
 ##--Plot for nucleating particles--##
 plot_curtain(nuc_bin_medians, lat_bin_edges_nuc, alt_bin_edges_nuc, vmin=0, vmax=1100,
     title="2.5-10 nm Particle Abundance", cbar_label="2.5-10 nm Particles $(Counts/cm^{3})$",
-    output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\AltitudeLatitude\MultiFlights.png")
+    output_path=f"{output_path}\\Nucleating/AltitudeLatitude/MultiFlights.png")
+
+##--Plot for N(10-89)--##
+plot_curtain(nuc_bin_medians, lat_bin_edges_nuc, alt_bin_edges_nuc, vmin=0, vmax=1100,
+    title="10-89 nm Particle Abundance", cbar_label="10-89 nm Particles $(Counts/cm^{3})$",
+    output_path=f"{output_path}\\N_10_89/AltitudeLatitude/MultiFlights.png")
 
 ########################
 ##--Diagnostic Plots--##
@@ -262,6 +350,10 @@ CPC10_bin_counts, _, _, _ = binned_statistic_2d(all_latitudes_CPC10, all_altitud
 ##--Counts per bin for N3-10 particles--##
 nuc_bin_counts, _, _, _ = binned_statistic_2d(all_latitudes_nuc, all_altitudes_nuc, all_nuc_particles,
     statistic="count", bins=[lat_bin_edges_nuc, alt_bin_edges_nuc])
+
+##--Counts per bin for N10-89 particles--##
+grow_bin_counts, _, _, _ = binned_statistic_2d(all_latitudes_grow, all_altitudes_grow, all_grow_particles,
+    statistic="count", bins=[lat_bin_edges_grow, alt_bin_edges_grow])
 
 ##--Plotting--##
 
@@ -295,16 +387,21 @@ def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label, ou
 ##--Plot for CPC3 counts--##
 plot_curtain(CPC3_bin_counts, lat_bin_edges_CPC3, alt_bin_edges_CPC3, vmin=1, vmax=6000, 
     title="Particles >2.5 nm Data Point Counts", cbar_label="Number of Data Points",
-    output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC3\AltitudeLatitude\MultiFlights_diagnostic.png")
+    output_path=f"{output_path}\\CPC3/AltitudeLatitude/MultiFlights_diagnostic.png")
  
 ##--Plot for CPC10 counts--##
 plot_curtain(CPC10_bin_counts, lat_bin_edges_CPC10, alt_bin_edges_CPC10, vmin=1, vmax=7500,  
     title="Particles >10 nm Data Point Counts", cbar_label="Number of Data Points",
-    output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CPC10\AltitudeLatitude\MultiFlights_diagnostic.png")
+    output_path=f"{output_path}\\CPC10/AltitudeLatitude/MultiFlights_diagnostic.png")
  
 ##--Plot for N3-10 counts--##
 plot_curtain(nuc_bin_counts, lat_bin_edges_nuc, alt_bin_edges_nuc, vmin=1, vmax=3500,  
     title="2.5-10 nm Data Point Counts", cbar_label="Number of Data Points",
-    output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\AltitudeLatitude\MultiFlights_diagnostic.png")
+    output_path=f"{output_path}\\Nucleating/AltitudeLatitude/MultiFlights_diagnostic.png")
+
+##--Plot for N10-89 counts--##
+plot_curtain(grow_bin_counts, lat_bin_edges_grow, alt_bin_edges_grow, vmin=1, vmax=3500,  
+    title="10-89 nm Data Point Counts", cbar_label="Number of Data Points",
+    output_path=f"{output_path}\\N_10_89/AltitudeLatitude/MultiFlights_diagnostic.png")
 
 #'''

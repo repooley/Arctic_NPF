@@ -12,15 +12,29 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt 
 
-#########################
-##--Open ICARTT Files--##
-#########################
+###################
+##--User inputs--##
+###################
 
 ##--Set the base directory to project folder--##
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight7" # Flight1 AIMMS file currently broken at line 13234
+flight = "Flight10"
+
+##--Bin data are in a CSV file--##
+UHSAS_bins = pd.read_csv(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv")
+
+##--Pull datasets with zeros not filtered out--##
+CPC3_R1 = icartt.Dataset(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\CPC_R1\CPC3776_Polar6_20150408_R1_L2.ict")    
+CPC10_R1 = icartt.Dataset(r'C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\CPC_R1\CPC3772_Polar6_20150408_R1_L2.ict')
+
+##--Base output path in directory--##
+output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\AltitudeBinnedData\Particle"
+
+#########################
+##--Open ICARTT Files--##
+#########################
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -31,6 +45,9 @@ def find_files(directory, flight, partial_name):
 
 ##--Meterological data from AIMMS monitoring system--##
 aimms = icartt.Dataset(find_files(directory, flight, "AIMMS_POLAR6")[0])
+
+##--UHSAS data--##
+UHSAS = icartt.Dataset(find_files(directory, flight, 'UHSAS')[0])
 
 ##--CPC data--##
 CPC10 = icartt.Dataset(find_files(directory, flight, 'CPC3772')[0])
@@ -53,6 +70,11 @@ CPC10_conc = CPC10.data['conc'] # count/cm^3
 ##--2.5 nm CPC data--##
 CPC3_time = CPC3.data['time']
 CPC3_conc = CPC3.data['conc'] # count/cm^3
+
+##--USHAS Data--##
+UHSAS_time = UHSAS.data['time'] # seconds since midnight
+##--Total count is computed for N > 85 nm--##
+UHSAS_total_num = UHSAS.data['total_number_conc'] # particles/cm^3
 
 ##################
 ##--Align data--##
@@ -104,13 +126,40 @@ CPC10_aligned = CPC10_df.set_index('time').reindex(aimms_time)
 CPC10_aligned['conc']=CPC10_aligned['conc'].where(CPC10_aligned.index.isin(aimms_time), np.nan)
 CPC10_conc_aligned = CPC10_aligned['conc']
 
+##--Make list of columns to pull, each named bin_x--##
+##--Bins 1-13 not trustworthy. Bins 76-99 overlap with OPC, discard--##
+##--Trim to use bins 14-76 (500>85 nm)--##
+UHSAS_bin_num = [f'bin_{i}' for i in range(14, 75)]
+
+##--Information for bins 14 thru 99--##
+UHSAS_bin_center = UHSAS_bins['bin_avg'].iloc[14:75]
+UHSAS_lower_bound = UHSAS_bins['lower_bound'].iloc[14:75]
+UHSAS_upper_bound = UHSAS_bins['upper_bound'].iloc[14:75]
+
+##--Put column names and content in a dictionary and then convert to a Pandas df--##
+UHSAS_bins = pd.DataFrame({col: UHSAS.data[col] for col in UHSAS_bin_num})
+
+##--Create new column names by rounding the bin center values to the nearest integer--##
+UHSAS_new_col_names = UHSAS_bin_center.round().astype(int).tolist()
+
+##--Rename the UHSAS_bins df columns to bin average values--##
+UHSAS_bins.columns = UHSAS_new_col_names
+
+##--Add time, total_num to UHSAS_bins df--##
+UHSAS_bins.insert(0, 'Time', UHSAS_time)
+
+##--Align UHSAS_bins time to AIMMS time--##
+UHSAS_bins_aligned = UHSAS_bins.set_index('Time').reindex(aimms_time)
+
 ######################
-##--Convert to STP--##
+##--Calc N(2.5-10)--##
 ######################
 
+##--Convert to STP!--##
 P_STP = 101325  # Pa
 T_STP = 273.15  # K
 
+##--Convert to STP--##
 ##--Create empty list for CPC3 particles--##
 CPC3_conc_STP = []
 
@@ -135,17 +184,81 @@ for CPC10, T, P in zip(CPC10_conc_aligned, temperature, pressure):
         CPC10_conversion = CPC10 * (P_STP / P) * (T / T_STP)
         CPC10_conc_STP.append(CPC10_conversion)
 
-##--Creates a Pandas dataframe with all variables--##
-df = pd.DataFrame({'Altitude': altitude,'CPC10_conc':CPC10_conc_STP, 'CPC3_conc':CPC3_conc_STP})
+##--Creates a Pandas dataframe for particle data--##
+df = pd.DataFrame({'Altitude': altitude, 'CPC3_conc':CPC3_conc_STP, 'CPC10_conc': CPC10_conc_STP})
 
-##--Nucleation Mode Particles--##
+##--Calculate N3-10 particles--##
 nuc_particles = (df['CPC3_conc'] - df['CPC10_conc'])
 
 ##--Change calculated particle counts less than zero to NaN--##
 nuc_particles = np.where(nuc_particles >= 0, nuc_particles, np.nan)
 
-##--Append the dataframe with nucleated particles--##
+##--Add nucleating particles to df--##
 df['nuc_particles'] = nuc_particles
+
+#####################
+##--Calc N(10-89)--##
+#####################
+
+##--Create df with UHSAS total counts--##
+UHSAS_total = pd.DataFrame({'Time': UHSAS_time, 'Total_count': UHSAS_total_num})
+
+##--Reindex UHSAS_total df to AIMMS time--##
+UHSAS_total_aligned = UHSAS_total.set_index('Time').reindex(aimms_time)
+
+##--Create df with CPC10 counts and set index to time--##
+CPC10_counts = pd.DataFrame({'Time':aimms_time, 'Counts':CPC10_conc_STP}).set_index('Time')
+
+##--Calculate particles below UHSAS lower cutoff--##
+n_10_89 = (CPC10_counts['Counts'] - UHSAS_total_aligned['Total_count'])
+
+##--Change calculated particle counts less than zero to NaN--##
+n_10_89 = np.where(n_10_89 >= 0, n_10_89, np.nan)
+
+##--Add 10-89 nm particles to the dataframe--##
+df['n_10_89'] = n_10_89
+
+#####################################
+##--Calculate std dev from zeroes--##        
+#####################################
+
+##--Pull CPC data from R1 data--##
+CPC3_R1_conc = CPC3_R1.data['conc']
+CPC10_R1_conc = CPC10_R1.data['conc']
+
+##--Isolate zero periods, setting conservative upper limit of 50 counts--##
+##--Numpy doesn't recognize -9999 as NaN, tell it to ignore these values--##
+CPC3_zeros_c = CPC3_R1_conc[(CPC3_R1_conc < 50) & (CPC3_R1_conc != -9999)]
+CPC10_zeros_c = CPC10_R1_conc[(CPC10_R1_conc < 50) & (CPC10_R1_conc != -99999)]
+
+##--Calculate standard deviation of zeros--##
+CPC3_sigma = np.std(CPC3_zeros_c, ddof=1)  # Use ddof=1 for sample standard deviation
+CPC10_sigma = np.std(CPC10_zeros_c, ddof=1)
+
+##--Isolate zero periods, setting conservative upper limit of 100 counts--##
+##--Numpy doesn't recognize -9999 as NaN, tell it to ignore these values--##
+##--THIS IS EMPTY! Need to set to 100 to see any data, but is this a good idea?--##
+UHSAS_zeros_c = UHSAS_total_num[(UHSAS_total_num < 100) & (UHSAS_total_num != -9999)]
+
+#############################
+##--Propagate uncertainty--##
+#############################
+
+##--The ICARTT files for CPC instruments say 10% uncertainty of meas value - feels conservative for large counts!--##
+##--Calculate the 3 sigma uncertainty for nucleating particles--##
+
+T_error = 0.3 # K, constant
+P_error = 100 + 0.0005*(pressure)
+
+##--Use formula for multiplication/division--##
+greater3nm_error = (CPC3_conc_aligned)*(((P_error)/(pressure))**2 + ((T_error)/(temperature))**2 + ((CPC3_sigma)/(CPC3_conc_aligned)))**(0.5)
+greater10nm_error = (CPC10_conc_aligned)*(((P_error)/(pressure))**2 + ((T_error)/(temperature))**2 + ((CPC10_sigma)/(CPC10_conc_aligned)))**(0.5)
+
+##--Use add/subtract forumula--##
+nuc_error_3sigma = (((greater3nm_error)**2 + (greater10nm_error)**2)**(0.5))*3
+
+##--nuc_error_3sigma still has a time index, reset to integer to align--##
+df['nuc_error_3sigma'] = pd.Series(nuc_error_3sigma).reset_index(drop=True)
 
 ###############
 ##--BINNING--##
@@ -184,7 +297,15 @@ binned_df = df.groupby('Altitude_bin', observed=False).agg(
     nuc_particles_min=('nuc_particles', 'min'),
     nuc_particles_max=('nuc_particles', 'max'), 
     nuc_particles_25th=('nuc_particles', lambda x: x.quantile(0.25)),
-    nuc_particles_75th=('nuc_particles', lambda x: x.quantile(0.75))
+    nuc_particles_75th=('nuc_particles', lambda x: x.quantile(0.75)),
+    n_10_89_center=('n_10_89', 'median'), 
+    n_10_89_min=('n_10_89', 'min'),
+    n_10_89_max=('n_10_89', 'max'), 
+    n_10_89_25th=('n_10_89', lambda x: x.quantile(0.25)),
+    n_10_89_75th=('n_10_89', lambda x: x.quantile(0.75)),
+    
+    ##--Bin the uncertainty of nucleating particles--##
+    nuc_error_center=('nuc_error_3sigma', 'median') 
     
     ##--Reset the index so Altitude_bin is just a column--##
 ).reset_index()
@@ -193,13 +314,13 @@ binned_df = df.groupby('Altitude_bin', observed=False).agg(
 ##--PLOTTING--##
 ################
 
-##--Creates figure with 2 horizontally stacked subplots sharing a y-axis--##
-fig, axs = plt.subplots(1, 3, figsize=(9, 6), sharey=True)
+##--Creates figure with 4 horizontally stacked subplots sharing a y-axis--##
+fig, axs = plt.subplots(1, 4, figsize=(12, 6), sharey=True)
 
 ##--First subplot: 10+ nm Particles vs Altitude--##
 
 ##--Averaged data in each bin is plotted against bin center--##
-axs[0].plot(binned_df['CPC10_conc_center'], binned_df['Altitude_center'], color='maroon', label='CPC 10')
+axs[0].plot(binned_df['CPC10_conc_center'], binned_df['Altitude_center'], color='maroon')
 ##--Range is given by filling between data minimum and maximum for each bin--##
 axs[0].fill_betweenx(binned_df['Altitude_center'], binned_df['CPC10_conc_min'], 
                      binned_df['CPC10_conc_max'], color='indianred', alpha=0.25)
@@ -210,7 +331,7 @@ axs[0].set_title('N \u2265 10 nm')
 #axs[0].set_xlim(-50, 1500)
 
 ##--Second subplot: 2.5+ nm Particles vs Altitude--##
-axs[1].plot(binned_df['CPC3_conc_center'], binned_df['Altitude_center'], color='saddlebrown', label='CPC 3')
+axs[1].plot(binned_df['CPC3_conc_center'], binned_df['Altitude_center'], color='saddlebrown')
 axs[1].fill_betweenx(binned_df['Altitude_center'], binned_df['CPC3_conc_min'], 
                      binned_df['CPC3_conc_max'], color='sandybrown', alpha=0.25)
 axs[1].fill_betweenx(binned_df['Altitude_center'], binned_df['CPC3_conc_25th'],
@@ -219,14 +340,31 @@ axs[1].set_title('N \u2265 2.5 nm')
 #axs[1].set_xlim(-50, 2000)
 
 ##--Third subplot: Nuc particles vs Altitude--##
-axs[2].plot(binned_df['nuc_particles_center'], binned_df['Altitude_center'], color='darkslategray', label='CPC 3')
-axs[2].fill_betweenx(binned_df['nuc_particles_center'], binned_df['nuc_particles_min'], 
+axs[2].plot(binned_df['nuc_particles_center'], binned_df['Altitude_center'], color='darkslategray')
+axs[2].fill_betweenx(binned_df['Altitude_center'], binned_df['nuc_particles_min'], 
                      binned_df['nuc_particles_max'], color='cadetblue', alpha=0.25)
 axs[2].fill_betweenx(binned_df['Altitude_center'], binned_df['nuc_particles_25th'],
                     binned_df['nuc_particles_75th'], color='cadetblue', alpha=1)
+
+##--Plot uncertainty as its own trace--##
+axs[2].plot(binned_df['nuc_error_center'], binned_df['Altitude_center'], color='crimson', 
+            linestyle='dashed', label='3$\sigma$ Uncertainty')
+
+axs[2].legend()
+
 ##--Subscript 3-10--##
 axs[2].set_title('$N_{2.5-10}$')
 #axs[2].set_xlim(-50, 2000)
+
+##--Fourth subplot: 10-89 nm particles vs Altitude--##
+axs[3].plot(binned_df['n_10_89_center'], binned_df['Altitude_center'], color='darkcyan')
+axs[3].fill_betweenx(binned_df['Altitude_center'], binned_df['n_10_89_min'], 
+                     binned_df['n_10_89_max'], color='turquoise', alpha=0.25)
+axs[3].fill_betweenx(binned_df['Altitude_center'], binned_df['n_10_89_25th'],
+                    binned_df['n_10_89_75th'], color='mediumturquoise', alpha=1)
+##--Subscript 10-89--##
+axs[3].set_title('$N_{10-89}$')
+#axs[3].set_xlim(-50, 2000)
 
 ##--Add one common x-axis label--##
 fig.supxlabel('Particle Concentration (counts/cm\u00b3)', fontsize=12)
@@ -236,9 +374,6 @@ plt.suptitle(f"Vertical Particle Count Profiles - {flight.replace('Flight', 'Fli
 
 ##--Adjusts layout to prevent overlapping--## 
 plt.tight_layout(rect=[0, -0.02, 1, 0.99])
-
-##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\AltitudeBinnedData\Particle"
 
 ##--Use f-string to save file with flight# appended--##
 output_path = f"{output_path}\\CPC_Data_{flight}"

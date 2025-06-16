@@ -28,6 +28,9 @@ flight = "Flight2"
 num_bins_lat = 4
 num_bins_ptemp = 8
 
+##--Bin data are in a CSV file--##
+UHSAS_bins = pd.read_csv(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv")
+
 ##--Base output path for figures in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TotalCount"
 
@@ -70,9 +73,6 @@ aimms_time =aimms.data['TimeWave'] # seconds since midnight
 UHSAS_time = UHSAS.data['time'] # seconds since midnight
 ##--Total count is computed for N > 85 nm--##
 UHSAS_total_num = UHSAS.data['total_number_conc'] # particles/cm^3
-
-##--Bin data are in a CSV file--##
-UHSAS_bins = pd.read_csv(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv")
 
 ##--Make list of columns to pull, each named bin_x--##
 ##--Bins 1-13 not trustworthy. Bins 76-99 overlap with OPC, discard--##
