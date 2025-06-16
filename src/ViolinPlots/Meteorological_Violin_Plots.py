@@ -394,9 +394,9 @@ plt.text(0.63, 0.12, "N={}".format(temp_nonpf_count), transform=fig.transFigure,
 ##--Conditions for adding p values--##
 if p_temp >= 0.05:
     plt.text(0.45, 0.85, f"p={p_temp:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_temp >= 0.005:
+elif 0.05 > p_temp >= 0.0005:
     plt.text(0.45, 0.85, f"p={p_temp:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_temp < 0.005: 
+elif p_temp < 0.0005: 
     plt.text(0.45, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
  
     
@@ -418,9 +418,9 @@ plt.text(0.63, 0.12, "N={}".format(ptemp_nonpf_count), transform=fig.transFigure
 ##--Conditions for adding p values--##
 if p_ptemp >= 0.05:
     plt.text(0.45, 0.85, f"p={p_ptemp:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_ptemp >= 0.005:
+elif 0.05 > p_ptemp >= 0.0005:
     plt.text(0.45, 0.85, f"p={p_ptemp:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_ptemp < 0.005: 
+elif p_ptemp < 0.0005: 
     plt.text(0.45, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
  
     
@@ -444,9 +444,9 @@ plt.text(0.63, 0.12, "N={}".format(alt_nonpf_count), transform=fig.transFigure, 
 ##--Conditions for adding p values--##
 if p_alt >= 0.05:
     plt.text(0.45, 0.85, f"p={p_alt:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_alt >= 0.005:
+elif 0.05 > p_alt >= 0.0005:
     plt.text(0.45, 0.85, f"p={p_alt:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_alt < 0.005: 
+elif p_alt < 0.0005: 
     plt.text(0.45, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
  
     
@@ -470,9 +470,9 @@ plt.text(0.63, 0.12, "N={}".format(rh_w_nonpf_count), transform=fig.transFigure,
 ##--Conditions for adding p values--##
 if p_rh_w >= 0.05:
     plt.text(0.45, 0.85, f"p={p_rh_w:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_rh_w >= 0.005:
+elif 0.05 > p_rh_w >= 0.0005:
     plt.text(0.45, 0.85, f"p={p_rh_w:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_rh_w < 0.005: 
+elif p_rh_w < 0.0005: 
     plt.text(0.45, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
  
     
@@ -494,9 +494,9 @@ plt.text(0.63, 0.12, "N={}".format(rh_i_nonpf_count), transform=fig.transFigure,
 ##--Conditions for adding p values--##
 if p_rh_i >= 0.05:
     plt.text(0.45, 0.85, f"p={p_rh_i:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_rh_i >= 0.005:
+elif 0.05 > p_rh_i >= 0.0005:
     plt.text(0.45, 0.85, f"p={p_rh_i:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_rh_i < 0.005: 
+elif p_rh_i < 0.0005: 
     plt.text(0.45, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
  
     

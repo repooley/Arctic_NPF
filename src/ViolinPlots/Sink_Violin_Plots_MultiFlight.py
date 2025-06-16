@@ -691,17 +691,59 @@ U_lo_coag, p_lo_coag = mannwhitneyu(coag_lo_npf_array, coag_lo_nonpf_array)
 ##--Plotting--##
 ################
 
+##--CONDENSATION--##
+
+##--Order of label appearances:--##
+group_order = ['NPF', 'No NPF', 'NPF', 'No NPF']
+
 ##--Define color palette--##
 palette = {'High_NPF':'#2f6794', 'High_NoNPF': '#1e537e', 'Low_NPF': '#C00000', 'Low_NoNPF':'#820000'}
 
-fig, ax = plt.subplots(figsize = (6,8))
+##--Use subplots for breaking y-axis--##
+fig, (ax_top, ax_bottom) = plt.subplots(ncols=1, nrows=2, figsize=(6,8), sharex=True, 
+                                        height_ratios=[1, 8], gridspec_kw={'hspace':0.08})
+
 ##--Cut=0 disallows interpolation beyond the data extremes--##
 ##--Set inner whisker length to zero for better clarity--##
-condensation_plot = sns.violinplot(data=condensation, order = ['Low_NPF', 'Low_NoNPF', 'High_NPF', 'High_NoNPF'], 
-                                   inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette, ax=ax, cut=0)
+sns.violinplot(data=condensation, order = ['Low_NPF', 'Low_NoNPF', 'High_NPF', 'High_NoNPF'], 
+                                   inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette, ax=ax_top, cut=0)
+##--Below the break: copy--##
+sns.violinplot(data=condensation, order = ['Low_NPF', 'Low_NoNPF', 'High_NPF', 'High_NoNPF'], 
+                                   inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette, ax=ax_bottom, cut=0)
+
+##--Set limits above and below the break--##
+ax_top.set_ylim(0.00255, 0.014) 
+ax_bottom.set_ylim(-0.0002, 0.00255)
+
+##--Remove duplicated spines--##
+sns.despine(ax=ax_bottom, right=False)
+sns.despine(ax=ax_top, bottom=True, right=False, top=False)
+
+##--Add diagonal break lines--##
+
+ax = ax_top
+ax2 = ax_bottom
+##--length of break lines--##
+d = .015  
+##--Top diagonal--##
+ax.plot((-d, +d), (-d, +d), transform=ax_top.transAxes, color='k', clip_on=False)
+##--Bottom diagonal--##
+##--Bottom break — adjust d to match top angle (scale by inverse of height ratio)--##
+d_scaled = d * (1 / 8)
+ax2.plot((-d, +d), (1 - d_scaled, 1 + d_scaled), transform=ax_bottom.transAxes, color='k', clip_on=False) 
+
+fig.supylabel('Condensation Sink $(S^{-1})$', fontsize=12, x=-0.01)
+plt.suptitle('Condensation Sink', fontsize=12, y=0.92)
+
 ax.set(xlabel='')
-ax.set(ylabel='Condensation Sink (S-1)')
-ax.set(title='Condensation Sink')
+ax.set_xticks(range(len(group_order)))
+ax.set_xticklabels(group_order)
+
+##--Add secondary x-axis labels for high and low lat regions--##
+fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
+plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
+
+ax_top.tick_params(axis='x', which='both', labelsize=12, top=False, labeltop=False)
 
 ##--Add text labels with N--##
 plt.text(0.17, 0.125, "N={}".format(conden_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
@@ -711,31 +753,72 @@ plt.text(0.75, 0.125, "N={}".format(conden_lo_nonpf_count), transform=fig.transF
 
 ##--Conditions for adding p values--##
 if p_hi_conden >= 0.05:
-    plt.text(0.27, 0.85, f"p={p_hi_conden:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_hi_conden >= 0.005:
-    plt.text(0.27, 0.85, f"p={p_hi_conden:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_hi_conden < 0.005: 
-    plt.text(0.27, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.26, 0.6, f"p={p_hi_conden:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+elif 0.05 > p_hi_conden >= 0.0005:
+    plt.text(0.26, 0.6, f"p={p_hi_conden:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+elif p_hi_conden < 0.0005: 
+    plt.text(0.26, 0.6, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
 
 if p_lo_conden >= 0.05:
-    plt.text(0.65, 0.85, f"p={p_lo_conden:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_lo_conden >= 0.005:
-    plt.text(0.65, 0.85, f"p={p_lo_conden:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_lo_conden < 0.005: 
-    plt.text(0.65, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
- 
+    plt.text(0.63, 0.3, f"p={p_lo_conden:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+elif 0.05 > p_lo_conden >= 0.0005:
+    plt.text(0.63, 0.3, f"p={p_lo_conden:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+elif p_lo_conden < 0.0005: 
+    plt.text(0.63, 0.3, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
+    
 plt.savefig(f"{output_path}\\condensation\conden_MultiFlight", dpi=600)
 
 plt.show()
 
+##--COAGULATION--##
+
 palette2 = {'High_NPF':'#4c88b8', 'High_NoNPF': '#3a75a5', 'Low_NPF': '#EA1010', 'Low_NoNPF':'#9d0b0b'}
 
-fig, ax = plt.subplots(figsize=(6,8))
-coagulation_plot = sns.violinplot(data = coagulation, order=['Low_NPF', 'Low_NoNPF', 'High_NPF', 'High_NoNPF'], 
-                                  inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette2, ax=ax, cut=0)
+##--Use subplots for breaking y-axis--##
+fig, (ax_top, ax_bottom) = plt.subplots(ncols=1, nrows=2, figsize=(6,8), sharex=True, 
+                                        height_ratios=[1, 8], gridspec_kw={'hspace':0.08})
+
+##--Cut=0 disallows interpolation beyond the data extremes--##
+##--Set inner whisker length to zero for better clarity--##
+sns.violinplot(data=coagulation, order = ['Low_NPF', 'Low_NoNPF', 'High_NPF', 'High_NoNPF'], 
+                                   inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette2, ax=ax_top, cut=0)
+##--Below the break: copy--##
+sns.violinplot(data=coagulation, order = ['Low_NPF', 'Low_NoNPF', 'High_NPF', 'High_NoNPF'], 
+                                   inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette2, ax=ax_bottom, cut=0)
+
+##--Set limits above and below the break--##
+ax_top.set_ylim(0.00066, 0.0036) 
+ax_bottom.set_ylim(-0.00005, 0.00066)
+
+##--Remove duplicated spines--##
+sns.despine(ax=ax_bottom, right=False)
+sns.despine(ax=ax_top, bottom=True, right=False, top=False)
+
+##--Add diagonal break lines--##
+
+ax = ax_top
+ax2 = ax_bottom
+##--length of break lines--##
+d = .015  
+##--Top diagonal--##
+ax.plot((-d, +d), (-d, +d), transform=ax_top.transAxes, color='k', clip_on=False)
+##--Bottom diagonal--##
+##--Bottom break — adjust d to match top angle (scale by inverse of height ratio)--##
+d_scaled = d * (1 / 8)
+ax2.plot((-d, +d), (1 - d_scaled, 1 + d_scaled), transform=ax_bottom.transAxes, color='k', clip_on=False) 
+
+fig.supylabel('Coagulation Sink $(S^{-1})$', fontsize=12, x=-0.01)
+plt.suptitle('Coagulation Sink', fontsize=12, y=0.92)
+
 ax.set(xlabel='')
-ax.set(ylabel='Coagulation Sink (S-1)')
-ax.set(title="Coagulation Sink")
+ax.set_xticks(range(len(group_order)))
+ax.set_xticklabels(group_order)
+
+##--Add secondary x-axis labels for high and low lat regions--##
+fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
+plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
+
+ax_top.tick_params(axis='x', which='both', labelsize=12, top=False, labeltop=False)
 
 ##--Add text labels with N--##
 plt.text(0.17, 0.125, "N={}".format(coag_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
@@ -745,18 +828,18 @@ plt.text(0.75, 0.125, "N={}".format(coag_lo_nonpf_count), transform=fig.transFig
 
 ##--Conditions for adding p values--##
 if p_hi_coag >= 0.05:
-    plt.text(0.27, 0.85, f"p={p_hi_coag:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_hi_coag >= 0.005:
-    plt.text(0.27, 0.85, f"p={p_hi_coag:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_hi_coag < 0.005: 
-    plt.text(0.27, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.26, 0.6, f"p={p_hi_coag:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+elif 0.05 > p_hi_coag >= 0.0005:
+    plt.text(0.26, 0.6, f"p={p_hi_coag:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+elif p_hi_coag < 0.0005: 
+    plt.text(0.26, 0.6, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
 
 if p_lo_coag >= 0.05:
-    plt.text(0.65, 0.85, f"p={p_lo_coag:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_lo_coag >= 0.005:
-    plt.text(0.65, 0.85, f"p={p_lo_coag:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_lo_coag < 0.005: 
-    plt.text(0.65, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.63, 0.27, f"p={p_lo_coag:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+elif 0.05 > p_lo_coag >= 0.0005:
+    plt.text(0.63, 0.27, f"p={p_lo_coag:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+elif p_lo_coag < 0.0005: 
+    plt.text(0.63, 0.27, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
  
 plt.savefig(f"{output_path}\\coagulation\coag_MultiFlight", dpi=600)
 

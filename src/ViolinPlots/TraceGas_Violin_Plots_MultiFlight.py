@@ -460,16 +460,57 @@ U_lo_CO_CO2, p_lo_CO_CO2 = mannwhitneyu(CO_CO2_lo_npf_array, CO_CO2_lo_nonpf_arr
 
 ##--HIGH LAT: BLUES, LOW LAT: REDS. NPF LIGHTER SHADES--##
 
+##--Order of label appearances:--##
+group_order = ['NPF', 'No NPF', 'NPF', 'No NPF']
+
 ##--Palette for CO plot--##
 palette = {'High_NPF':'#219eaf', 'High_NoNPF': '#135d66', 'Low_NPF': '#be1857', 'Low_NoNPF':'#85113d'}
 
-fig, ax = plt.subplots(figsize = (6,8))
+##--Use subplots for breaking y-axis--##
+fig, (ax_top, ax_bottom) = plt.subplots(ncols=1, nrows=2, figsize=(6,8), sharex=True, 
+                                        height_ratios=[1, 8], gridspec_kw={'hspace':0.08})
+
 ##--Cut=0 disallows interpolation beyond the data extremes--##
-CO_plot = sns.violinplot(data=CO_sorted, order = ['High_NPF', 'High_NoNPF', 'Low_NPF', 'Low_NoNPF'], 
-                           inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette, ax=ax, cut=0)
-ax.set(xlabel='')
-ax.set(ylabel='CO (ppmv)')
-ax.set(title='CO')
+##--Set inner whisker length to zero for better clarity--##
+sns.violinplot(data=CO_sorted, order = ['Low_NPF', 'Low_NoNPF', 'High_NPF', 'High_NoNPF'], 
+                                   inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette, ax=ax_top, cut=0)
+##--Below the break: copy--##
+sns.violinplot(data=CO_sorted, order = ['Low_NPF', 'Low_NoNPF', 'High_NPF', 'High_NoNPF'], 
+                                   inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette, ax=ax_bottom, cut=0)
+
+##--Set limits above and below the break--##
+ax_top.set_ylim(172, 400) 
+ax_bottom.set_ylim(93, 172)
+
+##--Remove duplicated spines--##
+sns.despine(ax=ax_bottom, right=False)
+sns.despine(ax=ax_top, bottom=True, right=False, top=False)
+
+##--Add diagonal break lines--##
+
+ax = ax_top
+ax2 = ax_bottom
+##--length of break lines--##
+d = .015  
+##--Top diagonal--##
+ax.plot((-d, +d), (-d, +d), transform=ax_top.transAxes, color='k', clip_on=False)
+##--Bottom diagonal--##
+##--Bottom break — adjust d to match top angle (scale by inverse of height ratio)--##
+d_scaled = d * (1 / 8)
+ax2.plot((-d, +d), (1 - d_scaled, 1 + d_scaled), transform=ax_bottom.transAxes, color='k', clip_on=False) 
+
+fig.supylabel('CO (ppmv)', fontsize=12, x=0.01)
+
+##--Add secondary x-axis labels for high and low lat regions--##
+fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
+plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
+
+plt.suptitle('CO', fontsize=12, y=0.92)
+
+##--Add x-axis label ticks back in--##
+ax_bottom.set_xticks(range(len(group_order)))
+ax_bottom.set_xticklabels(group_order)
+ax_top.tick_params(axis='x', which='both', labelsize=12, top=False, labeltop=False)
 
 ##--Add text labels with N--##
 plt.text(0.17, 0.125, "N={}".format(CO_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
@@ -478,20 +519,19 @@ plt.text(0.56, 0.125, "N={}".format(CO_lo_npf_count), transform=fig.transFigure,
 plt.text(0.75, 0.125, "N={}".format(CO_lo_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 
 ##--Conditions for adding p values--##
-if p_hi_CO >= 0.05:
-    plt.text(0.27, 0.85, f"p={p_hi_CO:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_hi_CO >= 0.005:
-    plt.text(0.27, 0.85, f"p={p_hi_CO:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_hi_CO < 0.005: 
-    plt.text(0.27, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
-
 if p_lo_CO >= 0.05:
-    plt.text(0.65, 0.85, f"p={p_lo_CO:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_lo_CO >= 0.005:
-    plt.text(0.65, 0.85, f"p={p_lo_CO:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_lo_CO < 0.005: 
-    plt.text(0.65, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
- 
+    plt.text(0.26, 0.6, f"p={p_lo_CO:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+elif 0.05 > p_lo_CO >= 0.0005:
+    plt.text(0.26, 0.6, f"p={p_lo_CO:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+elif p_lo_CO < 0.0005: 
+    plt.text(0.26, 0.6, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
+
+if p_hi_CO >= 0.05:
+    plt.text(0.63, 0.6, f"p={p_hi_CO:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+elif 0.05 > p_hi_CO >= 0.0005:
+    plt.text(0.63, 0.6, f"p={p_hi_CO:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+elif p_hi_CO < 0.0005: 
+    plt.text(0.63, 0.6, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
     
 plt.savefig(f"{output_path}\\CO/CO_MultiFlights", dpi=600)
 
@@ -500,8 +540,16 @@ plt.show()
 palette2 = {'High_NPF':'#0bafc5', 'High_NoNPF': '#088395', 'Low_NPF': '#bd218d', 'Low_NoNPF':'#8c1868'}
 
 fig, ax = plt.subplots(figsize=(6,8))
-CO2_plot = sns.violinplot(data = CO2_sorted, order=['High_NPF', 'High_NoNPF', 'Low_NPF', 'Low_NoNPF'],
+CO2_plot = sns.violinplot(data = CO2_sorted, order=['Low_NPF', 'Low_NoNPF', 'High_NPF', 'High_NoNPF'],
                                   inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette2, ax=ax, cut=0)
+
+ax.set_xticks(range(len(group_order)))
+ax.set_xticklabels(group_order)
+
+##--Add secondary x-axis labels for high and low lat regions--##
+fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
+plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
+
 ax.set(xlabel='')
 ax.set(ylabel='CO2 (ppmv)')
 ax.set(title="CO2")
@@ -513,19 +561,19 @@ plt.text(0.56, 0.125, "N={}".format(CO2_lo_npf_count), transform=fig.transFigure
 plt.text(0.75, 0.125, "N={}".format(CO2_lo_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 
 ##--Conditions for adding p values--##
-if p_hi_CO2 >= 0.05:
-    plt.text(0.27, 0.85, f"p={p_hi_CO2:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_hi_CO2 >= 0.005:
-    plt.text(0.27, 0.85, f"p={p_hi_CO2:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_hi_CO2 < 0.005: 
-    plt.text(0.27, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
-
 if p_lo_CO2 >= 0.05:
-    plt.text(0.65, 0.85, f"p={p_lo_CO2:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_lo_CO2 >= 0.005:
-    plt.text(0.65, 0.85, f"p={p_lo_CO2:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_lo_CO2 < 0.005: 
-    plt.text(0.65, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.26, 0.55, f"p={p_lo_CO2:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+elif 0.05 > p_lo_CO2 >= 0.0005:
+    plt.text(0.26, 0.55, f"p={p_lo_CO2:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+elif p_lo_CO2 < 0.0005: 
+    plt.text(0.26, 0.55, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
+
+if p_hi_CO2 >= 0.05:
+    plt.text(0.65, 0.55, f"p={p_hi_CO2:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+elif 0.05 > p_hi_CO2 >= 0.0005:
+    plt.text(0.65, 0.55, f"p={p_hi_CO2:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+elif p_hi_CO2 < 0.0005: 
+    plt.text(0.65, 0.55, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
  
     
 plt.savefig(f"{output_path}\\CO2/CO2_MultiFlights", dpi=600)
@@ -535,8 +583,16 @@ plt.show()
 palette3 = {'High_NPF':'#13adb5', 'High_NoNPF': '#0e8388', 'Low_NPF': '#c51d4d', 'Low_NoNPF':'#8f1537'}
 
 fig, ax = plt.subplots(figsize=(6,8))
-O3_plot = sns.violinplot(data = O3_sorted, order=['High_NPF', 'High_NoNPF', 'Low_NPF', 'Low_NoNPF'],
+O3_plot = sns.violinplot(data = O3_sorted, order=['Low_NPF', 'Low_NoNPF', 'High_NPF', 'High_NoNPF'],
                                   inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette3, ax=ax, cut=0)
+
+ax.set_xticks(range(len(group_order)))
+ax.set_xticklabels(group_order)
+
+##--Add secondary x-axis labels for high and low lat regions--##
+fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
+plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
+
 ax.set(xlabel='')
 ax.set(ylabel='O3 (ppbv)')
 ax.set(title="O3")
@@ -548,20 +604,19 @@ plt.text(0.56, 0.125, "N={}".format(O3_lo_npf_count), transform=fig.transFigure,
 plt.text(0.75, 0.125, "N={}".format(O3_lo_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 
 ##--Conditions for adding p values--##
-if p_hi_O3 >= 0.05:
-    plt.text(0.27, 0.85, f"p={p_hi_O3:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_hi_O3 >= 0.005:
-    plt.text(0.27, 0.85, f"p={p_hi_O3:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_hi_O3 < 0.005: 
-    plt.text(0.27, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
-
 if p_lo_O3 >= 0.05:
-    plt.text(0.65, 0.85, f"p={p_lo_O3:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_lo_O3 >= 0.005:
-    plt.text(0.65, 0.85, f"p={p_lo_O3:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_lo_O3 < 0.005: 
-    plt.text(0.65, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
- 
+    plt.text(0.25, 0.75, f"p={p_lo_O3:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+elif 0.05 > p_lo_O3 >= 0.0005:
+    plt.text(0.25, 0.75, f"p={p_lo_O3:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+elif p_lo_O3 < 0.0005: 
+    plt.text(0.25, 0.75, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
+
+if p_hi_O3 >= 0.05:
+    plt.text(0.64, 0.65, f"p={p_hi_O3:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+elif 0.05 > p_hi_O3 >= 0.0005:
+    plt.text(0.64, 0.65, f"p={p_hi_O3:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+elif p_hi_O3 < 0.0005: 
+    plt.text(0.64, 0.65, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
     
 plt.savefig(f"{output_path}\\O3/O3_MultiFlights", dpi=600)
 
@@ -569,12 +624,51 @@ plt.show()
 
 palette4 = {'High_NPF':'#769da6', 'High_NoNPF': '#577d86', 'Low_NPF': '#a31919', 'Low_NoNPF':'#6d1111'}
 
-fig, ax = plt.subplots(figsize=(6,8))
-CO_CO2_plot = sns.violinplot(data = CO_CO2_sorted, order=['High_NPF', 'High_NoNPF', 'Low_NPF', 'Low_NoNPF'],
-                                  inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette4, ax=ax, cut=0)
-ax.set(xlabel='')
-ax.set(ylabel='CO/CO2')
-ax.set(title="CO/CO2")
+##--Use subplots for breaking y-axis--##
+fig, (ax_top, ax_bottom) = plt.subplots(ncols=1, nrows=2, figsize=(6,8), sharex=True, 
+                                        height_ratios=[1, 8], gridspec_kw={'hspace':0.08})
+
+##--Cut=0 disallows interpolation beyond the data extremes--##
+##--Set inner whisker length to zero for better clarity--##
+sns.violinplot(data=CO_CO2_sorted, order = ['Low_NPF', 'Low_NoNPF', 'High_NPF', 'High_NoNPF'], 
+                                   inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette4, ax=ax_top, cut=0)
+##--Below the break: copy--##
+sns.violinplot(data=CO_CO2_sorted, order = ['Low_NPF', 'Low_NoNPF', 'High_NPF', 'High_NoNPF'], 
+                                   inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette4, ax=ax_bottom, cut=0)
+
+##--Set limits above and below the break--##
+ax_top.set_ylim(0.452, 1) 
+ax_bottom.set_ylim(0.23, 0.452)
+
+##--Remove duplicated spines--##
+sns.despine(ax=ax_bottom, right=False)
+sns.despine(ax=ax_top, bottom=True, right=False, top=False)
+
+##--Add diagonal break lines--##
+
+ax = ax_top
+ax2 = ax_bottom
+##--length of break lines--##
+d = .015  
+##--Top diagonal--##
+ax.plot((-d, +d), (-d, +d), transform=ax_top.transAxes, color='k', clip_on=False)
+##--Bottom diagonal--##
+##--Bottom break — adjust d to match top angle (scale by inverse of height ratio)--##
+d_scaled = d * (1 / 8)
+ax2.plot((-d, +d), (1 - d_scaled, 1 + d_scaled), transform=ax_bottom.transAxes, color='k', clip_on=False) 
+
+fig.supylabel('CO/CO2', fontsize=12, x=0.01)
+plt.suptitle('CO/CO2', fontsize=12, y=0.92)
+
+##--Add x-axis label ticks back in--##
+ax_bottom.set_xticks(range(len(group_order)))
+ax_bottom.set_xticklabels(group_order)
+
+##--Add secondary x-axis labels for high and low lat regions--##
+fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
+plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
+
+ax_top.tick_params(axis='x', which='both', labelsize=12, top=False, labeltop=False)
 
 ##--Add text labels with N--##
 plt.text(0.17, 0.125, "N={}".format(CO_CO2_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
@@ -583,21 +677,20 @@ plt.text(0.56, 0.125, "N={}".format(CO_CO2_lo_npf_count), transform=fig.transFig
 plt.text(0.75, 0.125, "N={}".format(CO_CO2_lo_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 
 ##--Conditions for adding p values--##
-if p_hi_CO_CO2 >= 0.05:
-    plt.text(0.27, 0.85, f"p={p_hi_CO_CO2:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_hi_CO_CO2 >= 0.005:
-    plt.text(0.27, 0.85, f"p={p_hi_CO_CO2:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_hi_CO_CO2 < 0.005: 
-    plt.text(0.27, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
-
 if p_lo_CO_CO2 >= 0.05:
-    plt.text(0.65, 0.85, f"p={p_lo_CO_CO2:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_lo_CO_CO2 >= 0.005:
-    plt.text(0.65, 0.85, f"p={p_lo_CO_CO2:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_lo_CO_CO2 < 0.005: 
-    plt.text(0.65, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.26, 0.65, f"p={p_lo_CO_CO2:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+elif 0.05 > p_lo_CO_CO2 >= 0.0005:
+    plt.text(0.26, 0.65, f"p={p_lo_CO_CO2:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+elif p_lo_CO_CO2 < 0.0005: 
+    plt.text(0.26, 0.65, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
+
+if p_hi_CO_CO2 >= 0.05:
+    plt.text(0.63, 0.52, f"p={p_hi_CO_CO2:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+elif 0.05 > p_hi_CO_CO2 >= 0.0005:
+    plt.text(0.63, 0.52, f"p={p_hi_CO_CO2:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+elif p_hi_CO_CO2 < 0.0005: 
+    plt.text(0.63, 0.52, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
  
-    
 plt.savefig(f"{output_path}\\CO_CO2/CO_CO2_MultiFlights", dpi=600)
 
 plt.show()

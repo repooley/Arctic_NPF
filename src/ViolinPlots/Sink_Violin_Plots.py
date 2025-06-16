@@ -602,11 +602,11 @@ plt.text(0.63, 0.12, "N={}".format(conden_nonpf_count), transform=fig.transFigur
 
 ##--Conditions for adding p values--##
 if p_conden >= 0.05:
-    plt.text(0.45, 0.85, f"p={p_conden:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_conden >= 0.005:
-    plt.text(0.45, 0.85, f"p={p_conden:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_conden < 0.005: 
-    plt.text(0.45, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.45, 0.5, f"p={p_conden:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
+elif 0.05 > p_conden >= 0.0005:
+    plt.text(0.45, 0.5, f"p={p_conden:.4f}", transform=fig.transFigure, fontsize=10, color='green')
+elif p_conden < 0.0005: 
+    plt.text(0.45, 0.5, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
  
 plt.savefig(f"{output_path}\\condensation\conden_{flight}", dpi=600)
 
@@ -625,11 +625,11 @@ plt.text(0.63, 0.12, "N={}".format(coag_nonpf_count), transform=fig.transFigure,
 
 ##--Conditions for adding p values--##
 if p_coag >= 0.05:
-    plt.text(0.45, 0.85, f"p={p_coag:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_coag >= 0.005:
-    plt.text(0.45, 0.85, f"p={p_coag:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_coag < 0.005: 
-    plt.text(0.45, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.45, 0.5, f"p={p_coag:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
+elif 0.05 > p_coag >= 0.0005:
+    plt.text(0.45, 0.5, f"p={p_coag:.4f}", transform=fig.transFigure, fontsize=10, color='green')
+elif p_coag < 0.0005: 
+    plt.text(0.45, 0.5, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
  
 plt.savefig(f"{output_path}\\coagulation\coag_{flight}", dpi=600)
 

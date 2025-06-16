@@ -23,7 +23,7 @@ directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight2 thru Flight10)--##
 ##--FLIGHT1 HAS NO UHSAS FILES--##
-flight = "Flight3"
+flight = "Flight2"
 
 ##--Base output path for figures in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\ViolinPlots\TraceGas"
@@ -337,9 +337,9 @@ plt.text(0.63, 0.12, "N={}".format(CO_nonpf_count), transform=fig.transFigure, f
 ##--Conditions for adding p values--##
 if p_CO >= 0.05:
     plt.text(0.45, 0.85, f"p={p_CO:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_CO >= 0.005:
+elif 0.05 > p_CO >= 0.0005:
     plt.text(0.45, 0.85, f"p={p_CO:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_CO < 0.005: 
+elif p_CO < 0.0005: 
     plt.text(0.45, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
  
     
@@ -360,9 +360,9 @@ plt.text(0.63, 0.12, "N={}".format(CO2_nonpf_count), transform=fig.transFigure, 
 ##--Conditions for adding p values--##
 if p_CO2 >= 0.05:
     plt.text(0.45, 0.85, f"p={p_CO2:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_CO2 >= 0.005:
+elif 0.05 > p_CO2 >= 0.0005:
     plt.text(0.45, 0.85, f"p={p_CO2:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_CO2 < 0.005: 
+elif p_CO2 < 0.0005: 
     plt.text(0.45, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
     
 plt.savefig(f"{output_path}\\CO2/CO2_{flight}", dpi=600)
@@ -382,9 +382,9 @@ plt.text(0.63, 0.12, "N={}".format(O3_nonpf_count), transform=fig.transFigure, f
 ##--Conditions for adding p values--##
 if p_O3 >= 0.05:
     plt.text(0.45, 0.85, f"p={p_O3:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_O3 >= 0.005:
+elif 0.05 > p_O3 >= 0.0005:
     plt.text(0.45, 0.85, f"p={p_O3:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_O3 < 0.005: 
+elif p_O3 < 0.0005: 
     plt.text(0.45, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
     
     
@@ -405,9 +405,9 @@ plt.text(0.63, 0.12, "N={}".format(CO_CO2_nonpf_count), transform=fig.transFigur
 ##--Conditions for adding p values--##
 if p_CO_CO2 >= 0.05:
     plt.text(0.45, 0.85, f"p={p_CO_CO2:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
-elif 0.05 > p_CO_CO2 >= 0.005:
+elif 0.05 > p_CO_CO2 >= 0.0005:
     plt.text(0.45, 0.85, f"p={p_CO_CO2:.4f}", transform=fig.transFigure, fontsize=10, color='green')
-elif p_CO_CO2 < 0.005: 
+elif p_CO_CO2 < 0.0005: 
     plt.text(0.45, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
 
 plt.savefig(f"{output_path}\\CO_CO2/CO_CO2_{flight}", dpi=600)
