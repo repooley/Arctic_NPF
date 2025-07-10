@@ -23,7 +23,7 @@ directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight2 thru Flight10)--##
 ##--FLIGHT1 HAS NO UHSAS FILES--##
-flight = "Flight2"
+flight = "Flight10"
 
 ##--Base output path for figures in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\ViolinPlots\TraceGas"
@@ -265,10 +265,6 @@ CO_CO2_npf = CO_CO2_n_3_10['CO_CO2'][CO_CO2_n_3_10['Nucleation'] > CO_CO2_n_3_10
 CO_CO2_nonpf = CO_CO2_n_3_10['CO_CO2'][CO_CO2_n_3_10['Nucleation'] <= CO_CO2_n_3_10['LoD']]
 CO_CO2_df = {'NPF': CO_CO2_npf, 'No NPF': CO_CO2_nonpf}
 
-##--CO/rBC--##
-
-# come back to this 
-
 #############
 ##--Stats--##
 #############
@@ -288,17 +284,49 @@ CO_npf_array = CO_npf.dropna().tolist() # data should be in a list or array
 CO_nonpf_array = CO_nonpf.dropna().tolist()
 U_CO, p_CO = mannwhitneyu(CO_npf_array, CO_nonpf_array)
 
+##--Calculate Z-score--##
+##--Referenced https://datatab.net/tutorial/mann-whitney-u-test--##
+z_CO = (U_CO - CO_npf_count*CO_nonpf_count/2)/((CO_npf_count*
+            CO_nonpf_count*(CO_npf_count + CO_nonpf_count + 1)/12)**(1/2))
+
+##--Take absolute value of Z-score--##
+z_CO = abs(z_CO)
+
+##--Use Z-score to calculate rank biserial correlation, r--##
+r_CO = z_CO/((CO_npf_count + CO_nonpf_count)**(1/2))
+
 CO2_npf_array = CO2_npf.dropna().tolist()
 CO2_nonpf_array = CO2_nonpf.dropna().tolist()
 U_CO2, p_CO2 = mannwhitneyu(CO2_npf_array, CO2_nonpf_array)
+
+z_CO2 = (U_CO2 - CO2_npf_count*CO2_nonpf_count/2)/((CO2_npf_count*
+            CO2_nonpf_count*(CO2_npf_count + CO2_nonpf_count + 1)/12)**(1/2))
+
+z_CO2 = abs(z_CO2)
+
+r_CO2 = z_CO2/((CO2_npf_count + CO2_nonpf_count)**(1/2))
 
 O3_npf_array = O3_npf.dropna().tolist()
 O3_nonpf_array = O3_nonpf.dropna().tolist()
 U_O3, p_O3 = mannwhitneyu(O3_npf_array, O3_nonpf_array)
 
+z_O3 = (U_O3 - O3_npf_count*O3_nonpf_count/2)/((O3_npf_count*
+            O3_nonpf_count*(O3_npf_count + O3_nonpf_count + 1)/12)**(1/2))
+
+z_O3 = abs(z_O3)
+
+r_O3 = z_O3/((O3_npf_count + O3_nonpf_count)**(1/2))
+
 CO_CO2_npf_array = CO_CO2_npf.dropna().tolist()
 CO_CO2_nonpf_array = CO_CO2_nonpf.dropna().tolist()
 U_CO_CO2, p_CO_CO2 = mannwhitneyu(CO_CO2_npf_array, CO_CO2_nonpf_array)
+
+z_CO_CO2 = (U_CO_CO2 - CO_CO2_npf_count*CO_CO2_nonpf_count/2)/((CO_CO2_npf_count*
+            CO_CO2_nonpf_count*(CO_CO2_npf_count + CO_CO2_nonpf_count + 1)/12)**(1/2))
+
+z_CO_CO2 = abs(z_CO_CO2)
+
+r_CO_CO2 = z_CO_CO2/((CO_CO2_npf_count + CO_CO2_nonpf_count)**(1/2))
 
 ################
 ##--Plotting--##
@@ -336,12 +364,14 @@ plt.text(0.63, 0.12, "N={}".format(CO_nonpf_count), transform=fig.transFigure, f
 
 ##--Conditions for adding p values--##
 if p_CO >= 0.05:
-    plt.text(0.45, 0.85, f"p={p_CO:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
+    plt.text(0.33, 0.855, f"p={p_CO:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif 0.05 > p_CO >= 0.0005:
-    plt.text(0.45, 0.85, f"p={p_CO:.4f}", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.33, 0.855, f"p={p_CO:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif p_CO < 0.0005: 
-    plt.text(0.45, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.33, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=10, color='dimgrey')
  
+##--Add r value next to p-value--##
+plt.text(0.525, 0.855, f"r={r_CO:.3f}", transform=fig.transFigure, fontsize=10, color='dimgrey')
     
 plt.savefig(f"{output_path}\\CO/CO_{flight}", dpi=600)
 plt.show()
@@ -359,11 +389,14 @@ plt.text(0.63, 0.12, "N={}".format(CO2_nonpf_count), transform=fig.transFigure, 
 
 ##--Conditions for adding p values--##
 if p_CO2 >= 0.05:
-    plt.text(0.45, 0.85, f"p={p_CO2:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
+    plt.text(0.33, 0.855, f"p={p_CO2:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif 0.05 > p_CO2 >= 0.0005:
-    plt.text(0.45, 0.85, f"p={p_CO2:.4f}", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.33, 0.855, f"p={p_CO2:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif p_CO2 < 0.0005: 
-    plt.text(0.45, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.33, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=10, color='dimgrey')
+    
+##--Add r value next to p-value--##
+plt.text(0.525, 0.855, f"r={r_CO2:.3f}", transform=fig.transFigure, fontsize=10, color='dimgrey')
     
 plt.savefig(f"{output_path}\\CO2/CO2_{flight}", dpi=600)
 plt.show()
@@ -381,11 +414,14 @@ plt.text(0.63, 0.12, "N={}".format(O3_nonpf_count), transform=fig.transFigure, f
 
 ##--Conditions for adding p values--##
 if p_O3 >= 0.05:
-    plt.text(0.45, 0.85, f"p={p_O3:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
+    plt.text(0.33, 0.855, f"p={p_O3:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif 0.05 > p_O3 >= 0.0005:
-    plt.text(0.45, 0.85, f"p={p_O3:.4f}", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.33, 0.855, f"p={p_O3:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif p_O3 < 0.0005: 
-    plt.text(0.45, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.33, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=10, color='dimgrey')
+    
+##--Add r value next to p-value--##
+plt.text(0.525, 0.855, f"r={r_O3:.3f}", transform=fig.transFigure, fontsize=10, color='dimgrey')
     
     
 plt.savefig(f"{output_path}\\O3/O3_{flight}", dpi=600)
@@ -404,11 +440,14 @@ plt.text(0.63, 0.12, "N={}".format(CO_CO2_nonpf_count), transform=fig.transFigur
 
 ##--Conditions for adding p values--##
 if p_CO_CO2 >= 0.05:
-    plt.text(0.45, 0.85, f"p={p_CO_CO2:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
+    plt.text(0.33, 0.855, f"p={p_CO_CO2:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif 0.05 > p_CO_CO2 >= 0.0005:
-    plt.text(0.45, 0.85, f"p={p_CO_CO2:.4f}", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.33, 0.855, f"p={p_CO_CO2:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif p_CO_CO2 < 0.0005: 
-    plt.text(0.45, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.33, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=10, color='dimgrey')
+    
+##--Add r value next to p-value--##
+plt.text(0.525, 0.855, f"r={r_CO_CO2:.3f}", transform=fig.transFigure, fontsize=10, color='dimgrey')
 
 plt.savefig(f"{output_path}\\CO_CO2/CO_CO2_{flight}", dpi=600)
 plt.show()

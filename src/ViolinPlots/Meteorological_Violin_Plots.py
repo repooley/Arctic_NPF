@@ -337,25 +337,64 @@ rh_i_npf_count = len(rh_i_npf)
 rh_i_nonpf_count = len(rh_i_nonpf)
 
 ##--Statistical signficance for unpaired non-parametric data: Mann-Whitney U test--##
-temp_npf_array = temp_npf.dropna().tolist() # data should be in a list or array
-temp_nonpf_array = temp_nonpf.dropna().tolist()
+temp_npf_array = temp_npf.dropna().to_numpy() # data should be in a list or array
+temp_nonpf_array = temp_nonpf.dropna().to_numpy()
 U_temp, p_temp = mannwhitneyu(temp_npf_array, temp_nonpf_array)
 
-ptemp_npf_array = ptemp_npf.dropna().tolist()
-ptemp_nonpf_array = ptemp_nonpf.dropna().tolist()
+##--Calculate Z-score--##
+##--Referenced https://datatab.net/tutorial/mann-whitney-u-test--##
+z_temp = (U_temp - temp_npf_count*temp_nonpf_count/2)/((temp_npf_count*
+            temp_nonpf_count*(temp_npf_count + temp_nonpf_count + 1)/12)**(1/2))
+
+##--Take absolute value of Z scores--##
+z_temp = abs(z_temp)
+
+##--Use Z-score to calculate rank biserial correlation, r--##
+r_temp = z_temp/((temp_npf_count + temp_nonpf_count)**(1/2))
+
+ptemp_npf_array = ptemp_npf.dropna().to_numpy()
+ptemp_nonpf_array = ptemp_nonpf.dropna().to_numpy()
 U_ptemp, p_ptemp = mannwhitneyu(ptemp_npf_array, ptemp_nonpf_array)
 
-alt_npf_array = alt_npf.dropna().tolist()
-alt_nonpf_array = alt_nonpf.dropna().tolist()
+z_ptemp = (U_ptemp - ptemp_npf_count*ptemp_nonpf_count/2)/((ptemp_npf_count*
+            ptemp_nonpf_count*(ptemp_npf_count + ptemp_nonpf_count + 1)/12)**(1/2))
+
+z_ptemp = abs(z_ptemp)
+
+r_ptemp = z_ptemp/((ptemp_npf_count + ptemp_nonpf_count)**(1/2))
+
+alt_npf_array = alt_npf.dropna().to_numpy()
+alt_nonpf_array = alt_nonpf.dropna().to_numpy()
 U_alt, p_alt = mannwhitneyu(alt_npf_array, alt_nonpf_array)
 
-rh_w_npf_array = rh_w_npf.dropna().tolist()
-rh_w_nonpf_array = rh_w_nonpf.dropna().tolist()
+z_alt = (U_alt - alt_npf_count*alt_nonpf_count/2)/((alt_npf_count*
+            alt_nonpf_count*(alt_npf_count + alt_nonpf_count + 1)/12)**(1/2))
+
+z_alt = abs(z_alt)
+
+r_alt = z_alt/((alt_npf_count + alt_nonpf_count)**(1/2))
+
+rh_w_npf_array = rh_w_npf.dropna().to_numpy()
+rh_w_nonpf_array = rh_w_nonpf.dropna().to_numpy()
 U_rh_w, p_rh_w = mannwhitneyu(rh_w_npf_array, rh_w_nonpf_array)
 
-rh_i_npf_array = rh_i_npf.dropna().tolist()
-rh_i_nonpf_array = rh_i_nonpf.dropna().tolist()
+z_rh_w = (U_rh_w - rh_w_npf_count*rh_w_nonpf_count/2)/((rh_w_npf_count*
+            rh_w_nonpf_count*(rh_w_npf_count + rh_w_nonpf_count + 1)/12)**(1/2))
+
+z_rh_w = abs(z_rh_w)
+
+r_rh_w = z_rh_w/((rh_w_npf_count + rh_w_nonpf_count)**(1/2))
+
+rh_i_npf_array = rh_i_npf.dropna().to_numpy()
+rh_i_nonpf_array = rh_i_nonpf.dropna().to_numpy()
 U_rh_i, p_rh_i = mannwhitneyu(rh_i_npf_array, rh_i_nonpf_array)
+
+z_rh_i = (U_rh_i - rh_i_npf_count*rh_i_nonpf_count/2)/((rh_i_npf_count*
+            rh_i_nonpf_count*(rh_i_npf_count + rh_i_nonpf_count + 1)/12)**(1/2))
+
+z_rh_i = abs(z_rh_i)
+
+r_rh_i = z_rh_i/((rh_i_npf_count + rh_i_nonpf_count)**(1/2))
 
 ################
 ##--Plotting--##
@@ -393,12 +432,14 @@ plt.text(0.63, 0.12, "N={}".format(temp_nonpf_count), transform=fig.transFigure,
 
 ##--Conditions for adding p values--##
 if p_temp >= 0.05:
-    plt.text(0.45, 0.85, f"p={p_temp:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
+    plt.text(0.33, 0.855, f"p={p_temp:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif 0.05 > p_temp >= 0.0005:
-    plt.text(0.45, 0.85, f"p={p_temp:.4f}", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.33, 0.855, f"p={p_temp:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif p_temp < 0.0005: 
-    plt.text(0.45, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
- 
+    plt.text(0.33, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=10, color='dimgrey')
+    
+##--Add r value next to p-value--##
+plt.text(0.525, 0.855, f"r={r_temp:.3f}", transform=fig.transFigure, fontsize=10, color='dimgrey')
     
 plt.savefig(f"{output_path}\\temp/temp_{flight}", dpi=600)
 
@@ -417,11 +458,14 @@ plt.text(0.63, 0.12, "N={}".format(ptemp_nonpf_count), transform=fig.transFigure
 
 ##--Conditions for adding p values--##
 if p_ptemp >= 0.05:
-    plt.text(0.45, 0.85, f"p={p_ptemp:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
+    plt.text(0.33, 0.855, f"p={p_ptemp:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif 0.05 > p_ptemp >= 0.0005:
-    plt.text(0.45, 0.85, f"p={p_ptemp:.4f}", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.33, 0.855, f"p={p_ptemp:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif p_ptemp < 0.0005: 
-    plt.text(0.45, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.33, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=10, color='dimgrey')
+    
+##--Add r value next to p-value--##
+plt.text(0.525, 0.855, f"r={r_ptemp:.3f}", transform=fig.transFigure, fontsize=10, color='dimgrey')
  
     
 plt.savefig(f"{output_path}\\ptemp/ptemp_{flight}", dpi=600)
@@ -443,11 +487,14 @@ plt.text(0.63, 0.12, "N={}".format(alt_nonpf_count), transform=fig.transFigure, 
 
 ##--Conditions for adding p values--##
 if p_alt >= 0.05:
-    plt.text(0.45, 0.85, f"p={p_alt:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
+    plt.text(0.33, 0.855, f"p={p_alt:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif 0.05 > p_alt >= 0.0005:
-    plt.text(0.45, 0.85, f"p={p_alt:.4f}", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.33, 0.855, f"p={p_alt:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif p_alt < 0.0005: 
-    plt.text(0.45, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.33, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=10, color='dimgrey')
+    
+##--Add r value next to p-value--##
+plt.text(0.525, 0.855, f"r={r_alt:.3f}", transform=fig.transFigure, fontsize=10, color='dimgrey')
  
     
 plt.savefig(f"{output_path}\\altitude/alt_{flight}", dpi=600)
@@ -469,11 +516,14 @@ plt.text(0.63, 0.12, "N={}".format(rh_w_nonpf_count), transform=fig.transFigure,
 
 ##--Conditions for adding p values--##
 if p_rh_w >= 0.05:
-    plt.text(0.45, 0.85, f"p={p_rh_w:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
+    plt.text(0.33, 0.855, f"p={p_rh_w:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif 0.05 > p_rh_w >= 0.0005:
-    plt.text(0.45, 0.85, f"p={p_rh_w:.4f}", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.33, 0.855, f"p={p_rh_w:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif p_rh_w < 0.0005: 
-    plt.text(0.45, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.33, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=10, color='dimgrey')
+    
+##--Add r value next to p-value--##
+plt.text(0.525, 0.855, f"r={r_rh_w:.3f}", transform=fig.transFigure, fontsize=10, color='dimgrey')
  
     
 plt.savefig(f"{output_path}\\rh_water/rh_w_{flight}", dpi=600)
@@ -493,11 +543,14 @@ plt.text(0.63, 0.12, "N={}".format(rh_i_nonpf_count), transform=fig.transFigure,
 
 ##--Conditions for adding p values--##
 if p_rh_i >= 0.05:
-    plt.text(0.45, 0.85, f"p={p_rh_i:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
+    plt.text(0.33, 0.855, f"p={p_rh_i:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif 0.05 > p_rh_i >= 0.0005:
-    plt.text(0.45, 0.85, f"p={p_rh_i:.4f}", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.33, 0.855, f"p={p_rh_i:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif p_rh_i < 0.0005: 
-    plt.text(0.45, 0.85, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.33, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=10, color='dimgrey')
+    
+##--Add r value next to p-value--##
+plt.text(0.525, 0.855, f"r={r_rh_i:.3f}", transform=fig.transFigure, fontsize=10, color='dimgrey')
  
     
 plt.savefig(f"{output_path}\\rh_ice/rh_i_{flight}", dpi=600)

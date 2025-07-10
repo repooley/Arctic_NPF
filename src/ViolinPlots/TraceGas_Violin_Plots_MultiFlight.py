@@ -428,6 +428,20 @@ CO_lo_nonpf_array = CO_lowlat_nonpf.dropna().tolist()
 U_hi_CO, p_hi_CO = mannwhitneyu(CO_hi_npf_array, CO_hi_nonpf_array)
 U_lo_CO, p_lo_CO = mannwhitneyu(CO_lo_npf_array, CO_lo_nonpf_array)
 
+##--Calculate Z-score--##
+##--Referenced https://datatab.net/tutorial/mann-whitney-u-test--##
+z_hi_CO = (U_hi_CO - CO_hi_npf_count*CO_hi_nonpf_count/2)/((CO_hi_npf_count*
+            CO_hi_nonpf_count*(CO_hi_npf_count + CO_hi_nonpf_count + 1)/12)**(1/2))
+z_lo_CO = (U_lo_CO - CO_lo_npf_count*CO_lo_nonpf_count/2)/((CO_lo_npf_count*
+            CO_lo_nonpf_count*(CO_lo_npf_count + CO_lo_nonpf_count + 1)/12)**(1/2))
+
+##--Take absolute value of Z-score--##
+z_hi_CO = abs(z_hi_CO)
+z_lo_CO = abs(z_lo_CO)
+
+##--Use Z-score to calculate rank biserial correlation, r--##
+r_hi_CO = z_hi_CO/((CO_hi_npf_count + CO_hi_nonpf_count)**(1/2))
+r_lo_CO = z_lo_CO/((CO_lo_npf_count + CO_lo_nonpf_count)**(1/2))
 
 CO2_hi_npf_array = CO2_highlat_npf.dropna().tolist()
 CO2_lo_npf_array = CO2_lowlat_npf.dropna().tolist()
@@ -437,6 +451,16 @@ CO2_lo_nonpf_array = CO2_lowlat_nonpf.dropna().tolist()
 U_hi_CO2, p_hi_CO2 = mannwhitneyu(CO2_hi_npf_array, CO2_hi_nonpf_array)
 U_lo_CO2, p_lo_CO2 = mannwhitneyu(CO2_lo_npf_array, CO2_lo_nonpf_array)
 
+z_hi_CO2 = (U_hi_CO2 - CO2_hi_npf_count*CO2_hi_nonpf_count/2)/((CO2_hi_npf_count*
+            CO2_hi_nonpf_count*(CO2_hi_npf_count + CO2_hi_nonpf_count + 1)/12)**(1/2))
+z_lo_CO2 = (U_lo_CO2 - CO2_lo_npf_count*CO2_lo_nonpf_count/2)/((CO2_lo_npf_count*
+            CO2_lo_nonpf_count*(CO2_lo_npf_count + CO2_lo_nonpf_count + 1)/12)**(1/2))
+
+z_hi_CO2 = abs(z_hi_CO2)
+z_lo_CO2 = abs(z_lo_CO2)
+
+r_hi_CO2 = z_hi_CO2/((CO2_hi_npf_count + CO2_hi_nonpf_count)**(1/2))
+r_lo_CO2 = z_lo_CO2/((CO2_lo_npf_count + CO2_lo_nonpf_count)**(1/2))
 
 O3_hi_npf_array = O3_highlat_npf.dropna().tolist()
 O3_lo_npf_array = O3_lowlat_npf.dropna().tolist()
@@ -446,6 +470,17 @@ O3_lo_nonpf_array = O3_lowlat_nonpf.dropna().tolist()
 U_hi_O3, p_hi_O3 = mannwhitneyu(O3_hi_npf_array, O3_hi_nonpf_array)
 U_lo_O3, p_lo_O3 = mannwhitneyu(O3_lo_npf_array, O3_lo_nonpf_array)
 
+z_hi_O3 = (U_hi_O3 - O3_hi_npf_count*O3_hi_nonpf_count/2)/((O3_hi_npf_count*
+            O3_hi_nonpf_count*(O3_hi_npf_count + O3_hi_nonpf_count + 1)/12)**(1/2))
+z_lo_O3 = (U_lo_O3 - O3_lo_npf_count*O3_lo_nonpf_count/2)/((O3_lo_npf_count*
+            O3_lo_nonpf_count*(O3_lo_npf_count + O3_lo_nonpf_count + 1)/12)**(1/2))
+
+z_hi_O3 = abs(z_hi_O3)
+z_lo_O3 = abs(z_lo_O3)
+
+r_hi_O3 = z_hi_O3/((O3_hi_npf_count + O3_hi_nonpf_count)**(1/2))
+r_lo_O3 = z_lo_O3/((O3_lo_npf_count + O3_lo_nonpf_count)**(1/2))
+
 CO_CO2_hi_npf_array = CO_CO2_highlat_npf.dropna().tolist()
 CO_CO2_lo_npf_array = CO_CO2_lowlat_npf.dropna().tolist()
 CO_CO2_hi_nonpf_array = CO_CO2_highlat_nonpf.dropna().tolist()
@@ -453,6 +488,17 @@ CO_CO2_lo_nonpf_array = CO_CO2_lowlat_nonpf.dropna().tolist()
 
 U_hi_CO_CO2, p_hi_CO_CO2 = mannwhitneyu(CO_CO2_hi_npf_array, CO_CO2_hi_nonpf_array)
 U_lo_CO_CO2, p_lo_CO_CO2 = mannwhitneyu(CO_CO2_lo_npf_array, CO_CO2_lo_nonpf_array)
+
+z_hi_CO_CO2 = (U_hi_CO_CO2 - CO_CO2_hi_npf_count*CO_CO2_hi_nonpf_count/2)/((CO_CO2_hi_npf_count*
+            CO_CO2_hi_nonpf_count*(CO_CO2_hi_npf_count + CO_CO2_hi_nonpf_count + 1)/12)**(1/2))
+z_lo_CO_CO2 = (U_lo_CO_CO2 - CO_CO2_lo_npf_count*CO_CO2_lo_nonpf_count/2)/((CO_CO2_lo_npf_count*
+            CO_CO2_lo_nonpf_count*(CO_CO2_lo_npf_count + CO_CO2_lo_nonpf_count + 1)/12)**(1/2))
+
+z_hi_CO_CO2 = abs(z_hi_CO_CO2)
+z_lo_CO_CO2 = abs(z_lo_CO_CO2)
+
+r_hi_CO_CO2 = z_hi_CO_CO2/((CO_CO2_hi_npf_count + CO_CO2_hi_nonpf_count)**(1/2))
+r_lo_CO_CO2 = z_lo_CO_CO2/((CO_CO2_lo_npf_count + CO_CO2_lo_nonpf_count)**(1/2))
 
 ################
 ##--Plotting--##
@@ -479,7 +525,7 @@ sns.violinplot(data=CO_sorted, order = ['Low_NPF', 'Low_NoNPF', 'High_NPF', 'Hig
                                    inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette, ax=ax_bottom, cut=0)
 
 ##--Set limits above and below the break--##
-ax_top.set_ylim(172, 400) 
+ax_top.set_ylim(172, 550) 
 ax_bottom.set_ylim(93, 172)
 
 ##--Remove duplicated spines--##
@@ -520,18 +566,24 @@ plt.text(0.75, 0.125, "N={}".format(CO_lo_nonpf_count), transform=fig.transFigur
 
 ##--Conditions for adding p values--##
 if p_lo_CO >= 0.05:
-    plt.text(0.26, 0.6, f"p={p_lo_CO:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+    plt.text(0.17, 0.855, f"p={p_lo_CO:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif 0.05 > p_lo_CO >= 0.0005:
-    plt.text(0.26, 0.6, f"p={p_lo_CO:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.17, 0.855, f"p={p_lo_CO:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif p_lo_CO < 0.0005: 
-    plt.text(0.26, 0.6, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.17, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=12, color='dimgrey')
+    
+##--Add r value next to p-value--##
+plt.text(0.33, 0.855, f"r={r_lo_CO:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
 
 if p_hi_CO >= 0.05:
-    plt.text(0.63, 0.6, f"p={p_hi_CO:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+    plt.text(0.56, 0.855, f"p={p_hi_CO:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif 0.05 > p_hi_CO >= 0.0005:
-    plt.text(0.63, 0.6, f"p={p_hi_CO:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.56, 0.855, f"p={p_hi_CO:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif p_hi_CO < 0.0005: 
-    plt.text(0.63, 0.6, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.56, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=12, color='dimgrey')
+    
+##--Add r value next to p-value--##
+plt.text(0.72, 0.855, f"r={r_hi_CO:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
     
 plt.savefig(f"{output_path}\\CO/CO_MultiFlights", dpi=600)
 
@@ -562,19 +614,24 @@ plt.text(0.75, 0.125, "N={}".format(CO2_lo_nonpf_count), transform=fig.transFigu
 
 ##--Conditions for adding p values--##
 if p_lo_CO2 >= 0.05:
-    plt.text(0.26, 0.55, f"p={p_lo_CO2:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+    plt.text(0.17, 0.855, f"p={p_lo_CO2:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif 0.05 > p_lo_CO2 >= 0.0005:
-    plt.text(0.26, 0.55, f"p={p_lo_CO2:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.17, 0.855, f"p={p_lo_CO2:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif p_lo_CO2 < 0.0005: 
-    plt.text(0.26, 0.55, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.17, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=12, color='dimgrey')
+    
+##--Add r value next to p-value--##
+plt.text(0.33, 0.855, f"r={r_lo_CO2:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
 
 if p_hi_CO2 >= 0.05:
-    plt.text(0.65, 0.55, f"p={p_hi_CO2:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+    plt.text(0.56, 0.65, f"p={p_hi_CO2:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif 0.05 > p_hi_CO2 >= 0.0005:
-    plt.text(0.65, 0.55, f"p={p_hi_CO2:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.56, 0.65, f"p={p_hi_CO2:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif p_hi_CO2 < 0.0005: 
-    plt.text(0.65, 0.55, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
- 
+    plt.text(0.56, 0.65, "p<0.0005,", transform=fig.transFigure, fontsize=12, color='dimgrey')
+
+##--Add r value next to p-value--##
+plt.text(0.72, 0.65, f"r={r_hi_CO2:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
     
 plt.savefig(f"{output_path}\\CO2/CO2_MultiFlights", dpi=600)
 
@@ -605,18 +662,24 @@ plt.text(0.75, 0.125, "N={}".format(O3_lo_nonpf_count), transform=fig.transFigur
 
 ##--Conditions for adding p values--##
 if p_lo_O3 >= 0.05:
-    plt.text(0.25, 0.75, f"p={p_lo_O3:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+    plt.text(0.17, 0.855, f"p={p_lo_O3:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif 0.05 > p_lo_O3 >= 0.0005:
-    plt.text(0.25, 0.75, f"p={p_lo_O3:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.17, 0.855, f"p={p_lo_O3:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif p_lo_O3 < 0.0005: 
-    plt.text(0.25, 0.75, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.17, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=12, color='dimgrey')
+    
+##--Add r value next to p-value--##
+plt.text(0.33, 0.855, f"r={r_lo_O3:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
 
 if p_hi_O3 >= 0.05:
-    plt.text(0.64, 0.65, f"p={p_hi_O3:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+    plt.text(0.56, 0.75, f"p={p_hi_O3:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif 0.05 > p_hi_O3 >= 0.0005:
-    plt.text(0.64, 0.65, f"p={p_hi_O3:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.56, 0.75, f"p={p_hi_O3:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif p_hi_O3 < 0.0005: 
-    plt.text(0.64, 0.65, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.56, 0.75, "p<0.0005,", transform=fig.transFigure, fontsize=12, color='dimgrey')
+    
+##--Add r value next to p-value--##
+plt.text(0.72, 0.75, f"r={r_hi_O3:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
     
 plt.savefig(f"{output_path}\\O3/O3_MultiFlights", dpi=600)
 
@@ -637,7 +700,7 @@ sns.violinplot(data=CO_CO2_sorted, order = ['Low_NPF', 'Low_NoNPF', 'High_NPF', 
                                    inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette4, ax=ax_bottom, cut=0)
 
 ##--Set limits above and below the break--##
-ax_top.set_ylim(0.452, 1) 
+ax_top.set_ylim(0.452, 1.4) 
 ax_bottom.set_ylim(0.23, 0.452)
 
 ##--Remove duplicated spines--##
@@ -678,18 +741,24 @@ plt.text(0.75, 0.125, "N={}".format(CO_CO2_lo_nonpf_count), transform=fig.transF
 
 ##--Conditions for adding p values--##
 if p_lo_CO_CO2 >= 0.05:
-    plt.text(0.26, 0.65, f"p={p_lo_CO_CO2:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+    plt.text(0.17, 0.855, f"p={p_lo_CO_CO2:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif 0.05 > p_lo_CO_CO2 >= 0.0005:
-    plt.text(0.26, 0.65, f"p={p_lo_CO_CO2:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.17, 0.855, f"p={p_lo_CO_CO2:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif p_lo_CO_CO2 < 0.0005: 
-    plt.text(0.26, 0.65, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.17, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=12, color='dimgrey')
+
+##--Add r value next to p-value--##
+plt.text(0.33, 0.855, f"r={r_lo_CO_CO2:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
 
 if p_hi_CO_CO2 >= 0.05:
-    plt.text(0.63, 0.52, f"p={p_hi_CO_CO2:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+    plt.text(0.56, 0.855, f"p={p_hi_CO_CO2:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif 0.05 > p_hi_CO_CO2 >= 0.0005:
-    plt.text(0.63, 0.52, f"p={p_hi_CO_CO2:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.56, 0.855, f"p={p_hi_CO_CO2:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif p_hi_CO_CO2 < 0.0005: 
-    plt.text(0.63, 0.52, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.56, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=12, color='dimgrey')
+    
+##--Add r value next to p-value--##
+plt.text(0.72, 0.855, f"r={r_hi_CO_CO2:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
  
 plt.savefig(f"{output_path}\\CO_CO2/CO_CO2_MultiFlights", dpi=600)
 

@@ -4,6 +4,9 @@ Created on Tue Apr 22 11:55:14 2025
 
 @author: repooley
 """
+
+##--This script also includes rBC--##
+
 import icartt
 import os
 import glob
@@ -22,10 +25,10 @@ directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight2 thru Flight10)--##
 ##--FLIGHT1 HAS NO UHSAS FILES--##
-flight = "Flight2"
+flight = "Flight7"
 
 ##--Base output path for figures in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\ViolinPlots\Sinks"
+output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\ViolinPlots"
 
 #########################
 ##--Open ICARTT Files--##
@@ -40,6 +43,9 @@ def find_files(directory, flight, partial_name):
 
 ##--Meterological data from AIMMS monitoring system--##
 aimms = icartt.Dataset(find_files(directory, flight, "AIMMS_POLAR6")[0])
+
+##--Black carbon data from SP2--##
+SP2 = icartt.Dataset(find_files(directory, flight, "SP2_Polar6")[0])
 
 ##--UHSAS data--##
 UHSAS = icartt.Dataset(find_files(directory, flight, 'UHSAS')[0])
@@ -61,6 +67,34 @@ latitude = aimms.data['Lat'] # in degrees
 temperature = aimms.data['Temp'] + 273.15 # in K
 pressure = aimms.data['BP'] # in pa
 aimms_time =aimms.data['TimeWave'] # seconds since midnight
+
+##--Establish AIMMS start/stop times--##
+aimms_end = aimms_time.max()
+aimms_start = aimms_time.min()
+
+##--Black carbon--##
+BC_count = SP2.data['BC_numb_concSTP'] # in STP
+
+##--Handle black carbon data with different start/stop times than AIMMS--##
+BC_time = SP2.data['Time_UTC']
+
+##--Trim CO data if it starts before AIMMS--##
+if BC_time.min() < aimms_start:
+    mask_start = BC_time >= aimms_start
+    BC_time = BC_time[mask_start]
+    BC_count = BC_count[mask_start]
+    
+##--Append CO data with NaNs if it ends before AIMMS--##
+if BC_time.max() < aimms_end: 
+    missing_times = np.arange(BC_time.max()+1, aimms_end +1)
+    BC_time = np.concatenate([BC_time, missing_times])
+    BC_count = np.concatenate([BC_count, [np.nan]*len(missing_times)])
+
+##--Create a DataFrame for BC data and reindex to AIMMS time, setting non-overlapping times to nan--##
+BC_df = pd.DataFrame({'Time_UTC': BC_time, 'BC_count': BC_count})
+BC_aligned = BC_df.set_index('Time_UTC').reindex(aimms_time)
+BC_aligned['BC_count']= BC_aligned['BC_count'].where(BC_aligned.index.isin(aimms_time), np.nan)
+BC_count_aligned = BC_aligned['BC_count']
 
 ##--USHAS Data--##
 UHSAS_time = UHSAS.data['time'] # seconds since midnight
@@ -553,6 +587,12 @@ coagulation_npf = coagulation_n_3_10['Coagulation'][coagulation_n_3_10['Nucleati
 coagulation_nonpf = coagulation_n_3_10['Coagulation'][coagulation_n_3_10['Nucleation'] <= coagulation_n_3_10['LoD']]
 coag_df = {'NPF':coagulation_npf, 'No NPF': coagulation_nonpf}
 
+BC_n_3_10 = pd.DataFrame({'BC': BC_count_aligned, 'Nucleation': n_3_10['6'],
+                                   'LoD': nuc_error_3sigma})
+BC_npf = BC_n_3_10['BC'][BC_n_3_10['Nucleation'] > BC_n_3_10['LoD']]
+BC_nonpf = BC_n_3_10['BC'][BC_n_3_10['Nucleation'] <= BC_n_3_10['LoD']]
+BC_df = {'NPF':BC_npf, 'No NPF': BC_nonpf}
+
 #############
 ##--Stats--##
 #############
@@ -562,16 +602,46 @@ conden_npf_count = len(condensation_npf)
 conden_nonpf_count = len(condensation_nonpf)
 coag_npf_count = len(coagulation_npf)
 coag_nonpf_count = len(coagulation_nonpf)
-
+BC_npf_count = len(BC_npf)
+BC_nonpf_count = len(BC_nonpf)
 
 ##--Statistical signficance for unpaired non-parametric data: Mann-Whitney U test--##
-conden_npf_array = condensation_npf.dropna().tolist() # data should be in a list or array
-conden_nonpf_array = condensation_nonpf.dropna().tolist()
+conden_npf_array = condensation_npf.dropna().to_numpy() # data should be in a list or array
+conden_nonpf_array = condensation_nonpf.dropna().to_numpy()
 U_conden, p_conden = mannwhitneyu(conden_npf_array, conden_nonpf_array)
 
-coag_npf_array = coagulation_npf.dropna().tolist()
-coag_nonpf_array = coagulation_nonpf.dropna().tolist()
+##--Calculate Z-score--##
+##--Referenced https://datatab.net/tutorial/mann-whitney-u-test--##
+z_conden = (U_conden - conden_npf_count*conden_nonpf_count/2)/((conden_npf_count*
+            conden_nonpf_count*(conden_npf_count + conden_nonpf_count + 1)/12)**(1/2))
+
+##--Take absolute value of Z scores--##
+z_conden = abs(z_conden)
+
+##--Use Z-score to calculate rank biserial correlation, r--##
+r_conden = z_conden/((conden_npf_count + conden_nonpf_count)**(1/2))
+
+coag_npf_array = coagulation_npf.dropna().to_numpy()
+coag_nonpf_array = coagulation_nonpf.dropna().to_numpy()
 U_coag, p_coag = mannwhitneyu(coag_npf_array, coag_nonpf_array)
+
+z_coag = (U_coag - coag_npf_count*coag_nonpf_count/2)/((coag_npf_count*
+            coag_nonpf_count*(coag_npf_count + coag_nonpf_count + 1)/12)**(1/2))
+
+z_coag = abs(z_coag)
+
+r_coag = z_coag/((coag_npf_count + coag_nonpf_count)**(1/2))
+
+BC_npf_array = BC_npf.dropna().to_numpy()
+BC_nonpf_array = BC_nonpf.dropna().to_numpy()
+U_BC, p_BC = mannwhitneyu(BC_npf_array, BC_nonpf_array)
+
+z_BC = (U_BC - BC_npf_count*BC_nonpf_count/2)/((BC_npf_count*
+            BC_nonpf_count*(BC_npf_count + BC_nonpf_count + 1)/12)**(1/2))
+
+z_BC = abs(z_BC)
+
+r_BC = z_BC/((BC_npf_count + BC_nonpf_count)**(1/2))
 
 ################
 ##--Plotting--##
@@ -602,13 +672,16 @@ plt.text(0.63, 0.12, "N={}".format(conden_nonpf_count), transform=fig.transFigur
 
 ##--Conditions for adding p values--##
 if p_conden >= 0.05:
-    plt.text(0.45, 0.5, f"p={p_conden:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
+    plt.text(0.33, 0.855, f"p={p_conden:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif 0.05 > p_conden >= 0.0005:
-    plt.text(0.45, 0.5, f"p={p_conden:.4f}", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.33, 0.855, f"p={p_conden:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif p_conden < 0.0005: 
-    plt.text(0.45, 0.5, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.33, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=10, color='dimgrey')
+    
+##--Add r value next to p-value--##
+plt.text(0.525, 0.855, f"r={r_conden:.3f}", transform=fig.transFigure, fontsize=10, color='dimgrey')
  
-plt.savefig(f"{output_path}\\condensation\conden_{flight}", dpi=600)
+plt.savefig(f"{output_path}\\Sinks\condensation\conden_{flight}", dpi=600)
 
 plt.show()
 
@@ -625,12 +698,41 @@ plt.text(0.63, 0.12, "N={}".format(coag_nonpf_count), transform=fig.transFigure,
 
 ##--Conditions for adding p values--##
 if p_coag >= 0.05:
-    plt.text(0.45, 0.5, f"p={p_coag:.4f}", transform=fig.transFigure, fontsize=10, color='orange')
+    plt.text(0.33, 0.855, f"p={p_coag:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif 0.05 > p_coag >= 0.0005:
-    plt.text(0.45, 0.5, f"p={p_coag:.4f}", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.33, 0.855, f"p={p_coag:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
 elif p_coag < 0.0005: 
-    plt.text(0.45, 0.5, "p<<0.05", transform=fig.transFigure, fontsize=10, color='green')
+    plt.text(0.33, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=10, color='dimgrey')
+    
+##--Add r value next to p-value--##
+plt.text(0.525, 0.855, f"r={r_coag:.3f}", transform=fig.transFigure, fontsize=10, color='dimgrey')
  
-plt.savefig(f"{output_path}\\coagulation\coag_{flight}", dpi=600)
+plt.savefig(f"{output_path}\\Sinks\coagulation\coag_{flight}", dpi=600)
+
+plt.show()
+
+fig, ax = plt.subplots(figsize=(4,6))
+BC_plot = sns.violinplot(data = BC_df, order=['NPF', 'No NPF'], 
+                                  inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette2, ax=ax, cut=0)
+ax.set(xlabel='')
+ax.set(ylabel='rBC Abundance (counts/cm\u00B3)')
+ax.set(title=f"rBC Abundance - {flight.replace('Flight', 'Flight ')}")
+
+##--Add text labels with N--##
+plt.text(0.25, 0.12, "N={}".format(coag_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
+plt.text(0.63, 0.12, "N={}".format(coag_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
+
+##--Conditions for adding p values--##
+if p_BC >= 0.05:
+    plt.text(0.33, 0.855, f"p={p_BC:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
+elif 0.05 > p_BC >= 0.0005:
+    plt.text(0.33, 0.855, f"p={p_BC:.4f},", transform=fig.transFigure, fontsize=10, color='dimgrey')
+elif p_BC < 0.0005: 
+    plt.text(0.33, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=10, color='dimgrey')
+    
+##--Add r value next to p-value--##
+plt.text(0.525, 0.855, f"r={r_BC:.3f}", transform=fig.transFigure, fontsize=10, color='dimgrey')
+ 
+plt.savefig(f"{output_path}\\rBC\\rBC_{flight}", dpi=600)
 
 plt.show()

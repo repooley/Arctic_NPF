@@ -5,6 +5,8 @@ Created on Tue Apr 29 11:20:45 2025
 @author: repooley
 """
 
+##--This script also contains analysis for rBC--##
+
 import icartt
 import os
 import glob
@@ -30,7 +32,7 @@ num_bins_lat = 10
 num_bins_ptemp = 10
 
 ##--Base output path for figures in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\ViolinPlots\Sinks"
+output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\ViolinPlots"
 
 #########################
 ##--Open ICARTT Files--##
@@ -80,6 +82,8 @@ condensation_sinks_highlat = []
 coagulation_sinks_highlat = []
 condensation_sinks_lowlat = []
 coagulation_sinks_lowlat = []
+BC_highlat = []
+BC_lowlat = []
 
 ##--Loop through each flight, pulling and analyzing data--##
 for flight in flights_to_analyze:
@@ -94,7 +98,15 @@ for flight in flights_to_analyze:
     else:
         print(f"No AIMMS_POLAR6 file found for {flight}. Skipping...")
         continue  
- 
+    
+    ##--Pull SP2 files--##
+    SP2_files = find_files(flight_dir, "SP2")
+    if SP2_files: 
+        SP2 = icartt.Dataset(SP2_files[0])
+    else: 
+        print(f"No SP2 file found for {flight}. Skipping...")
+        continue
+    
     ##--Pull CPC files--##
     CPC10_files = find_files(flight_dir, 'CPC3772')
     CPC3_files = find_files(flight_dir, 'CPC3776')
@@ -134,6 +146,34 @@ for flight in flights_to_analyze:
     temperature = aimms.data['Temp'] + 273.15 # in K
     pressure = aimms.data['BP'] # in pa
     aimms_time =aimms.data['TimeWave'] # seconds since midnight
+    
+    ##--Establish AIMMS start/stop times--##
+    aimms_end = aimms_time.max()
+    aimms_start = aimms_time.min()
+
+    ##--Black carbon--##
+    BC_count = SP2.data['BC_numb_concSTP'] # in STP
+
+    ##--Handle black carbon data with different start/stop times than AIMMS--##
+    BC_time = SP2.data['Time_UTC']
+
+    ##--Trim CO data if it starts before AIMMS--##
+    if BC_time.min() < aimms_start:
+        mask_start = BC_time >= aimms_start
+        BC_time = BC_time[mask_start]
+        BC_count = BC_count[mask_start]
+        
+    ##--Append CO data with NaNs if it ends before AIMMS--##
+    if BC_time.max() < aimms_end: 
+        missing_times = np.arange(BC_time.max()+1, aimms_end +1)
+        BC_time = np.concatenate([BC_time, missing_times])
+        BC_count = np.concatenate([BC_count, [np.nan]*len(missing_times)])
+
+    ##--Create a DataFrame for BC data and reindex to AIMMS time, setting non-overlapping times to nan--##
+    BC_df = pd.DataFrame({'Time_UTC': BC_time, 'BC_count': BC_count})
+    BC_aligned = BC_df.set_index('Time_UTC').reindex(aimms_time)
+    BC_aligned['BC_count']= BC_aligned['BC_count'].where(BC_aligned.index.isin(aimms_time), np.nan)
+    BC_df = pd.DataFrame({'BC_count': BC_aligned['BC_count']})
     
     ##--10 nm CPC data--##
     CPC10_time = CPC10.data['time']
@@ -587,33 +627,40 @@ for flight in flights_to_analyze:
     nucleating_series = n_3_10['6']
     lod_series = nuc_error_3sigma
     
-    # Make safe copies before adding columns
+    ##--Make safe copies before adding columns--##
     cond_sink_df = cond_sink_df.copy()
     coag_sink_df = coag_sink_df.copy()
     
-    # Add the new columns
+    ##--Add the new columns--##
     cond_sink_df['nucleating'] = nucleating_series
     cond_sink_df['LoD'] = lod_series
     
     coag_sink_df['nucleating'] = nucleating_series
     coag_sink_df['LoD'] = lod_series
     
-    # Append to correct regional list
+    BC_df['nucleating'] = nucleating_series
+    BC_df['LoD'] = lod_series
+    
+    ##--Append to correct regional list--##
     if flight in high_lat_flights:
         condensation_sinks_highlat.append(cond_sink_df)
         coagulation_sinks_highlat.append(coag_sink_df)
+        BC_highlat.append(BC_df)
         print(f"{flight}: added to HIGH-lat list")
     else:
         condensation_sinks_lowlat.append(cond_sink_df)
         coagulation_sinks_lowlat.append(coag_sink_df)
+        BC_lowlat.append(BC_df)
         print(f"{flight}: added to LOW-lat list")
 
 ##--Concatenate the resulting lists of dataframes into single dataframes--##
 condensation_sinks_highlat = pd.concat(condensation_sinks_highlat)
 coagulation_sinks_highlat = pd.concat(coagulation_sinks_highlat)
+BC_highlat = pd.concat(BC_highlat)
 
 condensation_sinks_lowlat = pd.concat(condensation_sinks_lowlat)
 coagulation_sinks_lowlat = pd.concat(coagulation_sinks_lowlat)
+BC_lowlat = pd.concat(BC_lowlat)
 
 #######################################
 ##--Filter to NPF and non-NPF times--##
@@ -628,6 +675,10 @@ coagulation_highlat_npf = coagulation_sinks_highlat['Coagulation'][coagulation_s
                                            > coagulation_sinks_highlat['LoD']]
 coagulation_highlat_nonpf = coagulation_sinks_highlat['Coagulation'][coagulation_sinks_highlat['nucleating']
                                            <= coagulation_sinks_highlat['LoD']]
+BC_highlat_npf = BC_highlat['BC_count'][BC_highlat['nucleating']
+                                           > BC_highlat['LoD']]
+BC_highlat_nonpf = BC_highlat['BC_count'][BC_highlat['nucleating']
+                                           <= BC_highlat['LoD']]
 
 ##--Low lat flights--##
 condensation_lowlat_npf = condensation_sinks_lowlat['Condensation_Sink'][condensation_sinks_lowlat['nucleating']
@@ -638,6 +689,10 @@ coagulation_lowlat_npf = coagulation_sinks_lowlat['Coagulation'][coagulation_sin
                                            > coagulation_sinks_lowlat['LoD']]
 coagulation_lowlat_nonpf = coagulation_sinks_lowlat['Coagulation'][coagulation_sinks_lowlat['nucleating']
                                            <= coagulation_sinks_lowlat['LoD']]
+BC_lowlat_npf = BC_lowlat['BC_count'][BC_lowlat['nucleating']
+                                           > BC_lowlat['LoD']]
+BC_lowlat_nonpf = BC_lowlat['BC_count'][BC_lowlat['nucleating']
+                                           <= BC_lowlat['LoD']]
 
 ##--Final dataframes to feed to the violin plots--##
 ##--Drop index to prevent reindexing issues--##
@@ -655,6 +710,13 @@ coagulation = pd.DataFrame({
     'Low_NoNPF': coagulation_lowlat_nonpf.reset_index(drop=True)
 })
 
+blackcarbon = pd.DataFrame({
+    'High_NPF': BC_highlat_npf.reset_index(drop=True),
+    'Low_NPF': BC_lowlat_npf.reset_index(drop=True),
+    'High_NoNPF': BC_highlat_nonpf.reset_index(drop=True),
+    'Low_NoNPF': BC_lowlat_nonpf.reset_index(drop=True)
+})
+
 #############
 ##--Stats--##
 #############
@@ -670,22 +732,74 @@ coag_lo_npf_count = len(coagulation_lowlat_npf)
 coag_hi_nonpf_count = len(coagulation_highlat_nonpf)
 coag_lo_nonpf_count = len(coagulation_lowlat_nonpf)
 
+BC_hi_npf_count = len(BC_highlat_npf)
+BC_lo_npf_count = len(BC_lowlat_npf)
+BC_hi_nonpf_count = len(BC_highlat_nonpf)
+BC_lo_nonpf_count = len(BC_lowlat_nonpf)
+
 ##--Statistical signficance for unpaired non-parametric data: Mann-Whitney U test--##
-conden_hi_npf_array = condensation_highlat_npf.dropna().tolist() # data should be in a list or array
-conden_hi_nonpf_array = condensation_highlat_nonpf.dropna().tolist()
-conden_lo_npf_array = condensation_lowlat_npf.dropna().tolist() # data should be in a list or array
-conden_lo_nonpf_array = condensation_lowlat_nonpf.dropna().tolist()
+conden_hi_npf_array = condensation_highlat_npf.dropna().to_numpy() # data should be in a list or array
+conden_hi_nonpf_array = condensation_highlat_nonpf.dropna().to_numpy()
+conden_lo_npf_array = condensation_lowlat_npf.dropna().to_numpy() # data should be in a list or array
+conden_lo_nonpf_array = condensation_lowlat_nonpf.dropna().to_numpy()
 
 U_hi_conden, p_hi_conden = mannwhitneyu(conden_hi_npf_array, conden_hi_nonpf_array)
 U_lo_conden, p_lo_conden = mannwhitneyu(conden_lo_npf_array, conden_lo_nonpf_array)
 
-coag_hi_npf_array = coagulation_highlat_npf.dropna().tolist()
-coag_hi_nonpf_array = coagulation_highlat_nonpf.dropna().tolist()
-coag_lo_npf_array = coagulation_lowlat_npf.dropna().tolist()
-coag_lo_nonpf_array = coagulation_lowlat_nonpf.dropna().tolist()
+##--Calculate Z-score--##
+##--Referenced https://datatab.net/tutorial/mann-whitney-u-test--##
+z_hi_conden = (U_hi_conden - conden_hi_npf_count*conden_hi_nonpf_count/2)/((conden_hi_npf_count*
+            conden_hi_nonpf_count*(conden_hi_npf_count + conden_hi_nonpf_count + 1)/12)**(1/2))
+z_lo_conden = (U_lo_conden - conden_lo_npf_count*conden_lo_nonpf_count/2)/((conden_lo_npf_count*
+            conden_lo_nonpf_count*(conden_lo_npf_count + conden_lo_nonpf_count + 1)/12)**(1/2))
+
+##--Take absolute value of z-score--##
+z_hi_conden = abs(z_hi_conden)
+z_lo_conden = abs(z_lo_conden)
+
+##--Use Z-score to calculate rank biserial correlation, r--##
+r_hi_conden = z_hi_conden/((conden_hi_npf_count + conden_hi_nonpf_count)**(1/2))
+r_lo_conden = z_lo_conden/((conden_lo_npf_count + conden_lo_nonpf_count)**(1/2))
+
+coag_hi_npf_array = coagulation_highlat_npf.dropna().to_numpy()
+coag_hi_nonpf_array = coagulation_highlat_nonpf.dropna().to_numpy()
+coag_lo_npf_array = coagulation_lowlat_npf.dropna().to_numpy()
+coag_lo_nonpf_array = coagulation_lowlat_nonpf.dropna().to_numpy()
 
 U_hi_coag, p_hi_coag = mannwhitneyu(coag_hi_npf_array, coag_hi_nonpf_array)
 U_lo_coag, p_lo_coag = mannwhitneyu(coag_lo_npf_array, coag_lo_nonpf_array)
+
+
+z_hi_coag = (U_hi_coag - coag_hi_npf_count*coag_hi_nonpf_count/2)/((coag_hi_npf_count*
+            coag_hi_nonpf_count*(coag_hi_npf_count + coag_hi_nonpf_count + 1)/12)**(1/2))
+z_lo_coag = (U_lo_coag - coag_lo_npf_count*coag_lo_nonpf_count/2)/((coag_lo_npf_count*
+            coag_lo_nonpf_count*(coag_lo_npf_count + coag_lo_nonpf_count + 1)/12)**(1/2))
+
+z_hi_coag = abs(z_hi_coag)
+z_lo_coag = abs(z_lo_coag)
+
+r_hi_coag = z_hi_coag/((coag_hi_npf_count + coag_hi_nonpf_count)**(1/2))
+r_lo_coag = z_lo_coag/((coag_lo_npf_count + coag_lo_nonpf_count)**(1/2))
+
+BC_hi_npf_array = BC_highlat_npf.dropna().to_numpy()
+BC_hi_nonpf_array = BC_highlat_nonpf.dropna().to_numpy()
+BC_lo_npf_array = BC_lowlat_npf.dropna().to_numpy()
+BC_lo_nonpf_array = BC_lowlat_nonpf.dropna().to_numpy()
+
+U_hi_BC, p_hi_BC = mannwhitneyu(BC_hi_npf_array, BC_hi_nonpf_array)
+U_lo_BC, p_lo_BC = mannwhitneyu(BC_lo_npf_array, BC_lo_nonpf_array)
+
+
+z_hi_BC = (U_hi_BC - BC_hi_npf_count*BC_hi_nonpf_count/2)/((BC_hi_npf_count*
+            BC_hi_nonpf_count*(BC_hi_npf_count + BC_hi_nonpf_count + 1)/12)**(1/2))
+z_lo_BC = (U_lo_coag - coag_lo_npf_count*coag_lo_nonpf_count/2)/((coag_lo_npf_count*
+            BC_lo_nonpf_count*(BC_lo_npf_count + BC_lo_nonpf_count + 1)/12)**(1/2))
+
+z_hi_BC = abs(z_hi_BC)
+z_lo_BC = abs(z_lo_BC)
+
+r_hi_BC = z_hi_BC/((BC_hi_npf_count + BC_hi_nonpf_count)**(1/2))
+r_lo_BC = z_lo_BC/((BC_lo_npf_count + BC_lo_nonpf_count)**(1/2))
 
 ################
 ##--Plotting--##
@@ -712,7 +826,7 @@ sns.violinplot(data=condensation, order = ['Low_NPF', 'Low_NoNPF', 'High_NPF', '
                                    inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette, ax=ax_bottom, cut=0)
 
 ##--Set limits above and below the break--##
-ax_top.set_ylim(0.00255, 0.014) 
+ax_top.set_ylim(0.00255, 0.021) 
 ax_bottom.set_ylim(-0.0002, 0.00255)
 
 ##--Remove duplicated spines--##
@@ -753,20 +867,26 @@ plt.text(0.75, 0.125, "N={}".format(conden_lo_nonpf_count), transform=fig.transF
 
 ##--Conditions for adding p values--##
 if p_hi_conden >= 0.05:
-    plt.text(0.26, 0.6, f"p={p_hi_conden:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+    plt.text(0.17, 0.855, f"p={p_hi_conden:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif 0.05 > p_hi_conden >= 0.0005:
-    plt.text(0.26, 0.6, f"p={p_hi_conden:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.17, 0.855, f"p={p_hi_conden:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif p_hi_conden < 0.0005: 
-    plt.text(0.26, 0.6, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.17, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=12, color='dimgrey')
+    
+##--Add r value next to p-value--##
+plt.text(0.33, 0.855, f"r={r_hi_conden:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
 
 if p_lo_conden >= 0.05:
-    plt.text(0.63, 0.3, f"p={p_lo_conden:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+    plt.text(0.56, 0.855, f"p={p_lo_conden:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif 0.05 > p_lo_conden >= 0.0005:
-    plt.text(0.63, 0.3, f"p={p_lo_conden:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.56, 0.855, f"p={p_lo_conden:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif p_lo_conden < 0.0005: 
-    plt.text(0.63, 0.3, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.56, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=12, color='dimgrey')
+
+##--Add r value next to p-value--##
+plt.text(0.72, 0.855, f"r={r_lo_conden:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
     
-plt.savefig(f"{output_path}\\condensation\conden_MultiFlight", dpi=600)
+plt.savefig(f"{output_path}\\Sinks\\condensation\conden_MultiFlight", dpi=600)
 
 plt.show()
 
@@ -787,7 +907,7 @@ sns.violinplot(data=coagulation, order = ['Low_NPF', 'Low_NoNPF', 'High_NPF', 'H
                                    inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette2, ax=ax_bottom, cut=0)
 
 ##--Set limits above and below the break--##
-ax_top.set_ylim(0.00066, 0.0036) 
+ax_top.set_ylim(0.00066, 0.0055) 
 ax_bottom.set_ylim(-0.00005, 0.00066)
 
 ##--Remove duplicated spines--##
@@ -828,19 +948,101 @@ plt.text(0.75, 0.125, "N={}".format(coag_lo_nonpf_count), transform=fig.transFig
 
 ##--Conditions for adding p values--##
 if p_hi_coag >= 0.05:
-    plt.text(0.26, 0.6, f"p={p_hi_coag:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+    plt.text(0.17, 0.855, f"p={p_hi_coag:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif 0.05 > p_hi_coag >= 0.0005:
-    plt.text(0.26, 0.6, f"p={p_hi_coag:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.17, 0.855, f"p={p_hi_coag:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif p_hi_coag < 0.0005: 
-    plt.text(0.26, 0.6, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.17, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=12, color='dimgrey')
+    
+##--Add r value next to p-value--##
+plt.text(0.33, 0.855, f"r={r_hi_coag:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
 
 if p_lo_coag >= 0.05:
-    plt.text(0.63, 0.27, f"p={p_lo_coag:.4f}", transform=fig.transFigure, fontsize=12, color='orange')
+    plt.text(0.56, 0.855, f"p={p_lo_coag:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif 0.05 > p_lo_coag >= 0.0005:
-    plt.text(0.63, 0.27, f"p={p_lo_coag:.4f}", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.56, 0.855, f"p={p_lo_coag:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
 elif p_lo_coag < 0.0005: 
-    plt.text(0.63, 0.27, "p<<0.05", transform=fig.transFigure, fontsize=12, color='green')
+    plt.text(0.56, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=12, color='dimgrey')
+
+##--Add r value next to p-value--##
+plt.text(0.72, 0.855, f"r={r_lo_coag:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
  
-plt.savefig(f"{output_path}\\coagulation\coag_MultiFlight", dpi=600)
+plt.savefig(f"{output_path}\\Sinks\\coagulation\coag_MultiFlight", dpi=600)
+
+plt.show()
+
+##-rBC--##
+##--Use subplots for breaking y-axis--##
+fig, (ax_top, ax_bottom) = plt.subplots(ncols=1, nrows=2, figsize=(6,8), sharex=True, 
+                                        height_ratios=[1, 8], gridspec_kw={'hspace':0.08})
+
+
+sns.violinplot(data = blackcarbon, order=['Low_NPF', 'Low_NoNPF', 'High_NPF', 'High_NoNPF'],
+                                  inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette2, ax=ax_top, cut=0)
+sns.violinplot(data = blackcarbon, order=['Low_NPF', 'Low_NoNPF', 'High_NPF', 'High_NoNPF'],
+                                  inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette2, ax=ax_bottom, cut=0)
+
+##--Set limits above and below the break--##
+ax_top.set_ylim(75, 375) 
+ax_bottom.set_ylim(-5, 75)
+
+##--Remove duplicated spines--##
+sns.despine(ax=ax_bottom, right=False)
+sns.despine(ax=ax_top, bottom=True, right=False, top=False)
+
+##--Add diagonal break lines--##
+
+ax = ax_top
+ax2 = ax_bottom
+##--length of break lines--##
+d = .015  
+##--Top diagonal--##
+ax.plot((-d, +d), (-d, +d), transform=ax_top.transAxes, color='k', clip_on=False)
+##--Bottom diagonal--##
+##--Bottom break — adjust d to match top angle (scale by inverse of height ratio)--##
+d_scaled = d * (1 / 8)
+ax2.plot((-d, +d), (1 - d_scaled, 1 + d_scaled), transform=ax_bottom.transAxes, color='k', clip_on=False) 
+
+fig.supylabel('rBC Abundance $(cm^{-3})$', fontsize=12, x=-0.01)
+plt.suptitle('Refractive Black Carbon', fontsize=12, y=0.92)
+
+ax.set(xlabel='')
+ax.set_xticks(range(len(group_order)))
+ax.set_xticklabels(group_order)
+
+##--Add secondary x-axis labels for high and low lat regions--##
+fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
+plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
+
+ax_top.tick_params(axis='x', which='both', labelsize=12, top=False, labeltop=False)
+
+##--Add text labels with N--##
+plt.text(0.17, 0.125, "N={}".format(BC_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
+plt.text(0.36, 0.125, "N={}".format(BC_hi_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
+plt.text(0.56, 0.125, "N={}".format(BC_lo_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
+plt.text(0.75, 0.125, "N={}".format(BC_lo_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
+
+##--Conditions for adding p values--##
+if p_lo_BC >= 0.05:
+    plt.text(0.17, 0.855, f"p={p_lo_BC:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
+elif 0.05 > p_lo_BC >= 0.0005:
+    plt.text(0.17, 0.855, f"p={p_lo_BC:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
+elif p_lo_BC < 0.0005: 
+    plt.text(0.17, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=12, color='dimgrey')
+    
+##--Add r value next to p-value--##
+plt.text(0.33, 0.855, f"r={r_lo_BC:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
+
+if p_hi_BC >= 0.05:
+    plt.text(0.56, 0.855, f"p={p_hi_BC:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
+elif 0.05 > p_hi_BC >= 0.0005:
+    plt.text(0.56, 0.855, f"p={p_hi_BC:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
+elif p_hi_BC < 0.0005: 
+    plt.text(0.56, 0.855, "p<0.0005,", transform=fig.transFigure, fontsize=12, color='dimgrey')
+    
+##--Add r value next to p-value--##
+plt.text(0.72, 0.855, f"r={r_hi_BC:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
+    
+plt.savefig(f"{output_path}\\rBC/rBC_MultiFlights", dpi=600)
 
 plt.show()
