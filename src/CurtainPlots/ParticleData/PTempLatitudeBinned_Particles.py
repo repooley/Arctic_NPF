@@ -47,6 +47,9 @@ def find_files(directory, flight, partial_name):
 ##--Meterological data from AIMMS monitoring system--##
 aimms = icartt.Dataset(find_files(directory, flight, "AIMMS_POLAR6")[0])
 
+##--Black carbon data from SP2--##
+SP2 = icartt.Dataset(find_files(directory, flight, "SP2_Polar6")[0])
+
 ##--UHSAS data--##
 UHSAS = icartt.Dataset(find_files(directory, flight, 'UHSAS')[0])
 
@@ -64,6 +67,34 @@ latitude = aimms.data['Lat'] # in degrees
 temperature = aimms.data['Temp'] + 273.15 # in K
 pressure = aimms.data['BP'] # in pa
 aimms_time =aimms.data['TimeWave'] # seconds since midnight
+
+##--Establish AIMMS start/stop times--##
+aimms_end = aimms_time.max()
+aimms_start = aimms_time.min()
+
+##--Black carbon--##
+BC_count = SP2.data['BC_numb_concSTP'] # in STP
+
+##--Handle black carbon data with different start/stop times than AIMMS--##
+BC_time = SP2.data['Time_UTC']
+
+##--Trim CO data if it starts before AIMMS--##
+if BC_time.min() < aimms_start:
+    mask_start = BC_time >= aimms_start
+    BC_time = BC_time[mask_start]
+    BC_count = BC_count[mask_start]
+    
+##--Append CO data with NaNs if it ends before AIMMS--##
+if BC_time.max() < aimms_end: 
+    missing_times = np.arange(BC_time.max()+1, aimms_end +1)
+    BC_time = np.concatenate([BC_time, missing_times])
+    BC_count = np.concatenate([BC_count, [np.nan]*len(missing_times)])
+
+##--Create a DataFrame for BC data and reindex to AIMMS time, setting non-overlapping times to nan--##
+BC_df = pd.DataFrame({'Time_UTC': BC_time, 'BC_count': BC_count})
+BC_aligned = BC_df.set_index('Time_UTC').reindex(aimms_time)
+BC_aligned['BC_count']= BC_aligned['BC_count'].where(BC_aligned.index.isin(aimms_time), np.nan)
+BC_count_aligned = BC_aligned['BC_count']
 
 ##--USHAS Data--##
 UHSAS_time = UHSAS.data['time'] # seconds since midnight
@@ -194,6 +225,9 @@ n_10_89 = np.where(n_10_89 >= 0, n_10_89, np.nan)
 ###########################
 
 ##--Float type NaNs in potential_temp cannot convert to int, so must be removed--##
+BC_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'BC':BC_count_aligned})
+BC_clean_df = BC_df.dropna()
+
 CPC3_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'CPC3':CPC3_conc_STP})
 CPC3_clean_df = CPC3_df.dropna()
 
@@ -224,6 +258,10 @@ common_lat_bin_edges = np.linspace(lat_min, lat_max, num_bins_lat + 1)
 common_ptemp_bin_edges = np.linspace(ptemp_min, ptemp_max, num_bins_ptemp + 1)
 
 ##--Make 2D histograms using common bins--##
+##--rBC--##
+BC_bin_medians, _, _, _ = binned_statistic_2d(BC_clean_df['Latitude'], 
+    BC_clean_df['PTemp'], BC_clean_df['BC'], statistic='median', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+
 ##--CPC3--##
 CPC3_bin_medians, _, _, _ = binned_statistic_2d(CPC3_clean_df['Latitude'], 
     CPC3_clean_df['PTemp'], CPC3_clean_df['CPC3'], statistic='median', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
@@ -377,12 +415,44 @@ plt.savefig(grow_output_path, dpi=600, bbox_inches='tight')
 plt.tight_layout()
 plt.show()
 
+##--rBC particles--##
+fig5, ax5 = plt.subplots(figsize=(8, 6))
+
+##--Use pcolormesh for the plot and use viridis for values greater than 1--##
+BC_plot = ax5.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, BC_bin_medians.T,  # Transpose to align correctly
+    shading='auto', cmap=new_cmap, vmin=0, vmax=150)
+
+##--Add dashed horizontal lines for the polar dome boundaries--##
+ax5.axhline(y=285, color='k', linestyle='--', linewidth=1)
+ax5.axhline(y=299, color='k', linestyle='--', linewidth=1)
+
+##--Add colorbar--##
+cb5 = fig4.colorbar(nuc_plot, ax=ax5)
+cb5.minorticks_on()
+cb5.ax.tick_params(labelsize=16)
+cb5.set_label('rBC Particles $(Counts/cm^{3})$', fontsize=16)
+
+##--Set axis labels--##
+ax5.set_xlabel('Latitude (°)', fontsize=16)
+ax5.set_ylabel('Potential Temperature \u0398 (K)', fontsize=16)
+ax5.tick_params(axis='both', labelsize=16)
+ax5.set_title(f"rBC Particle Abundance - {flight.replace('Flight', 'Flight ')}", fontsize=18)
+#ax5.set_ylim(238, 301)
+#ax5.set_xlim(79.5, 83.7)
+
+##--Use f-string to save file with flight# appended--##
+grow_output_path = f"{output_path}\\BC/PTempLatitude/{flight}"
+plt.savefig(grow_output_path, dpi=600, bbox_inches='tight') 
+
+plt.tight_layout()
+plt.show()
+
 ########################
 ##--Diagnostic Plots--##
 ########################
 
 ##--Remove hashtags below to comment out this section--##
-#'''
+'''
 
 ##--Counts per bin for CPC3 data--##
 CPC3_bin_counts, _, _, _ = binned_statistic_2d(CPC3_clean_df['Latitude'], 
@@ -515,3 +585,4 @@ plt.savefig(grow_diag_output_path, dpi=600, bbox_inches='tight')
 
 plt.tight_layout()
 plt.show()
+'''

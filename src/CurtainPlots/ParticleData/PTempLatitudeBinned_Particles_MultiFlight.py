@@ -51,6 +51,7 @@ def find_files(flight_dir, partial_name):
     return sorted(glob.glob(search_pattern))
  
 ##--Store processed data here: --##
+SP2_dfs = []
 CPC3_dfs = []
 CPC10_dfs = []
 nuc_dfs = []
@@ -69,6 +70,14 @@ for flight in flights_to_analyze:
     else:
         print(f"No AIMMS_POLAR6 file found for {flight}. Skipping...")
         continue  # Skip to the next flight if AIMMS file is missing
+    
+    ##--Black carbon data from SP2--##
+    SP2_files = find_files(flight_dir, "SP2_Polar6")
+    if SP2_files: 
+        SP2 = icartt.Dataset(SP2_files[0])
+    else: 
+        print(f"No SP2 file found for {flight}. Skipping...")
+        continue
  
     ##--Pull CPC files--##
     CPC10_files = find_files(flight_dir, 'CPC3772')
@@ -100,6 +109,34 @@ for flight in flights_to_analyze:
     temperature = aimms.data['Temp'] + 273.15 # in K
     pressure = aimms.data['BP'] # in pa
     aimms_time =aimms.data['TimeWave'] # seconds since midnight
+    
+    ##--Establish AIMMS start/stop times--##
+    aimms_end = aimms_time.max()
+    aimms_start = aimms_time.min()
+    
+    ##--Black carbon--##
+    BC_count = SP2.data['BC_numb_concSTP'] # in STP
+
+    ##--Handle black carbon data with different start/stop times than AIMMS--##
+    BC_time = SP2.data['Time_UTC']
+
+    ##--Trim CO data if it starts before AIMMS--##
+    if BC_time.min() < aimms_start:
+        mask_start = BC_time >= aimms_start
+        BC_time = BC_time[mask_start]
+        BC_count = BC_count[mask_start]
+        
+    ##--Append CO data with NaNs if it ends before AIMMS--##
+    if BC_time.max() < aimms_end: 
+        missing_times = np.arange(BC_time.max()+1, aimms_end +1)
+        BC_time = np.concatenate([BC_time, missing_times])
+        BC_count = np.concatenate([BC_count, [np.nan]*len(missing_times)])
+
+    ##--Create a DataFrame for BC data and reindex to AIMMS time, setting non-overlapping times to nan--##
+    BC_df = pd.DataFrame({'Time_UTC': BC_time, 'BC_count': BC_count})
+    BC_aligned = BC_df.set_index('Time_UTC').reindex(aimms_time)
+    BC_aligned['BC_count']= BC_aligned['BC_count'].where(BC_aligned.index.isin(aimms_time), np.nan)
+    BC_count_aligned = BC_aligned['BC_count']
     
     ##--Bin data are in a CSV file--##
     UHSAS_bins = pd.read_csv(bins_filepath)
@@ -233,6 +270,8 @@ for flight in flights_to_analyze:
     #########################
     
     ##--Drop NaNs, done for individual datasets for data preservation--##
+    SP2_df = pd.DataFrame({'Ptemp': potential_temp, 'Latitude': latitude, 
+                            'BC_count': BC_count_aligned}).dropna()
     CPC3_df = pd.DataFrame({'Ptemp': potential_temp, 'Latitude': latitude, 
                             'CPC3_conc': CPC3_conc_STP}).dropna()
     CPC10_df = pd.DataFrame({'Ptemp': potential_temp, 'Latitude': latitude, 
@@ -244,6 +283,7 @@ for flight in flights_to_analyze:
                            'n_10_89': n_10_89}).dropna()
 
     ##--Store all processed data and ensure in numpy arrays--##
+    SP2_dfs.append(SP2_df[['Ptemp', 'Latitude', 'BC_count']])
     CPC3_dfs.append(CPC3_df[['Ptemp', 'Latitude', 'CPC3_conc']])
     CPC10_dfs.append(CPC10_df[['Ptemp', 'Latitude', 'CPC10_conc']])
     nuc_dfs.append(nuc_df[['Ptemp', 'Latitude', 'nuc_particles']])
@@ -252,7 +292,18 @@ for flight in flights_to_analyze:
 ###########################
 ##--Prepare for Binning--##
 ###########################
+
+##--Binning for rBC data--##
+all_latitudes_BC = np.concatenate([df["Latitude"].values for df in SP2_dfs])
+all_ptemps_BC = np.concatenate([df["Ptemp"].values for df in SP2_dfs])
+all_BC_counts = np.concatenate([df["BC_count"].values for df in SP2_dfs])
  
+lat_bin_edges_BC = np.linspace(all_latitudes_BC.min(), all_latitudes_BC.max(), num_bins_lat + 1)
+ptemp_bin_edges_BC = np.linspace(all_ptemps_BC.min(), all_ptemps_BC.max(), num_bins_ptemp + 1)
+ 
+BC_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_BC, all_ptemps_BC, 
+        all_BC_counts, statistic="mean", bins=[lat_bin_edges_BC, ptemp_bin_edges_BC])
+
 ##--Binning for CPC3 data--##
 all_latitudes_CPC3 = np.concatenate([df["Latitude"].values for df in CPC3_dfs])
 all_ptemps_CPC3 = np.concatenate([df["Ptemp"].values for df in CPC3_dfs])
@@ -349,6 +400,11 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, o
     plt.tight_layout()
     plt.show()
  
+##--Plot for rBC--##
+plot_curtain(BC_bin_medians, lat_bin_edges_BC, ptemp_bin_edges_BC, vmin=1, vmax=150,
+    title="rBC Particle Abundance", cbar_label="rBC Particles $(Counts/cm^{3})$",
+    output_path=f"{output_path}\\BC/PTempLatitude/MultiFlights.png")
+
 ##--Plot for CPC3--##
 plot_curtain(CPC3_bin_medians, lat_bin_edges_CPC3, ptemp_bin_edges_CPC3, vmin=1, vmax=2000,
     title="Particles >2.5 nm Abundance", cbar_label="Particles >2.5 nm $(Counts/cm^{3})$",
@@ -365,7 +421,7 @@ plot_curtain(nuc_bin_medians, lat_bin_edges_nuc, ptemp_bin_edges_nuc, vmin=1, vm
     output_path=f"{output_path}\\Nucleating/PTempLatitude/MultiFlights.png")
 
 ##--Plot for N(10-89)--##
-plot_curtain(nuc_bin_medians, lat_bin_edges_nuc, ptemp_bin_edges_nuc, vmin=0, vmax=1100,
+plot_curtain(grow_bin_medians, lat_bin_edges_grow, ptemp_bin_edges_grow, vmin=0, vmax=1000,
     title="10-89 nm Particle Abundance", cbar_label="10-89 nm Particles $(Counts/cm^{3})$",
     output_path=f"{output_path}\\N_10_89/PTempLatitude/MultiFlights.png")
 
@@ -375,7 +431,7 @@ plot_curtain(nuc_bin_medians, lat_bin_edges_nuc, ptemp_bin_edges_nuc, vmin=0, vm
 ########################
 
 ##--Remove hashtags below to comment out this section--##
-#'''
+'''
 
 ##--Counts per bin for CPC3 data--##
 CPC3_bin_counts, _, _, _ = binned_statistic_2d(all_latitudes_CPC3, all_ptemps_CPC3, all_CPC3_concs,
@@ -415,7 +471,7 @@ def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label, ou
     ax.axhline(y=285, color='k', linestyle='--', linewidth=1)
     ax.axhline(y=299, color='k', linestyle='--', linewidth=1)
     
-    '''
+
     ##--Add labels on the left-hand side within the plot area--##
     polar_dome_mid = (238 + 275) / 2
     marginal_polar_dome_mid = (275 + 299) / 2
@@ -427,7 +483,7 @@ def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label, ou
     ax.text(x_text, marginal_polar_dome_mid, 'Marginal Polar Dome',
             rotation=90, fontsize=10, color='k',
             verticalalignment='center', horizontalalignment='center')
-    '''
+
  
     ##--Set axis labels and title--##
     ax.set_xlabel("Latitude (°)", fontsize=16)
@@ -461,4 +517,4 @@ plot_curtain(nuc_bin_counts, lat_bin_edges_nuc, ptemp_bin_edges_nuc, vmin=1, vma
 plot_curtain(grow_bin_counts, lat_bin_edges_grow, ptemp_bin_edges_grow, vmin=1, vmax=3500,  
     title="10-89 nm Data Point Counts", cbar_label="Number of Data Points",
     output_path=f"{output_path}\\N_10_89/PtempLatitude/MultiFlights_diagnostic.png")
-#'''
+'''
