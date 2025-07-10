@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight2" 
+flight = "Flight10" 
 
 ##--Bin data are in a CSV file--##
 UHSAS_bins = pd.read_csv(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv")
@@ -46,6 +46,9 @@ def find_files(directory, flight, partial_name):
 ##--Meterological data from AIMMS monitoring system--##
 aimms = icartt.Dataset(find_files(directory, flight, "AIMMS_POLAR6")[0])
 
+##--Black carbon data from SP2--##
+SP2 = icartt.Dataset(find_files(directory, flight, "SP2_Polar6")[0])
+
 ##--UHSAS data--##
 UHSAS = icartt.Dataset(find_files(directory, flight, 'UHSAS')[0])
 
@@ -62,6 +65,9 @@ altitude = aimms.data['Alt'] # in m
 temperature = aimms.data['Temp'] + 273.15 # in K
 pressure = aimms.data['BP']
 aimms_time =aimms.data['TimeWave']
+
+##--Black carbon--##
+BC_count = SP2.data['BC_numb_concSTP'] # in STP
 
 ##--10 nm CPC data--##
 CPC10_time = CPC10.data['time']
@@ -83,6 +89,27 @@ UHSAS_total_num = UHSAS.data['total_number_conc'] # particles/cm^3
 ##--Establish AIMMS start/stop times--##
 aimms_end = aimms_time.max()
 aimms_start = aimms_time.min()
+
+##--Handle black carbon data with different start/stop times than AIMMS--##
+BC_time = SP2.data['Time_UTC']
+
+##--Trim CO data if it starts before AIMMS--##
+if BC_time.min() < aimms_start:
+    mask_start = BC_time >= aimms_start
+    BC_time = BC_time[mask_start]
+    BC_count = BC_count[mask_start]
+    
+##--Append CO data with NaNs if it ends before AIMMS--##
+if BC_time.max() < aimms_end: 
+    missing_times = np.arange(BC_time.max()+1, aimms_end +1)
+    BC_time = np.concatenate([BC_time, missing_times])
+    BC_count = np.concatenate([BC_count, [np.nan]*len(missing_times)])
+
+##--Create a DataFrame for BC data and reindex to AIMMS time, setting non-overlapping times to nan--##
+BC_df = pd.DataFrame({'Time_UTC': BC_time, 'BC_count': BC_count})
+BC_aligned = BC_df.set_index('Time_UTC').reindex(aimms_time)
+BC_aligned['BC_count']= BC_aligned['BC_count'].where(BC_aligned.index.isin(aimms_time), np.nan)
+BC_count_aligned = BC_aligned['BC_count']
 
 ##--Handle CPC3 data with different start/stop times than AIMMS--##
 CPC3_time = CPC3.data['time']
@@ -201,7 +228,8 @@ for CPC10, T, P in zip(CPC10_conc_aligned, temperature, pressure):
         CPC10_conc_STP.append(CPC10_conversion)
 
 ##--Creates a Pandas dataframe for particle data--##
-df = pd.DataFrame({'PTemp': potential_temp, 'CPC3_conc':CPC3_conc_STP, 'CPC10_conc': CPC10_conc_STP})
+df = pd.DataFrame({'PTemp': potential_temp, 'BC_count': BC_count_aligned, 
+                   'CPC3_conc':CPC3_conc_STP, 'CPC10_conc': CPC10_conc_STP})
 
 ##--Calculate N3-10 particles--##
 nuc_particles = (df['CPC3_conc'] - df['CPC10_conc'])
@@ -273,8 +301,8 @@ greater10nm_error = (CPC10_conc_aligned)*(((P_error)/(pressure))**2 + ((T_error)
 ##--Use add/subtract forumula--##
 nuc_error_3sigma = (((greater3nm_error)**2 + (greater10nm_error)**2)**(0.5))*3
 
-##--nuc_error_3sigma still has a time index, reset to integer to align--##
-df['nuc_error_3sigma'] = pd.Series(nuc_error_3sigma).reset_index(drop=True)
+##--Add uncertainty to the df--##
+df['nuc_error_3sigma'] = pd.Series(nuc_error_3sigma)#.reset_index(drop=True)
 
 ###############
 ##--BINNING--##
@@ -299,6 +327,11 @@ binned_df = df.groupby('PTemp_bin', observed=False).agg(
     
    ##--Aggregate data by mean, min, and max--##
     PTemp_center=('PTemp', 'median'), 
+    BC_center=('BC_count', 'median'), 
+    BC_min=('BC_count', 'min'),
+    BC_max=('BC_count', 'max'),
+    BC_25th=('BC_count', lambda x: x.quantile(0.25)),
+    BC_75th=('BC_count', lambda x: x.quantile(0.75)),
     CPC10_conc_center=('CPC10_conc', 'median'), 
     CPC10_conc_min=('CPC10_conc', 'min'),
     CPC10_conc_max=('CPC10_conc', 'max'),
@@ -331,7 +364,7 @@ binned_df = df.groupby('PTemp_bin', observed=False).agg(
 ################
 
 ##--Creates figure with 2 horizontally stacked subplots sharing a y-axis--##
-fig, axs = plt.subplots(1, 4, figsize=(12, 6), sharey=True)
+fig, axs = plt.subplots(1, 5, figsize=(15, 6), sharey=True)
 
 ##--First subplot: 10+ nm Particles vs PTemp--##
 
@@ -371,24 +404,24 @@ axs[1].fill_betweenx(binned_df['PTemp_center'], binned_df['CPC3_conc_min'],
 axs[1].fill_betweenx(binned_df['PTemp_center'], binned_df['CPC3_conc_25th'],
                     binned_df['CPC3_conc_75th'], color='sandybrown', alpha=1)
 axs[1].set_title('N \u2265 2.5 nm')
-axs[1].set_xlim(-50, 3200)
+axs[1].set_xlim(-50, 3400)
 
 axs[1].axhline(y=285, color='k', linestyle='--', linewidth=1)
 axs[1].axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Third subplot: Nuc particles vs PTemp--##
 axs[2].plot(binned_df['nuc_particles_center'], binned_df['PTemp_center'], color='darkslategray')
-#axs[2].fill_betweenx(binned_df['nuc_particles_center'], binned_df['nuc_particles_min'], 
-#                     binned_df['nuc_particles_max'], color='cadetblue', alpha=0.25)
+axs[2].fill_betweenx(binned_df['PTemp_center'], binned_df['nuc_particles_min'], 
+                     binned_df['nuc_particles_max'], color='cadetblue', alpha=0.25)
 axs[2].fill_betweenx(binned_df['PTemp_center'], binned_df['nuc_particles_25th'],
                     binned_df['nuc_particles_75th'], color='cadetblue', alpha=1)
 
 ##--Plot uncertainty as its own trace--##
-axs[2].plot(binned_df['nuc_error_center'], binned_df['PTemp_center'], color='crimson', linestyle='dashed', label='3$\sigma$ Uncertainty')
+axs[2].plot(binned_df['nuc_error_center'], binned_df['PTemp_center'], color='crimson', linestyle='dashed', label='3$\sigma$ Uncertainty', zorder=4)
 
 ##--Subscript 3-10--##
 axs[2].set_title('$N_{2.5-10}$')
-axs[2].set_xlim(-50, 1500)
+axs[2].set_xlim(-50, 1900)
 
 axs[2].axhline(y=285, color='k', linestyle='--', linewidth=1)
 axs[2].axhline(y=299, color='k', linestyle='--', linewidth=1)
@@ -408,6 +441,19 @@ axs[3].axhline(y=299, color='k', linestyle='--', linewidth=1)
 ##--Subscript 10-89--##
 axs[3].set_title('$N_{10-89}$')
 axs[3].set_xlim(-50, 2000)
+
+##--Fifth subplot: rBC counts--##
+axs[4].plot(binned_df['BC_center'], binned_df['PTemp_center'], color='steelblue')
+axs[4].fill_betweenx(binned_df['PTemp_center'], binned_df['BC_min'], 
+                     binned_df['BC_max'], color='skyblue', alpha=0.3)
+axs[4].fill_betweenx(binned_df['PTemp_center'], binned_df['BC_25th'],
+                    binned_df['BC_75th'], color='skyblue', alpha=1)
+
+axs[4].axhline(y=285, color='k', linestyle='--', linewidth=1)
+axs[4].axhline(y=299, color='k', linestyle='--', linewidth=1)
+
+axs[4].set_title('rBC Counts')
+#axs[4].set_xlim(-50, 2000)
 
 ##--Add one common x-axis label--##
 fig.supxlabel('Particle Concentration (counts/cm\u00b3)', fontsize=12)

@@ -12,15 +12,22 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt 
 
-#########################
-##--Open ICARTT Files--##
-#########################
+###################
+##--User inputs--##
+###################
 
 ##--Set the base directory to project folder--##
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight10"
+flight = "Flight10" 
+
+##--Base output path in directory--##
+output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\PTempBinnedData\TraceGas"
+
+#########################
+##--Open ICARTT Files--##
+#########################
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -31,6 +38,9 @@ def find_files(directory, flight, partial_name):
 
 ##--Meterological data from AIMMS monitoring system--##
 aimms = icartt.Dataset(find_files(directory, flight, "AIMMS_POLAR6")[0])
+
+##--Black carbon data from SP2--##
+SP2 = icartt.Dataset(find_files(directory, flight, "SP2_Polar6")[0])
 
 ##--Trace gases--##
 CO = icartt.Dataset(find_files(directory, flight, "CO_POLAR6")[0])
@@ -58,6 +68,9 @@ altitude = aimms.data['Alt'] # in m
 aimms_time =aimms.data['TimeWave'] # seconds since midnight
 temperature = aimms.data["Temp"] + 273.15 # in K
 pressure = aimms.data['BP'] # in Pa
+
+##--Black carbon--##
+BC_mass = SP2.data['BC_mass_concSTP'] # in STP
 
 ##--Trace Gas Data--##
 CO_conc = CO.data['CO_ppbv']
@@ -97,6 +110,27 @@ O3_aligned['O3'] = O3_aligned['O3'].where(O3_aligned.index.isin(aimms_time), np.
 ##--Other trace gas data: addressing different start/stop times than AIMMS--##
 aimms_start = aimms_time.min()
 aimms_end = aimms_time.max()
+
+##--Handle black carbon data with different start/stop times than AIMMS--##
+BC_time = SP2.data['Time_UTC']
+
+##--Trim CO data if it starts before AIMMS--##
+if BC_time.min() < aimms_start:
+    mask_start = BC_time >= aimms_start
+    BC_time = BC_time[mask_start]
+    BC_mass = BC_mass[mask_start]
+    
+##--Append CO data with NaNs if it ends before AIMMS--##
+if BC_time.max() < aimms_end: 
+    missing_times = np.arange(BC_time.max()+1, aimms_end +1)
+    BC_time = np.concatenate([BC_time, missing_times])
+    BC_mass = np.concatenate([BC_mass, [np.nan]*len(missing_times)])
+
+##--Create a DataFrame for BC data and reindex to AIMMS time, setting non-overlapping times to nan--##
+BC_df = pd.DataFrame({'Time_UTC': BC_time, 'BC_mass': BC_mass})
+BC_aligned = BC_df.set_index('Time_UTC').reindex(aimms_time)
+BC_aligned['BC_mass']= BC_aligned['BC_mass'].where(BC_aligned.index.isin(aimms_time), np.nan)
+BC_mass_aligned = BC_aligned['BC_mass']
 
 ##--Handle CO data with different start/stop times than AIMMS--##
 CO_time = CO.data['Time_UTC']
@@ -176,6 +210,28 @@ potential_temp = []
 for T, P in zip(temperature, pressure):
     p_t = T*(p_0/P)**k
     potential_temp.append(p_t)
+    
+
+########################
+##--Calculate rBC/CO--##
+########################
+
+##--Calculate CO enhancement from background as in Kinase et al https://doi.org/10.5194/acp-25-143-2025--##
+##--Pull 5th percentile CO data--##
+CO_noNaN = CO_conc_aligned.dropna() # Drop NaNs first
+CO_5th = np.percentile(CO_noNaN, 5)
+
+##--Calculate CO enhancement--##
+delta_CO = CO_noNaN - CO_5th
+
+##--CO uncertainty is 2.3 ppbv at 1 sigma--##
+CO_3sigma = 2.3 * 3
+
+##--Remove values with enhancements less than 3 sigma--##
+#delta_CO[delta_CO < CO_3sigma] = np.nan
+
+##--Calculate BC/(delta)CO--##
+BC_CO = (BC_mass_aligned / delta_CO) # ug/m^3
 
 
 ###############
@@ -183,7 +239,7 @@ for T, P in zip(temperature, pressure):
 ###############
 
 ##--Creates a Pandas dataframe with all variables--##
-df = pd.DataFrame({'PTemp': potential_temp, 'CO_conc':CO_conc_aligned, 
+df = pd.DataFrame({'PTemp': potential_temp, 'BC_CO': BC_CO, 'CO_conc':CO_conc_aligned, 
                    'CO2_conc': CO2_conc_aligned, 'H2O_conc':H2O_conc_aligned, 'O3_conc':O3_aligned['O3']})
 
 ##--Define desired number of bins here--##
@@ -224,10 +280,16 @@ binned_df = df.groupby('PTemp_bin', observed=False).agg(
     O3_conc_min=('O3_conc', 'min'),
     O3_conc_max=('O3_conc', 'max'),
     O3_conc_25th=('O3_conc', lambda x: x.quantile(0.25)),
-    O3_conc_75th=('O3_conc', lambda x: x.quantile(0.75))
+    O3_conc_75th=('O3_conc', lambda x: x.quantile(0.75)), 
+    BC_CO_avg=('BC_CO', 'median'),
+    BC_CO_min=('BC_CO', 'min'),
+    BC_CO_max=('BC_CO', 'max'),
+    BC_CO_25th=('BC_CO', lambda x: x.quantile(0.25)),
+    BC_CO_75th=('BC_CO', lambda x: x.quantile(0.75))
     
 ##--Reset the index so Altitude_bin is just a column--##
 ).reset_index()
+
 
 ################
 ##--PLOTTING--##
@@ -235,8 +297,8 @@ binned_df = df.groupby('PTemp_bin', observed=False).agg(
 
 ##ADD SECOND Y-AXIS ON THE RIGHT WITH PRESSURE OR POTENTIAL TEMPERATURE?
 
-##--Creates figure with 4 horizontally stacked subplots sharing a y-axis--##
-fig, axs = plt.subplots(1, 4, figsize=(12, 6), sharey=True)
+##--Creates figure with 5 horizontally stacked subplots sharing a y-axis--##
+fig, axs = plt.subplots(1, 5, figsize=(15, 6), sharey=True)
 
 ##--First subplot: CO--##
 ##--Averaged data in each bin is plotted against bin center--##
@@ -282,8 +344,8 @@ axs[1].set_title('CO\u2082')
 axs[1].axhline(y=285, color='k', linestyle='--', linewidth=1)
 axs[1].axhline(y=299, color='k', linestyle='--', linewidth=1)
 
-##--Third subplot: H2O--##
-axs[2].plot(binned_df['O3_conc_avg'], binned_df['PTemp_center'], color='midnightblue', label='H2O')
+##--Third subplot: O3--##
+axs[2].plot(binned_df['O3_conc_avg'], binned_df['PTemp_center'], color='midnightblue', label='O3')
 axs[2].fill_betweenx(binned_df['PTemp_center'], binned_df['O3_conc_min'], 
                      binned_df['O3_conc_max'], color='mediumblue', alpha=0.2)
 axs[2].fill_betweenx(binned_df['PTemp_center'], binned_df['O3_conc_25th'], 
@@ -308,14 +370,24 @@ axs[3].set_title('H\u2082O')
 axs[3].axhline(y=285, color='k', linestyle='--', linewidth=1)
 axs[3].axhline(y=299, color='k', linestyle='--', linewidth=1)
 
+##--Fifth subplot: BC/CO enhancement--##
+axs[4].plot(binned_df['BC_CO_avg'], binned_df['PTemp_center'], color='darkgreen', label='rBC/CO')
+axs[4].fill_betweenx(binned_df['PTemp_center'], binned_df['BC_CO_min'], 
+                     binned_df['BC_CO_max'], color='seagreen', alpha=0.2)
+axs[4].fill_betweenx(binned_df['PTemp_center'], binned_df['BC_CO_25th'], 
+                     binned_df['BC_CO_75th'], color='seagreen', alpha=0.3)
+axs[4].set_xlabel('Enhancement ((µg/m\u2073)/Δppmv)')
+axs[4].set_title('rBC/ΔCO')
+#axs[4].set_xlim(0, 1000)
+
+axs[4].axhline(y=285, color='k', linestyle='--', linewidth=1)
+axs[4].axhline(y=299, color='k', linestyle='--', linewidth=1)
+
 ##--Use f-string to embed flight # variable in plot title--##
 plt.suptitle(f"Vertical Profiles of Trace Gases - {flight.replace('Flight', 'Flight ')}", fontsize=16)
 
 ##--Adjusts layout to prevent overlapping--## 
 plt.tight_layout(rect=[0, 0, 1, 0.99])
-
-##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\PTempBinnedData\TraceGas"
 
 ##--Use f-string to save file with flight# appended--##
 output_path = f"{output_path}\\{flight}"
