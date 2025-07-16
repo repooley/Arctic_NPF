@@ -32,6 +32,7 @@ CPC10_R1 = icartt.Dataset(r'C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\CPC_R
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\AltitudeBinnedData\Particle"
 
+#%%
 #########################
 ##--Open ICARTT Files--##
 #########################
@@ -53,6 +54,7 @@ UHSAS = icartt.Dataset(find_files(directory, flight, 'UHSAS')[0])
 CPC10 = icartt.Dataset(find_files(directory, flight, 'CPC3772')[0])
 CPC3 = icartt.Dataset(find_files(directory, flight, 'CPC3776')[0])
 
+#%%
 #################
 ##--Pull data--##
 #################
@@ -73,9 +75,28 @@ CPC3_conc = CPC3.data['conc'] # count/cm^3
 
 ##--USHAS Data--##
 UHSAS_time = UHSAS.data['time'] # seconds since midnight
-##--Total count is computed for N > 85 nm--##
-UHSAS_total_num = UHSAS.data['total_number_conc'] # particles/cm^3
+ICARTT_UHSAS_total = UHSAS.data['total_number_conc']
 
+##--Make list of columns to pull, each named bin_x--##
+##--Bins 1-13 not trustworthy. Bins 76-99 overlap with OPC, discard--##
+##--Trim to use bins 14-76 (500>85 nm)--##
+UHSAS_bin_num = [f'bin_{i}' for i in range(14, 75)]
+
+##--Information for bins 14 thru 99--##
+UHSAS_bin_center = UHSAS_bins['bin_avg'].iloc[14:75]
+UHSAS_lower_bound = UHSAS_bins['lower_bound'].iloc[14:75]
+UHSAS_upper_bound = UHSAS_bins['upper_bound'].iloc[14:75]
+
+##--Put column names and content in a dictionary and then convert to a Pandas df--##
+UHSAS_bins = pd.DataFrame({col: UHSAS.data[col] for col in UHSAS_bin_num})
+
+##--Create new column names by rounding the bin center values to the nearest integer--##
+UHSAS_new_col_names = UHSAS_bin_center.round().astype(int).tolist()
+
+##--Rename the UHSAS_bins df columns to bin average values--##
+UHSAS_bins.columns = UHSAS_new_col_names
+
+#%%
 ##################
 ##--Align data--##
 ##################
@@ -126,31 +147,13 @@ CPC10_aligned = CPC10_df.set_index('time').reindex(aimms_time)
 CPC10_aligned['conc']=CPC10_aligned['conc'].where(CPC10_aligned.index.isin(aimms_time), np.nan)
 CPC10_conc_aligned = CPC10_aligned['conc']
 
-##--Make list of columns to pull, each named bin_x--##
-##--Bins 1-13 not trustworthy. Bins 76-99 overlap with OPC, discard--##
-##--Trim to use bins 14-76 (500>85 nm)--##
-UHSAS_bin_num = [f'bin_{i}' for i in range(14, 75)]
-
-##--Information for bins 14 thru 99--##
-UHSAS_bin_center = UHSAS_bins['bin_avg'].iloc[14:75]
-UHSAS_lower_bound = UHSAS_bins['lower_bound'].iloc[14:75]
-UHSAS_upper_bound = UHSAS_bins['upper_bound'].iloc[14:75]
-
-##--Put column names and content in a dictionary and then convert to a Pandas df--##
-UHSAS_bins = pd.DataFrame({col: UHSAS.data[col] for col in UHSAS_bin_num})
-
-##--Create new column names by rounding the bin center values to the nearest integer--##
-UHSAS_new_col_names = UHSAS_bin_center.round().astype(int).tolist()
-
-##--Rename the UHSAS_bins df columns to bin average values--##
-UHSAS_bins.columns = UHSAS_new_col_names
-
-##--Add time, total_num to UHSAS_bins df--##
+##--Add time to UHSAS_bins df--##
 UHSAS_bins.insert(0, 'Time', UHSAS_time)
 
 ##--Align UHSAS_bins time to AIMMS time--##
 UHSAS_bins_aligned = UHSAS_bins.set_index('Time').reindex(aimms_time)
 
+#%%
 ######################
 ##--Calc N(2.5-10)--##
 ######################
@@ -159,7 +162,6 @@ UHSAS_bins_aligned = UHSAS_bins.set_index('Time').reindex(aimms_time)
 P_STP = 101325  # Pa
 T_STP = 273.15  # K
 
-##--Convert to STP--##
 ##--Create empty list for CPC3 particles--##
 CPC3_conc_STP = []
 
@@ -196,15 +198,16 @@ nuc_particles = np.where(nuc_particles >= 0, nuc_particles, np.nan)
 ##--Add nucleating particles to df--##
 df['nuc_particles'] = nuc_particles
 
+#%%
 #####################
 ##--Calc N(10-89)--##
 #####################
 
-##--Create df with UHSAS total counts--##
-UHSAS_total = pd.DataFrame({'Time': UHSAS_time, 'Total_count': UHSAS_total_num})
+##--I believe the 'Total_count' in the ICARTT file is incorrect, compute manually--##
+UHSAS_total = UHSAS_bins_aligned.sum(axis=1)
 
-##--Reindex UHSAS_total df to AIMMS time--##
-UHSAS_total_aligned = UHSAS_total.set_index('Time').reindex(aimms_time)
+##--Create df with UHSAS total counts and index to AIMMS time--##
+UHSAS_total_aligned = pd.DataFrame({'Time': aimms_time, 'Total_count': UHSAS_total}).set_index('Time')
 
 ##--Create df with CPC10 counts and set index to time--##
 CPC10_counts = pd.DataFrame({'Time':aimms_time, 'Counts':CPC10_conc_STP}).set_index('Time')
@@ -218,9 +221,10 @@ n_10_89 = np.where(n_10_89 >= 0, n_10_89, np.nan)
 ##--Add 10-89 nm particles to the dataframe--##
 df['n_10_89'] = n_10_89
 
-#####################################
-##--Calculate std dev from zeroes--##        
-#####################################
+#%%
+#############################
+##--Calculate Uncertainty--##        
+#############################
 
 ##--Pull CPC data from R1 data--##
 CPC3_R1_conc = CPC3_R1.data['conc']
@@ -235,11 +239,13 @@ CPC10_zeros_c = CPC10_R1_conc[(CPC10_R1_conc < 50) & (CPC10_R1_conc != -99999)]
 CPC3_sigma = np.std(CPC3_zeros_c, ddof=1)  # Use ddof=1 for sample standard deviation
 CPC10_sigma = np.std(CPC10_zeros_c, ddof=1)
 
-##--Isolate zero periods, setting conservative upper limit of 100 counts--##
-##--Numpy doesn't recognize -9999 as NaN, tell it to ignore these values--##
-##--THIS IS EMPTY! Need to set to 100 to see any data, but is this a good idea?--##
-UHSAS_zeros_c = UHSAS_total_num[(UHSAS_total_num < 100) & (UHSAS_total_num != -9999)]
+##--UHSAS doesn't have zero periods, using Poisson counting uncertainty--##
+UHSAS_sqrt_counts = np.sqrt(UHSAS_bins_aligned)
 
+##--Sum sqrt(N) across each row for uncertainty of total count--##
+UHSAS_total_error = UHSAS_sqrt_counts.sum(axis=1) 
+
+# %%
 #############################
 ##--Propagate uncertainty--##
 #############################
@@ -250,16 +256,24 @@ UHSAS_zeros_c = UHSAS_total_num[(UHSAS_total_num < 100) & (UHSAS_total_num != -9
 T_error = 0.3 # K, constant
 P_error = 100 + 0.0005*(pressure)
 
-##--Use formula for multiplication/division--##
+##--Use formula for mult/div to compute error after converting to STP--##
 greater3nm_error = (CPC3_conc_aligned)*(((P_error)/(pressure))**2 + ((T_error)/(temperature))**2 + ((CPC3_sigma)/(CPC3_conc_aligned)))**(0.5)
 greater10nm_error = (CPC10_conc_aligned)*(((P_error)/(pressure))**2 + ((T_error)/(temperature))**2 + ((CPC10_sigma)/(CPC10_conc_aligned)))**(0.5)
 
-##--Use add/subtract forumula--##
+##--Use add/subtract forumula to compute 3sigma error--##
 nuc_error_3sigma = (((greater3nm_error)**2 + (greater10nm_error)**2)**(0.5))*3
 
 ##--nuc_error_3sigma still has a time index, reset to integer to align--##
 df['nuc_error_3sigma'] = pd.Series(nuc_error_3sigma).reset_index(drop=True)
 
+##--Calculate error in difference between CPC10 and UHSAS--##
+##--Ends up being massive if I take 3sigma, use simple average--##
+aitken_error_simple = greater10nm_error + UHSAS_total_error
+
+##--Add uncertainty for 10-85 nm bin to big df--##
+df['aitken_error_simple'] = pd.Series(aitken_error_simple).reset_index(drop=True)
+
+#%%
 ###############
 ##--BINNING--##
 ###############
@@ -305,11 +319,15 @@ binned_df = df.groupby('Altitude_bin', observed=False).agg(
     n_10_89_75th=('n_10_89', lambda x: x.quantile(0.75)),
     
     ##--Bin the uncertainty of nucleating particles--##
-    nuc_error_center=('nuc_error_3sigma', 'median') 
+    nuc_error_center=('nuc_error_3sigma', 'median'),
+    
+    ##--And Aitken mode (10-85 nm) particles--##
+    aitken_error_center=('aitken_error_simple', 'median')
     
     ##--Reset the index so Altitude_bin is just a column--##
 ).reset_index()
 
+#%%
 ################
 ##--PLOTTING--##
 ################
@@ -348,9 +366,9 @@ axs[2].fill_betweenx(binned_df['Altitude_center'], binned_df['nuc_particles_25th
 
 ##--Plot uncertainty as its own trace--##
 axs[2].plot(binned_df['nuc_error_center'], binned_df['Altitude_center'], color='crimson', 
-            linestyle='dashed', label='3$\sigma$ Uncertainty')
+            linestyle='dashed', label='3$\sigma$ \nuncertainty')
 
-axs[2].legend()
+axs[2].legend(loc='lower right')
 
 ##--Subscript 3-10--##
 axs[2].set_title('$N_{2.5-10}$')
@@ -362,6 +380,13 @@ axs[3].fill_betweenx(binned_df['Altitude_center'], binned_df['n_10_89_min'],
                      binned_df['n_10_89_max'], color='turquoise', alpha=0.25)
 axs[3].fill_betweenx(binned_df['Altitude_center'], binned_df['n_10_89_25th'],
                     binned_df['n_10_89_75th'], color='mediumturquoise', alpha=1)
+
+##--Plot uncertainty as its own trace--##
+axs[3].plot(binned_df['aitken_error_center'], binned_df['Altitude_center'], color='maroon', 
+            linestyle='dashed', label='Simple \naverage \nuncertainty')
+
+axs[3].legend(loc='lower right')
+
 ##--Subscript 10-89--##
 axs[3].set_title('$N_{10-89}$')
 #axs[3].set_xlim(-50, 2000)
