@@ -23,7 +23,7 @@ directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight2 thru Flight10)--##
 ##--NO UHSAS FILES FOR FLIGHT1--##
-flight = "Flight2"
+flight = "Flight10"
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):

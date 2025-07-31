@@ -603,8 +603,8 @@ fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
 plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
 
 ax.set(xlabel='')
-ax.set(ylabel='CO2 (ppmv)')
-ax.set(title="CO2")
+ax.set(ylabel='CO\u2082 (ppmv)')
+ax.set(title="CO\u2082")
 
 ##--Add text labels with N--##
 plt.text(0.17, 0.125, "N={}".format(CO2_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
@@ -651,8 +651,8 @@ fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
 plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
 
 ax.set(xlabel='')
-ax.set(ylabel='O3 (ppbv)')
-ax.set(title="O3")
+ax.set(ylabel='O\u2083 (ppbv)')
+ax.set(title="O\u2083")
 
 ##--Add text labels with N--##
 plt.text(0.17, 0.125, "N={}".format(O3_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
@@ -720,8 +720,8 @@ ax.plot((-d, +d), (-d, +d), transform=ax_top.transAxes, color='k', clip_on=False
 d_scaled = d * (1 / 8)
 ax2.plot((-d, +d), (1 - d_scaled, 1 + d_scaled), transform=ax_bottom.transAxes, color='k', clip_on=False) 
 
-fig.supylabel('CO/CO2', fontsize=12, x=0.01)
-plt.suptitle('CO/CO2', fontsize=12, y=0.92)
+fig.supylabel('CO/CO\u2082', fontsize=12, x=0.01)
+plt.suptitle('CO/CO\u2082', fontsize=12, y=0.92)
 
 ##--Add x-axis label ticks back in--##
 ax_bottom.set_xticks(range(len(group_order)))
@@ -765,4 +765,3 @@ plt.savefig(f"{output_path}\\CO_CO2/CO_CO2_MultiFlights", dpi=600)
 plt.show()
 
 palette5 = {'High_NPF':'#b9e3f7', 'High_NoNPF': '#9ed9f5', 'Low_NPF': '#d17575', 'Low_NoNPF':'#c14545'}
-# edit later for CO/rBC

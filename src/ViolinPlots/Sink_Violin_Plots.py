@@ -25,7 +25,7 @@ directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight2 thru Flight10)--##
 ##--FLIGHT1 HAS NO UHSAS FILES--##
-flight = "Flight7"
+flight = "Flight2"
 
 ##--Base output path for figures in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\ViolinPlots"
@@ -654,9 +654,11 @@ high_lat_flights = {'Flight2', 'Flight3', 'Flight4', 'Flight5', 'Flight6', 'Flig
 if flight in high_lat_flights: 
     palette = {'NPF':'#2f6794', 'No NPF':'#1e537e'}
     palette2 = {'NPF':'#4c88b8', 'No NPF':'#3A75A5'}
+    palette3 = {'NPF':'#477D7C', 'No NPF':'#345B5A'}
 else: 
     palette = {'NPF':'#C00000', 'No NPF':'#820000'}
     palette2 = {'NPF':'#EA1010', 'No NPF':'#9D0B0B'}
+    palette3 = {'NPF': '#CC1616', 'No NPF': '#800E0E'}
 
 fig, ax = plt.subplots(figsize = (4,6))
 ##--Cut=0 disallows interpolation beyond the data extremes--##
@@ -713,7 +715,7 @@ plt.show()
 
 fig, ax = plt.subplots(figsize=(4,6))
 BC_plot = sns.violinplot(data = BC_df, order=['NPF', 'No NPF'], 
-                                  inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette2, ax=ax, cut=0)
+                                  inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette3, ax=ax, cut=0)
 ax.set(xlabel='')
 ax.set(ylabel='rBC Abundance (counts/cm\u00B3)')
 ax.set(title=f"rBC Abundance - {flight.replace('Flight', 'Flight ')}")

@@ -221,17 +221,8 @@ for T, P in zip(temperature, pressure):
 CO_noNaN = CO_conc_aligned.dropna() # Drop NaNs first
 CO_5th = np.percentile(CO_noNaN, 5)
 
-##--Calculate CO enhancement--##
-delta_CO = CO_noNaN - CO_5th
-
-##--CO uncertainty is 2.3 ppbv at 1 sigma--##
-CO_3sigma = 2.3 * 3
-
-##--Remove values with enhancements less than 3 sigma--##
-#delta_CO[delta_CO < CO_3sigma] = np.nan
-
 ##--Calculate BC/(delta)CO--##
-BC_CO = (BC_mass_aligned / delta_CO) # ug/m^3
+BC_CO = (BC_mass_aligned / CO_noNaN) # (ug/m^3)/ppb
 
 
 ###############
@@ -376,9 +367,9 @@ axs[4].fill_betweenx(binned_df['PTemp_center'], binned_df['BC_CO_min'],
                      binned_df['BC_CO_max'], color='seagreen', alpha=0.2)
 axs[4].fill_betweenx(binned_df['PTemp_center'], binned_df['BC_CO_25th'], 
                      binned_df['BC_CO_75th'], color='seagreen', alpha=0.3)
-axs[4].set_xlabel('Enhancement ((µg/m\u2073)/Δppmv)')
-axs[4].set_title('rBC/ΔCO')
-#axs[4].set_xlim(0, 1000)
+axs[4].set_xlabel('Enhancement ((µg/m\u00b3)/ppmv)')
+axs[4].set_title('rBC/CO')
+axs[4].set_xlim(-0.01, 0.01)
 
 axs[4].axhline(y=285, color='k', linestyle='--', linewidth=1)
 axs[4].axhline(y=299, color='k', linestyle='--', linewidth=1)

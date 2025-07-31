@@ -972,15 +972,18 @@ plt.savefig(f"{output_path}\\Sinks\\coagulation\coag_MultiFlight", dpi=600)
 plt.show()
 
 ##-rBC--##
+
+palette3 = {'High_NPF':'#477c7c', 'High_NoNPF': '#345b5a', 'Low_NPF': '#cc1616', 'Low_NoNPF':'#800e0e'}
+
 ##--Use subplots for breaking y-axis--##
 fig, (ax_top, ax_bottom) = plt.subplots(ncols=1, nrows=2, figsize=(6,8), sharex=True, 
                                         height_ratios=[1, 8], gridspec_kw={'hspace':0.08})
 
 
 sns.violinplot(data = blackcarbon, order=['Low_NPF', 'Low_NoNPF', 'High_NPF', 'High_NoNPF'],
-                                  inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette2, ax=ax_top, cut=0)
+                                  inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette3, ax=ax_top, cut=0)
 sns.violinplot(data = blackcarbon, order=['Low_NPF', 'Low_NoNPF', 'High_NPF', 'High_NoNPF'],
-                                  inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette2, ax=ax_bottom, cut=0)
+                                  inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette3, ax=ax_bottom, cut=0)
 
 ##--Set limits above and below the break--##
 ax_top.set_ylim(75, 375) 

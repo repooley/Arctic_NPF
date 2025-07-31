@@ -23,7 +23,7 @@ directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight2 thru Flight10)--##
 ##--FLIGHT1 HAS NO UHSAS FILES--##
-flight = "Flight10"
+flight = "Flight2"
 
 ##--Base output path for figures in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\ViolinPlots\TraceGas"
@@ -382,8 +382,8 @@ fig, ax = plt.subplots(figsize=(4,6))
 CO2_plot = sns.violinplot(data = CO2_df, order=['NPF', 'No NPF'], palette=palette2,
                             ax=ax, cut=0, inner_kws={'whis_width': 0, 'solid_capstyle':'butt'})
 ax.set(xlabel='')
-ax.set(ylabel='CO2 (ppmv)')
-ax.set(title=f"CO2 - {flight.replace('Flight', 'Flight ')}")
+ax.set(ylabel='CO\u2082 (ppmv)')
+ax.set(title=f"CO\u2082 - {flight.replace('Flight', 'Flight ')}")
 plt.text(0.25, 0.12, "N={}".format(CO2_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.63, 0.12, "N={}".format(CO2_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 
@@ -407,8 +407,8 @@ fig, ax = plt.subplots(figsize=(4,6))
 O3_plot = sns.violinplot(data = O3_df, order=['NPF', 'No NPF'], palette=palette3,
                           ax=ax, cut=0, inner_kws={'whis_width': 0, 'solid_capstyle':'butt'})
 ax.set(xlabel='')
-ax.set(ylabel='O3 (ppbv)')
-ax.set(title=f"O3 - {flight.replace('Flight', 'Flight ')}")
+ax.set(ylabel='O\u2083 (ppbv)')
+ax.set(title=f"O\u2083 - {flight.replace('Flight', 'Flight ')}")
 plt.text(0.25, 0.12, "N={}".format(O3_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.63, 0.12, "N={}".format(O3_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 
@@ -433,8 +433,8 @@ fig, ax = plt.subplots(figsize=(4,6))
 CO_CO2_plot = sns.violinplot(data = CO_CO2_df, order=['NPF', 'No NPF'], palette=palette4,
                           ax=ax, cut=0, inner_kws={'whis_width': 0, 'solid_capstyle':'butt'})
 ax.set(xlabel='')
-ax.set(ylabel='CO/CO2 ratio')
-ax.set(title=f"CO/CO2 ratio - {flight.replace('Flight', 'Flight ')}")
+ax.set(ylabel='CO/CO\u2082 ratio')
+ax.set(title=f"CO/CO\u2082 ratio - {flight.replace('Flight', 'Flight ')}")
 plt.text(0.25, 0.12, "N={}".format(CO_CO2_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.63, 0.12, "N={}".format(CO_CO2_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 

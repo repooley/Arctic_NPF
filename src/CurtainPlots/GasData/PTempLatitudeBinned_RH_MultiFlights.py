@@ -238,8 +238,8 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, o
     
     ##--Add dashed horizontal lines for the polar dome boundaries--##
     ##--Boundaries are defined from Bozem et al 2019 (ACP)--##
-    ax.axhline(y=285, color='k', linestyle='--', linewidth=1)
-    ax.axhline(y=299, color='k', linestyle='--', linewidth=1)
+    ax.axhline(y=285, color='k', linestyle='--', linewidth=2)
+    ax.axhline(y=299, color='k', linestyle='--', linewidth=2)
     '''
     ##--Add text labels on the left-hand side within the plot area--##
     ##--Compute midpoints for label placement--##
@@ -309,8 +309,8 @@ def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label, ou
     cb.set_label(cbar_label, fontsize=12)
     
     ##--Add dashed horizontal lines for the polar dome boundaries--##
-    ax.axhline(y=285, color='k', linestyle='--', linewidth=1)
-    ax.axhline(y=299, color='k', linestyle='--', linewidth=1)
+    ax.axhline(y=285, color='k', linestyle='--', linewidth=2)
+    ax.axhline(y=299, color='k', linestyle='--', linewidth=2)
     '''
     ##--Add labels on the left-hand side within the plot area--##
     polar_dome_mid = (248 + 285) / 2

@@ -343,7 +343,7 @@ U_temp, p_temp = mannwhitneyu(temp_npf_array, temp_nonpf_array)
 
 ##--Calculate Z-score--##
 ##--Referenced https://datatab.net/tutorial/mann-whitney-u-test--##
-z_temp = (U_temp - temp_npf_count*temp_nonpf_count/2)/((temp_npf_count*
+z_temp = (U_temp - ((temp_npf_count*temp_nonpf_count)/2))/((temp_npf_count*
             temp_nonpf_count*(temp_npf_count + temp_nonpf_count + 1)/12)**(1/2))
 
 ##--Take absolute value of Z scores--##

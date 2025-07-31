@@ -205,8 +205,8 @@ RH_w_plot = ax1.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, RH_w_bi
     shading='auto', cmap=new_cmap, vmin=0, vmax=120)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax1.axhline(y=285, color='k', linestyle='--', linewidth=1)
-ax1.axhline(y=299, color='k', linestyle='--', linewidth=1)
+ax1.axhline(y=285, color='k', linestyle='--', linewidth=2)
+ax1.axhline(y=299, color='k', linestyle='--', linewidth=2)
 
 ##--Add colorbar--##
 cb = fig1.colorbar(RH_w_plot, ax=ax1)
@@ -236,8 +236,8 @@ RH_i_plot = ax2.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, RH_i_bi
     shading='auto', cmap=new_cmap, vmin=0, vmax=120)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax2.axhline(y=285, color='k', linestyle='--', linewidth=1)
-ax2.axhline(y=299, color='k', linestyle='--', linewidth=1)
+ax2.axhline(y=285, color='k', linestyle='--', linewidth=2)
+ax2.axhline(y=299, color='k', linestyle='--', linewidth=2)
 
 ##--Add colorbar--##
 cb = fig2.colorbar(RH_i_plot, ax=ax2)
@@ -267,8 +267,8 @@ temp_plot = ax3.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, temp_bi
     shading='auto', cmap=new_cmap, vmin=200, vmax=300)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax3.axhline(y=285, color='k', linestyle='--', linewidth=1)
-ax3.axhline(y=299, color='k', linestyle='--', linewidth=1)
+ax3.axhline(y=285, color='k', linestyle='--', linewidth=2)
+ax3.axhline(y=299, color='k', linestyle='--', linewidth=2)
 
 ##--Add colorbar--##
 cb = fig3.colorbar(temp_plot, ax=ax3)
@@ -320,8 +320,8 @@ RH_w_diag_plot = ax1.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, RH
     shading='auto', cmap=new_cmap, vmin=1, vmax=1250)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax1.axhline(y=285, color='k', linestyle='--', linewidth=1)
-ax1.axhline(y=299, color='k', linestyle='--', linewidth=1)
+ax1.axhline(y=285, color='k', linestyle='--', linewidth=2)
+ax1.axhline(y=299, color='k', linestyle='--', linewidth=2)
 
 ##--Add colorbar--##
 cb = fig1.colorbar(RH_w_diag_plot, ax=ax1)
@@ -349,8 +349,8 @@ RH_i_plot = ax2.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, RH_i_bi
     shading='auto', cmap=new_cmap, vmin=1, vmax=1250)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax2.axhline(y=285, color='k', linestyle='--', linewidth=1)
-ax2.axhline(y=299, color='k', linestyle='--', linewidth=1)
+ax2.axhline(y=285, color='k', linestyle='--', linewidth=2)
+ax2.axhline(y=299, color='k', linestyle='--', linewidth=2)
 
 ##--Add colorbar--##
 cb = fig2.colorbar(RH_i_plot, ax=ax2)

@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight10" 
+flight = "Flight2" 
 
 ##--Bin data are in a CSV file--##
 UHSAS_bins = pd.read_csv(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv")
@@ -32,6 +32,7 @@ CPC10_R1 = icartt.Dataset(r'C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\CPC_R
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\PTempBinnedData\Particle"
 
+#%%
 #########################
 ##--Open ICARTT Files--##
 #########################
@@ -56,6 +57,7 @@ UHSAS = icartt.Dataset(find_files(directory, flight, 'UHSAS')[0])
 CPC10 = icartt.Dataset(find_files(directory, flight, 'CPC3772')[0])
 CPC3 = icartt.Dataset(find_files(directory, flight, 'CPC3776')[0])
 
+#%%
 #################
 ##--Pull data--##
 #################
@@ -68,6 +70,7 @@ aimms_time =aimms.data['TimeWave']
 
 ##--Black carbon--##
 BC_count = SP2.data['BC_numb_concSTP'] # in STP
+BC_mass = SP2.data['BC_mass_concSTP']*1000 # in ng/m^3
 
 ##--10 nm CPC data--##
 CPC10_time = CPC10.data['time']
@@ -80,8 +83,28 @@ CPC3_conc = CPC3.data['conc'] # count/cm^3
 ##--USHAS Data--##
 UHSAS_time = UHSAS.data['time'] # seconds since midnight
 ##--Total count is computed for N > 85 nm--##
-UHSAS_total_num = UHSAS.data['total_number_conc'] # particles/cm^3
+ICARTT_UHSAS_total = UHSAS.data['total_number_conc'] # particles/cm^3
 
+##--Make list of columns to pull, each named bin_x--##
+##--Bins 1-13 not trustworthy. Bins 76-99 overlap with OPC, discard--##
+##--Trim to use bins 14-76 (500>85 nm)--##
+UHSAS_bin_num = [f'bin_{i}' for i in range(14, 75)]
+
+##--Information for bins 14 thru 99--##
+UHSAS_bin_center = UHSAS_bins['bin_avg'].iloc[14:75]
+UHSAS_lower_bound = UHSAS_bins['lower_bound'].iloc[14:75]
+UHSAS_upper_bound = UHSAS_bins['upper_bound'].iloc[14:75]
+
+##--Put column names and content in a dictionary and then convert to a Pandas df--##
+UHSAS_bins = pd.DataFrame({col: UHSAS.data[col] for col in UHSAS_bin_num})
+
+##--Create new column names by rounding the bin center values to the nearest integer--##
+UHSAS_new_col_names = UHSAS_bin_center.round().astype(int).tolist()
+
+##--Rename the UHSAS_bins df columns to bin average values--##
+UHSAS_bins.columns = UHSAS_new_col_names
+
+#%%
 ##################
 ##--Align data--##
 ##################
@@ -93,23 +116,23 @@ aimms_start = aimms_time.min()
 ##--Handle black carbon data with different start/stop times than AIMMS--##
 BC_time = SP2.data['Time_UTC']
 
-##--Trim CO data if it starts before AIMMS--##
+##--Trim BC data if it starts before AIMMS--##
 if BC_time.min() < aimms_start:
     mask_start = BC_time >= aimms_start
     BC_time = BC_time[mask_start]
-    BC_count = BC_count[mask_start]
+    BC_mass = BC_mass[mask_start]
     
-##--Append CO data with NaNs if it ends before AIMMS--##
+##--Append BC data with NaNs if it ends before AIMMS--##
 if BC_time.max() < aimms_end: 
     missing_times = np.arange(BC_time.max()+1, aimms_end +1)
     BC_time = np.concatenate([BC_time, missing_times])
-    BC_count = np.concatenate([BC_count, [np.nan]*len(missing_times)])
-
+    BC_mass = np.concatenate([BC_mass, [np.nan]*len(missing_times)])
+    
 ##--Create a DataFrame for BC data and reindex to AIMMS time, setting non-overlapping times to nan--##
-BC_df = pd.DataFrame({'Time_UTC': BC_time, 'BC_count': BC_count})
+BC_df = pd.DataFrame({'Time_UTC': BC_time, 'BC_mass': BC_mass})
 BC_aligned = BC_df.set_index('Time_UTC').reindex(aimms_time)
-BC_aligned['BC_count']= BC_aligned['BC_count'].where(BC_aligned.index.isin(aimms_time), np.nan)
-BC_count_aligned = BC_aligned['BC_count']
+BC_aligned['BC_mass']= BC_aligned['BC_mass'].where(BC_aligned.index.isin(aimms_time), np.nan)
+BC_mass_aligned = BC_aligned['BC_mass']
 
 ##--Handle CPC3 data with different start/stop times than AIMMS--##
 CPC3_time = CPC3.data['time']
@@ -153,31 +176,27 @@ CPC10_aligned = CPC10_df.set_index('time').reindex(aimms_time)
 CPC10_aligned['conc']=CPC10_aligned['conc'].where(CPC10_aligned.index.isin(aimms_time), np.nan)
 CPC10_conc_aligned = CPC10_aligned['conc']
 
-##--Make list of columns to pull, each named bin_x--##
-##--Bins 1-13 not trustworthy. Bins 76-99 overlap with OPC, discard--##
-##--Trim to use bins 14-76 (500>85 nm)--##
-UHSAS_bin_num = [f'bin_{i}' for i in range(14, 75)]
-
-##--Information for bins 14 thru 99--##
-UHSAS_bin_center = UHSAS_bins['bin_avg'].iloc[14:75]
-UHSAS_lower_bound = UHSAS_bins['lower_bound'].iloc[14:75]
-UHSAS_upper_bound = UHSAS_bins['upper_bound'].iloc[14:75]
-
-##--Put column names and content in a dictionary and then convert to a Pandas df--##
-UHSAS_bins = pd.DataFrame({col: UHSAS.data[col] for col in UHSAS_bin_num})
-
-##--Create new column names by rounding the bin center values to the nearest integer--##
-UHSAS_new_col_names = UHSAS_bin_center.round().astype(int).tolist()
-
-##--Rename the UHSAS_bins df columns to bin average values--##
-UHSAS_bins.columns = UHSAS_new_col_names
-
-##--Add time, total_num to UHSAS_bins df--##
+##--Add time to UHSAS_bins df--##
 UHSAS_bins.insert(0, 'Time', UHSAS_time)
 
 ##--Align UHSAS_bins time to AIMMS time--##
 UHSAS_bins_aligned = UHSAS_bins.set_index('Time').reindex(aimms_time)
 
+#%%
+###############################
+##--De-Normalize UHSAS Data--##
+###############################
+
+##--Calculate dlogDp for UHSAS bins--##
+UHSAS_dlogDp = np.log(UHSAS_upper_bound.values) - np.log(UHSAS_lower_bound.values)
+
+##--Get only particle count data (excluding 'Time')--##
+UHSAS_particle_counts = UHSAS_bins_aligned.loc[:, UHSAS_new_col_names]  # Adjust column names as needed
+
+##--De-Normalize counts by multiplying by dlogDp across all rows--##
+UHSAS_denorm_counts = UHSAS_particle_counts.multiply(UHSAS_dlogDp, axis=1)
+
+#%%
 #######################################
 ##--Calculate potential temperature--##
 #######################################
@@ -194,6 +213,7 @@ for T, P in zip(temperature, pressure):
     p_t = T*(p_0/P)**k
     potential_temp.append(p_t)
 
+#%%
 ######################
 ##--Calc N(2.5-10)--##
 ######################
@@ -228,7 +248,7 @@ for CPC10, T, P in zip(CPC10_conc_aligned, temperature, pressure):
         CPC10_conc_STP.append(CPC10_conversion)
 
 ##--Creates a Pandas dataframe for particle data--##
-df = pd.DataFrame({'PTemp': potential_temp, 'BC_count': BC_count_aligned, 
+df = pd.DataFrame({'PTemp': potential_temp, 'BC_mass': BC_mass_aligned, 
                    'CPC3_conc':CPC3_conc_STP, 'CPC10_conc': CPC10_conc_STP})
 
 ##--Calculate N3-10 particles--##
@@ -240,15 +260,16 @@ nuc_particles = np.where(nuc_particles >= 0, nuc_particles, np.nan)
 ##--Add nucleating particles to df--##
 df['nuc_particles'] = nuc_particles
 
+#%%
 #####################
 ##--Calc N(10-89)--##
 #####################
 
-##--Create df with UHSAS total counts--##
-UHSAS_total = pd.DataFrame({'Time': UHSAS_time, 'Total_count': UHSAS_total_num})
+##--Re-compute UHSAS total count using denormalized data--##
+UHSAS_total = UHSAS_denorm_counts.sum(axis=1)
 
-##--Reindex UHSAS_total df to AIMMS time--##
-UHSAS_total_aligned = UHSAS_total.set_index('Time').reindex(aimms_time)
+##--Create df with UHSAS total counts and index to AIMMS time--##
+UHSAS_total_aligned = pd.DataFrame({'Time': aimms_time, 'Total_count': UHSAS_total}).set_index('Time')
 
 ##--Create df with CPC10 counts and set index to time--##
 CPC10_counts = pd.DataFrame({'Time':aimms_time, 'Counts':CPC10_conc_STP}).set_index('Time')
@@ -262,9 +283,11 @@ n_10_89 = np.where(n_10_89 >= 0, n_10_89, np.nan)
 ##--Add 10-89 nm particles to the dataframe--##
 df['n_10_89'] = n_10_89
 
-#####################################
-##--Calculate std dev from zeroes--##        
-#####################################
+
+#%%
+#############################
+##--Calculate Uncertainty--##        
+#############################
 
 ##--Pull CPC data from R1 data--##
 CPC3_R1_conc = CPC3_R1.data['conc']
@@ -279,11 +302,14 @@ CPC10_zeros_c = CPC10_R1_conc[(CPC10_R1_conc < 50) & (CPC10_R1_conc != -99999)]
 CPC3_sigma = np.std(CPC3_zeros_c, ddof=1)  # Use ddof=1 for sample standard deviation
 CPC10_sigma = np.std(CPC10_zeros_c, ddof=1)
 
-##--Isolate zero periods, setting conservative upper limit of 100 counts--##
-##--Numpy doesn't recognize -9999 as NaN, tell it to ignore these values--##
-##--Need to set to 100 to see any data, but is this a good idea?--##
-UHSAS_zeros_c = UHSAS_total_num[(UHSAS_total_num < 100) & (UHSAS_total_num != -9999)]
+##--UHSAS doesn't have zero periods, using Poisson counting uncertainty--##
+UHSAS_total_sqrt = np.sqrt(UHSAS_denorm_counts)
 
+##--Use simple sum of UHSAS uncertainties per bin for conservative estimate--##
+##--Similar result as using sqrt of squares but erring on side of caution--##
+UHSAS_total_error = UHSAS_total_sqrt.sum(axis=1)
+
+# %%
 #############################
 ##--Propagate uncertainty--##
 #############################
@@ -294,16 +320,23 @@ UHSAS_zeros_c = UHSAS_total_num[(UHSAS_total_num < 100) & (UHSAS_total_num != -9
 T_error = 0.3 # K, constant
 P_error = 100 + 0.0005*(pressure)
 
-##--Use formula for multiplication/division--##
+##--Use formula for mult/div to compute error after converting to STP--##
 greater3nm_error = (CPC3_conc_aligned)*(((P_error)/(pressure))**2 + ((T_error)/(temperature))**2 + ((CPC3_sigma)/(CPC3_conc_aligned)))**(0.5)
 greater10nm_error = (CPC10_conc_aligned)*(((P_error)/(pressure))**2 + ((T_error)/(temperature))**2 + ((CPC10_sigma)/(CPC10_conc_aligned)))**(0.5)
 
-##--Use add/subtract forumula--##
+##--Use add/subtract forumula to compute 3sigma error--##
 nuc_error_3sigma = (((greater3nm_error)**2 + (greater10nm_error)**2)**(0.5))*3
 
-##--Add uncertainty to the df--##
-df['nuc_error_3sigma'] = pd.Series(nuc_error_3sigma)#.reset_index(drop=True)
+##--nuc_error_3sigma still has a time index, reset to integer to align--##
+df['nuc_error_3sigma'] = nuc_error_3sigma
 
+##--Calculate error in difference between CPC10 and UHSAS--##
+aitken_error_3sigma = (((greater10nm_error)**2 + (UHSAS_total_error)**2)**(0.5))*3
+
+##--Add uncertainty for 10-85 nm bin to big df--##
+df['aitken_error_3sigma'] = aitken_error_3sigma
+
+#%%
 ###############
 ##--BINNING--##
 ###############
@@ -311,27 +344,27 @@ df['nuc_error_3sigma'] = pd.Series(nuc_error_3sigma)#.reset_index(drop=True)
 ##--Define number of bins here--##
 num_bins = 124
 
-##--Compute the minimum and maximum altitude, ignoring NaNs--##
+##--Compute the minimum and maximum potential temperature, ignoring NaNs--##
 min_ptemp = df['PTemp'].min(skipna=True)
 max_ptemp = df['PTemp'].max(skipna=True)
 
-##--Create bin edges from min_alt to max_alt--##
+##--Create bin edges from min_ptemp to max_ptemp--##
 bin_edges = np.linspace(min_ptemp, max_ptemp, num_bins + 1)
 
-##--Pandas 'cut' splits altitude data into specified number of bins--##
+##--Pandas 'cut' splits ptemp data into specified number of bins--##
 df['PTemp_bin'] = pd.cut(df['PTemp'], bins=bin_edges)
 
-##--Group variables into each altitude bin--## 
+##--Group variables into each ptemp bin--## 
 ##--Observed=false shows all bins, even empty ones--##
 binned_df = df.groupby('PTemp_bin', observed=False).agg(
     
    ##--Aggregate data by mean, min, and max--##
     PTemp_center=('PTemp', 'median'), 
-    BC_center=('BC_count', 'median'), 
-    BC_min=('BC_count', 'min'),
-    BC_max=('BC_count', 'max'),
-    BC_25th=('BC_count', lambda x: x.quantile(0.25)),
-    BC_75th=('BC_count', lambda x: x.quantile(0.75)),
+    BC_center=('BC_mass', 'median'), 
+    BC_min=('BC_mass', 'min'),
+    BC_max=('BC_mass', 'max'),
+    BC_25th=('BC_mass', lambda x: x.quantile(0.25)),
+    BC_75th=('BC_mass', lambda x: x.quantile(0.75)),
     CPC10_conc_center=('CPC10_conc', 'median'), 
     CPC10_conc_min=('CPC10_conc', 'min'),
     CPC10_conc_max=('CPC10_conc', 'max'),
@@ -354,11 +387,15 @@ binned_df = df.groupby('PTemp_bin', observed=False).agg(
     n_10_89_75th=('n_10_89', lambda x: x.quantile(0.75)),
     
     ##--Bin the uncertainty of nucleating particles--##
-    nuc_error_center=('nuc_error_3sigma', 'median')  
+    nuc_error_center=('nuc_error_3sigma', 'median'),
     
-    ##--Reset the index so Altitude_bin is just a column--##
+    ##--And Aitken mode (10-85 nm) particles--##
+    aitken_error_center=('aitken_error_3sigma', 'median')
+    
+    ##--Reset the index so PTemp_bin is just a column--##
 ).reset_index()
 
+#%%
 ################
 ##--PLOTTING--##
 ################
@@ -376,6 +413,7 @@ axs[0].fill_betweenx(binned_df['PTemp_center'], binned_df['CPC10_conc_min'],
 axs[0].fill_betweenx(binned_df['PTemp_center'], binned_df['CPC10_conc_25th'],
                     binned_df['CPC10_conc_75th'], color='indianred', alpha=0.7)
 axs[0].set_ylabel('Potential Temperature (K)', fontsize=12)
+axs[0].set_xlabel('Counts/cm\u00b3')
 axs[0].set_title('N \u2265 10 nm')
 axs[0].set_xlim(-50, 2000)
 
@@ -404,6 +442,7 @@ axs[1].fill_betweenx(binned_df['PTemp_center'], binned_df['CPC3_conc_min'],
 axs[1].fill_betweenx(binned_df['PTemp_center'], binned_df['CPC3_conc_25th'],
                     binned_df['CPC3_conc_75th'], color='sandybrown', alpha=1)
 axs[1].set_title('N \u2265 2.5 nm')
+axs[1].set_xlabel('Counts/cm\u00b3')
 axs[1].set_xlim(-50, 3400)
 
 axs[1].axhline(y=285, color='k', linestyle='--', linewidth=1)
@@ -417,16 +456,18 @@ axs[2].fill_betweenx(binned_df['PTemp_center'], binned_df['nuc_particles_25th'],
                     binned_df['nuc_particles_75th'], color='cadetblue', alpha=1)
 
 ##--Plot uncertainty as its own trace--##
-axs[2].plot(binned_df['nuc_error_center'], binned_df['PTemp_center'], color='crimson', linestyle='dashed', label='3$\sigma$ Uncertainty', zorder=4)
+axs[2].plot(binned_df['nuc_error_center'], binned_df['PTemp_center'], 
+            color='crimson', linestyle='dashed', label='3$\sigma$ \nUncertainty')
 
 ##--Subscript 3-10--##
 axs[2].set_title('$N_{2.5-10}$')
-axs[2].set_xlim(-50, 1900)
+axs[2].set_xlabel('Counts/cm\u00b3')
+#axs[2].set_xlim(-50, 1900)
 
 axs[2].axhline(y=285, color='k', linestyle='--', linewidth=1)
 axs[2].axhline(y=299, color='k', linestyle='--', linewidth=1)
 
-axs[2].legend()
+axs[2].legend(loc='lower right')
 
 ##--Fourth subplot: 10-89 nm particles vs Altitude--##
 axs[3].plot(binned_df['n_10_89_center'], binned_df['PTemp_center'], color='darkcyan')
@@ -440,7 +481,14 @@ axs[3].axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Subscript 10-89--##
 axs[3].set_title('$N_{10-89}$')
+axs[3].set_xlabel('Counts/cm\u00b3')
 axs[3].set_xlim(-50, 2000)
+
+##--Plot uncertainty as its own trace--##
+axs[3].plot(binned_df['aitken_error_center'], binned_df['PTemp_center'], color='crimson', 
+            linestyle='dashed', label='3$\sigma$ \nUncertainty')
+
+axs[3].legend(loc='lower right')
 
 ##--Fifth subplot: rBC counts--##
 axs[4].plot(binned_df['BC_center'], binned_df['PTemp_center'], color='steelblue')
@@ -452,14 +500,12 @@ axs[4].fill_betweenx(binned_df['PTemp_center'], binned_df['BC_25th'],
 axs[4].axhline(y=285, color='k', linestyle='--', linewidth=1)
 axs[4].axhline(y=299, color='k', linestyle='--', linewidth=1)
 
-axs[4].set_title('rBC Counts')
+axs[4].set_title('rBC Mass')
+axs[4].set_xlabel('ng/m\u00b3')
 #axs[4].set_xlim(-50, 2000)
 
-##--Add one common x-axis label--##
-fig.supxlabel('Particle Concentration (counts/cm\u00b3)', fontsize=12)
-
 ##--Use f-string to embed flight # variable in plot title--##
-plt.suptitle(f"Vertical Particle Count Profiles - {flight.replace('Flight', 'Flight ')}", fontsize=16)
+plt.suptitle(f"Vertical Particle Profiles - {flight.replace('Flight', 'Flight ')}", fontsize=16)
 
 ##--Adjusts layout to prevent overlapping--## 
 plt.tight_layout(rect=[0, -0.02, 1, 0.99])
