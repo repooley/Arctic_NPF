@@ -1,2 +1,5 @@
 ##--Ignore outputs file to reduce bloat--##
-data/processed/
+NETCARE2015/data/processed/
+FIREACE1998/data/processed/
+PAMARCMIP2012/data/processed/
+
