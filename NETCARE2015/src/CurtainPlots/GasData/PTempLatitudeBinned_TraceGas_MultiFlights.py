@@ -18,7 +18,7 @@ from scipy.stats import binned_statistic_2d
 ###################
  
 ##--Set the base directory to project folder--##
-directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw"
+directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw"
 
 ##--Choose which flights to analyze here!--##
 flights_to_analyze = ["Flight2", "Flight3", "Flight4", "Flight5", "Flight6", "Flight7", "Flight8", "Flight9", "Flight10"]
@@ -234,7 +234,8 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, o
     ##--Add colorbar--##
     cb = fig.colorbar(mesh, ax=ax)
     cb.minorticks_on()
-    cb.set_label(cbar_label, fontsize=12)
+    cb.ax.tick_params(labelsize=16)
+    cb.set_label(cbar_label, fontsize=16)
     
     ##--Add dashed horizontal lines for the polar dome boundaries--##
     ##--Boundaries are defined from Bozem et al 2019 (ACP)--##
@@ -255,14 +256,15 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, o
             verticalalignment='center', horizontalalignment='center')
     '''
     ##--Set axis labels and title--##
-    ax.set_xlabel("Latitude (°)", fontsize=12)
-    ax.set_ylabel("Potential Temperature \u0398 (K)", fontsize=12)
-    ax.set_title(title)
+    ax.set_xlabel("Latitude (°)", fontsize=18)
+    ax.set_ylabel("Potential Temperature \u0398 (K)", fontsize=18)
+    ax.tick_params(axis='both', labelsize=16)
+    ax.set_title(title, fontsize=18)
     #ax.set_ylim(238, 301)
     #ax.set_xlim(79.5, 83.7)
     
     ##--Save the plot--##
-    plt.savefig(output_path, dpi=600, bbox_inches="tight")
+    #plt.savefig(output_path, dpi=600, bbox_inches="tight")
     plt.tight_layout()
     plt.show()
  
@@ -342,7 +344,7 @@ def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label, ou
     #ax.set_xlim(79.5, 83.7)
     
     ##--Save the plot--##
-    plt.savefig(output_path, dpi=600, bbox_inches="tight")
+    #plt.savefig(output_path, dpi=600, bbox_inches="tight")
     plt.tight_layout()
     plt.show()
  

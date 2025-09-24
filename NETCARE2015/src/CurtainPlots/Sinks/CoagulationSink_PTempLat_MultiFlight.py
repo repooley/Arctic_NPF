@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 ###################
 
 ##--Set the base directory to project folder--##
-directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw"
+directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw"
 
 ##--Choose which flights to analyze here!--##
 ##--NO UHSAS FLIGHT1--##
@@ -29,7 +29,7 @@ num_bins_lat = 10
 num_bins_ptemp = 10
 
 ##--Base output path for figures in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CoagulationSink"
+output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\CoagulationSink"
 
 #########################
 ##--Open ICARTT Files--##
@@ -127,7 +127,7 @@ for flight in flights_to_analyze:
     UHSAS_time = UHSAS.data['time'] # seconds since midnight
 
     ##--Bin data are in a CSV file--##
-    UHSAS_bins = pd.read_csv(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv")
+    UHSAS_bins = pd.read_csv(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv")
 
     ##--Make list of columns to pull, each named bin_x--##
     ##--Bins 1-13 not trustworthy. Bins 76-99 overlap with OPC, discard--##
@@ -161,7 +161,7 @@ for flight in flights_to_analyze:
     OPC_time = OPC.data['Time_UTC'] # seconds since midnight
 
     ##--Bin data are in a CSV file--##
-    OPC_bin_info = pd.read_csv(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\NETCARE2015_OPC_bins.csv")
+    OPC_bin_info = pd.read_csv(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_OPC_bins.csv")
 
     ##--Select bins greater than 500 nm (Channel 7 and greater)--##
     OPC_bin_center = OPC_bin_info['bin_avg'].iloc[6:31]
@@ -483,19 +483,19 @@ ax1.axhline(y=299, color='k', linestyle='--', linewidth=1)
 cb = fig1.colorbar(Coagulation_plot, ax=ax1)
 cb.minorticks_on()
 cb.ax.tick_params(labelsize=16)
-cb.set_label('Coagulation N(2.5-10) (s-1)', fontsize=16)
+cb.set_label('Coagulation $s^{-1}$', fontsize=16)
 
 ##--Set axis labels--##
 ax1.set_xlabel('Latitude (°)', fontsize=16)
 ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=16)
 ax1.tick_params(axis='both', labelsize=16)
-ax1.set_title("Coagulation Sink N(2.5-10)", fontsize=18)
+ax1.set_title("Coagulation Sink for $N_{2.5-10}$", fontsize=18)
 #ax1.set_ylim(238, 301)
 #ax1.set_xlim(79.5, 83.7)
 
 ##--Use f-string to save file with flight# appended--##
 CS10_output_path = f"{output_path}\\{flight}_MultiFlights"
-plt.savefig(CS10_output_path, dpi=600, bbox_inches='tight') 
+#plt.savefig(CS10_output_path, dpi=600, bbox_inches='tight') 
 
 plt.tight_layout()
 plt.show()
@@ -543,7 +543,7 @@ ax1.set_title("Coagulation Sink Counts per Bin", fontsize=18)
 
 ##--Use f-string to save file with flight# appended--##
 CS10_diag_output_path = f"{output_path}\\MultiFlights_diagnostic"
-plt.savefig(CS10_diag_output_path, dpi=600, bbox_inches='tight') 
+#plt.savefig(CS10_diag_output_path, dpi=600, bbox_inches='tight') 
 
 plt.tight_layout()
 plt.show()

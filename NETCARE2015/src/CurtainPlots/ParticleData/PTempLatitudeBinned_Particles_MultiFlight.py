@@ -18,7 +18,7 @@ from scipy.stats import binned_statistic_2d
 ###################
 
 ##--Set the base directory to project folder--##
-directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw"
+directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw"
 
 ##--Choose which flights to analyze here!--##
 flights_to_analyze = ["Flight2", "Flight3", "Flight4", "Flight5", "Flight6", "Flight7", "Flight8", "Flight9", "Flight10"]
@@ -29,10 +29,10 @@ num_bins_lat = 10
 num_bins_ptemp = 10
 
 ##--UHSAS bins--##
-bins_filepath = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv"
+bins_filepath = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv"
 
 ##--Base output path for figures in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots"
+output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots"
  
 #########################
 ##--Open ICARTT Files--##
@@ -394,9 +394,16 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, o
     ax.set_title(title, fontsize=18)
     #ax.set_ylim(238, 301)
     #ax.set_xlim(79.5, 83.7)
+    
+    # Polar dome labels
+    #x_text = ax.get_xlim()[0] + 10
+    ax.text(73, 282, "Polar Dome", fontsize=14, color="k",
+                verticalalignment="center", horizontalalignment="left")
+    ax.text(73, 288, "Marginal Dome", fontsize=14, color="k",
+                verticalalignment="center", horizontalalignment="left")
  
     ##--Save the plot--##
-    plt.savefig(output_path, dpi=600, bbox_inches="tight")
+    #plt.savefig(output_path, dpi=600, bbox_inches="tight")
     plt.tight_layout()
     plt.show()
  
@@ -419,6 +426,7 @@ plot_curtain(CPC10_bin_medians, lat_bin_edges_CPC10, ptemp_bin_edges_CPC10, vmin
 plot_curtain(nuc_bin_medians, lat_bin_edges_nuc, ptemp_bin_edges_nuc, vmin=1, vmax=1000,
     title="2.5-10 nm Particle Abundance", cbar_label="2.5-10 nm Particles $(Counts/cm^{3})$",
     output_path=f"{output_path}\\Nucleating/PTempLatitude/MultiFlights.png")
+
 
 ##--Plot for N(10-89)--##
 plot_curtain(grow_bin_medians, lat_bin_edges_grow, ptemp_bin_edges_grow, vmin=0, vmax=1000,
