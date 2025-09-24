@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 #######################################
 
 ##--Set the base directory to project folder--##
-directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
+directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
 flight = "Flight10" 
@@ -291,7 +291,7 @@ plt.suptitle(f"Vertical Meteorological Profiles - {flight.replace('Flight', 'Fli
 plt.tight_layout(rect=[0, 0, 1, 0.99])
 
 ##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\PTempBinnedData\Meteorological"
+output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\PTempBinnedData\Meteorological"
 
 ##--Use f-string to save file with flight# appended--##
 output_path = f"{output_path}\\{flight}"
