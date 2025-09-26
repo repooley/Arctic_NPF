@@ -27,7 +27,10 @@ from scipy.spatial import ConvexHull
 hysplit = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\HYSPLIT\data\trajectories"
  
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight6" 
+flight = "Flight5" 
+
+##--Filter to above the polar dome?--##
+above_dome = True 
 
 ##--Base output path for figures in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\HYSPLIT"
@@ -62,20 +65,45 @@ netcare_subset = single_flight[single_flight['Time_start'].isin(UTCs)]
 
 ##--Flight-by-flight parameters--##
 if flight == "Flight2":
-    map_extent = [-120, 10, 70, 90]
+    map_extent = [-120, 10, 35, 90]
     height_ratios = [2, 1]
     hspace = 0.1
-    htitle = 0.87
-elif flight == "Flight3":
+    htitle = 0.92
+elif flight == ["Flight3", "Flight5"]:
     map_extent = [-120, 10, 70, 90]
     height_ratios = [2, 1]
     hspace = 0
     htitle=0.91
 elif flight == "Flight4":
-    map_extent = [-120, 10, 70, 90]
+    map_extent = [-120, 15, 60, 90]
     height_ratios = [2, 1]
     hspace = 0.1
     htitle=0.91
+elif flight == "Flight6":
+    map_extent = [-120, 10, 65, 90]
+    height_ratios = [2, 1]
+    hspace = 0.1
+    htitle=0.91
+elif flight == "Flight7":
+    map_extent = [-120, 32, 45, 90]
+    height_ratios = [2.5, 1]
+    hspace = 0.0
+    htitle=0.85
+elif flight == "Flight8":
+    map_extent = [-180, 120, 28, 90]
+    height_ratios = [2, 1]
+    hspace = 0.0
+    htitle=0.85
+elif flight == "Flight9":
+    map_extent = [-180, 60, 28, 90]
+    height_ratios = [2, 1]
+    hspace = -0.1
+    htitle=0.88
+elif flight == "Flight10":
+    map_extent = [-180, 60, 28, 90]
+    height_ratios = [2, 1]
+    hspace = -0.1
+    htitle=0.88
 else: 
     map_extent = [-120, 10, 70, 90]
     height_ratios = [2, 1]
@@ -131,8 +159,77 @@ for file, row in zip(sorted(os.listdir(flight_directory)), netcare_subset.itertu
     
     ##--Condition: initialized traj must be above the marginal polar dome--##
     ##--Marginal dome boundary is 285 K--##
-    if row.ptemp > 285:
-
+    if above_dome == True: 
+        if row.ptemp > 285:
+    
+            ##--Determine which axis to use (NPF vs non-NPF)--##
+            is_significant = pd.notna(row.nuc_significant)
+            ax_map = ax_map_sig if is_significant else ax_map_nonsig
+            ax_time = ax_time_sig if is_significant else ax_time_nonsig
+                
+            ##--\s denotes any whitespace character, + indicates one or more spaces--##
+            df = pd.read_csv(os.path.join(hysplit, flight, file), sep=r'\s+')
+            
+            ##--Rename DATE to DAY--##
+            df = df.rename(columns={'DATE': 'DAY'})
+            
+            ##--Change year to four digits, .apply() takes a function as an argument--##
+            ##--A lambda function is local only--##
+            df['YEAR'] = df['YEAR'].apply(lambda y: y + 2000)
+            
+            ##--Format for year, month, day, hour--##
+            df['DateTime'] = pd.to_datetime({'year': df['YEAR'], 'month': df['MONTH'],
+                    'day': df['DAY'], 'hour': df['HOUR']})
+          
+            ##--Group by TRAJ to place each trajectory in time order--##
+            for traj_num, group in df.groupby('TRAJ'):
+                group = group.sort_values('DateTime')
+                
+                altitudes = group['ALTITUDE'].values
+                
+                ##--Last time in trajectory = initialization (measurement) time--##
+                t0 = group['DateTime'].iloc[-1]
+                
+                ##--Compute relative time in days (backward from initialization)--##
+                ##--Divide by length of one day: 86400 seconds--##
+                time_rel = (group['DateTime'] - t0).dt.total_seconds() / 86400.0
+        
+                ##--Cut off trajectory within 1m of surface, HYSPLIT is iffy here--##
+                if any(altitudes < 1):
+                    index_end = np.min(np.where(altitudes < 1))
+                else:
+                    index_end = len(group) 
+                    
+               ##--Plot original (unperturbed) trajectory--##
+                if traj_num == 1:
+                    color = 'k'
+                    linewidth = 0.75
+                    alpha = 1
+                    zorder = 5
+                else:
+                    color = 'none'
+                
+                ax_map.plot(group['LONG'].iloc[:index_end],
+                    group['LAT'].iloc[:index_end],
+                    transform=ccrs.PlateCarree(),
+                    c=color, lw=linewidth, alpha=alpha, zorder=zorder)
+                
+                ax_time.plot(time_rel.iloc[:index_end],
+                    group['ALTITUDE'].iloc[:index_end],
+                    c=color, lw=linewidth, alpha=alpha, zorder=zorder)
+                
+                if is_significant:
+                    lats_sig.extend(group['LAT'].values)
+                    lons_sig.extend(group['LONG'].values)
+                    alt_sig.extend(group['ALTITUDE'].values)
+                    time_sig.extend(time_rel.values) 
+                else:
+                    lats_nonsig.extend(group['LAT'].values)
+                    lons_nonsig.extend(group['LONG'].values)
+                    alt_nonsig.extend(group['ALTITUDE'].values)
+                    time_nonsig.extend(time_rel.values) 
+    else: 
+        
         ##--Determine which axis to use (NPF vs non-NPF)--##
         is_significant = pd.notna(row.nuc_significant)
         ax_map = ax_map_sig if is_significant else ax_map_nonsig
@@ -157,6 +254,13 @@ for file, row in zip(sorted(os.listdir(flight_directory)), netcare_subset.itertu
             group = group.sort_values('DateTime')
             
             altitudes = group['ALTITUDE'].values
+            
+            ##--Last time in trajectory = initialization (measurement) time--##
+            t0 = group['DateTime'].iloc[-1]
+            
+            ##--Compute relative time in days (backward from initialization)--##
+            ##--Divide by length of one day: 86400 seconds--##
+            time_rel = (group['DateTime'] - t0).dt.total_seconds() / 86400.0
     
             ##--Cut off trajectory within 1m of surface, HYSPLIT is iffy here--##
             if any(altitudes < 1):
@@ -178,7 +282,7 @@ for file, row in zip(sorted(os.listdir(flight_directory)), netcare_subset.itertu
                 transform=ccrs.PlateCarree(),
                 c=color, lw=linewidth, alpha=alpha, zorder=zorder)
             
-            ax_time.plot(group['DateTime'].iloc[:index_end],
+            ax_time.plot(time_rel.iloc[:index_end],
                 group['ALTITUDE'].iloc[:index_end],
                 c=color, lw=linewidth, alpha=alpha, zorder=zorder)
             
@@ -186,12 +290,12 @@ for file, row in zip(sorted(os.listdir(flight_directory)), netcare_subset.itertu
                 lats_sig.extend(group['LAT'].values)
                 lons_sig.extend(group['LONG'].values)
                 alt_sig.extend(group['ALTITUDE'].values)
-                time_sig.extend(group['DateTime'].tolist())
+                time_sig.extend(time_rel.values) 
             else:
                 lats_nonsig.extend(group['LAT'].values)
                 lons_nonsig.extend(group['LONG'].values)
                 alt_nonsig.extend(group['ALTITUDE'].values)
-                time_nonsig.extend(group['DateTime'].tolist())
+                time_nonsig.extend(time_rel.values)    
 
 ##--Set up function to grey out empty plots--##
 def grey_plots(ax):
@@ -207,7 +311,7 @@ def grey_plots(ax):
 ##--INPUTS--##
 
 ##--The alpha value controls the hull fit--##
-alpha = 0.5
+alpha = 0.2
 
 ##--Set min/max latitudes for binning in degrees--##
 lat_min = 30    
@@ -305,18 +409,29 @@ if H_sig.size > 0 and H_sig.sum() > 0:
     ##--Select bins to draw a hull polygon around--##
     points_sig_bins = np.unique(selected_sig_boxes, axis=0)   
     
-    ##--Plot hull polygon--##
-    if len(points_sig_bins) >= 3:  # ConvexHull requires at least 3 points
-        hull_sig_bins = ConvexHull(points_sig_bins)
-        for simplex in hull_sig_bins.simplices:
-            ax_map_sig.plot(points_sig_bins[simplex, 0], points_sig_bins[simplex, 1],
-                            c='#9D0759', ls='--', lw=2,
-                            transform=ccrs.PlateCarree(), zorder=5)
-    
-else:
-    H_sig_percent = np.zeros_like(H_sig)   # keep same shape
-    H_sig_masked  = ma.masked_all(H_sig.shape)
-    points_sig_bins = np.empty((0, 2))     # safe empty 2D
+   ##--Plot hull polygon--##
+    if len(points_sig_bins) >= 3:  # alphashape also needs at least 3 points
+        hull_sig_bins = alphashape.alphashape(points_sig_bins, alpha)
+   
+        if hull_sig_bins.geom_type == "Polygon":
+            x, y = hull_sig_bins.exterior.xy
+            ax_map_sig.fill(x, y, facecolor='None', edgecolor='orangered', ls='--', lw=2,
+                           transform=ccrs.PlateCarree(), zorder=5)
+   
+        elif hull_sig_bins.geom_type == "MultiPolygon":
+            for poly in hull_sig_bins.geoms:
+                if not poly.is_empty:
+                    x, y = poly.exterior.xy
+                    ax_map_sig.fill(x, y, facecolor='None', edgecolor='orangered', ls='--', lw=2,
+                                   transform=ccrs.PlateCarree(), zorder=5)
+   
+        else:
+            print("Alpha shape is not a polygon:", hull_sig_bins.geom_type)
+   
+    else:
+        H_sig_percent = np.zeros_like(H_sig)   # keep same shape
+        H_sig_masked  = ma.masked_all(H_sig.shape)
+        points_sig_bins = np.empty((0, 2))     # safe empty 2D
 
 
 ##--H_nonsig should always have values--##
@@ -358,121 +473,106 @@ hull_nonsig_bins = alphashape.alphashape(points_nonsig_bins, alpha)
 ##--From Google AI response--##
 if hull_nonsig_bins.geom_type == "Polygon":
     x, y = hull_nonsig_bins.exterior.xy
-    ax_map_nonsig.fill(x, y, facecolor='None', edgecolor='red',
+    ax_map_nonsig.fill(x, y, facecolor='None', edgecolor='orangered', ls='--',
                        linewidth=2.5, transform=ccrs.PlateCarree(), zorder=7)
 
 elif hull_nonsig_bins.geom_type == "MultiPolygon":
     for poly in hull_nonsig_bins.geoms:
         if not poly.is_empty:
             x, y = poly.exterior.xy
-            ax_map_nonsig.fill(x, y, facecolor='None', edgecolor='red', 
+            ax_map_nonsig.fill(x, y, facecolor='None', edgecolor='orangered', ls='--', 
                        linewidth=3, transform=ccrs.PlateCarree(), zorder=7)
 else:
     print("Alpha shape is not a polygon:", hull_nonsig_bins.geom_type)
 
-'''
-hull_nonsig_bins = ConvexHull(points_nonsig_bins)
-    
-for simplex in hull_nonsig_bins.simplices:
-    ax_map_nonsig.plot(points_nonsig_bins[simplex, 0], points_nonsig_bins[simplex, 1],
-                    c='#9D0759', ls='--', lw=2,
-                    transform=ccrs.PlateCarree(), zorder=5)
-'''    
+   
 ##--Add one colorbar--##
 cbar = plt.colorbar(bin_colors, ax=[ax_map_sig, ax_map_nonsig], orientation='vertical', shrink=0.5)
 cbar.ax.tick_params(labelsize=14)
 cbar.set_label('% Trajectory Frequency', size=12)
 
 
-###############
-##--Alitude--##
-###############
+################
+##--Altitude--##
+################
 
 ##--These bin numbers apply to ALL curtain plots--##
 num_time_bins = 12
 num_alt_bins = 10
 
-##--Convert datetime objects to float days since 1970--##
-time_nonsig_num = date2num(time_nonsig)
+##--Convert altitude lists to arrays--##
+alt_sig_arr = np.array(alt_sig)
 alt_nonsig_arr = np.array(alt_nonsig)
 
-if len(time_sig) > 0 and len(alt_sig) > 0:
-    time_sig_num = date2num(time_sig)
-    alt_sig_arr = np.array(alt_sig)
-    
-    # Combine for bin range including sig
-    all_time_num = np.concatenate([time_sig_num, time_nonsig_num])
-    min_alt = min(alt_sig_arr.min(), alt_nonsig_arr.min())
-    max_alt = max(alt_sig_arr.max(), alt_nonsig_arr.max())
+##--Determine overall min/max relative times for binning--##
+# relative time: 0 = measurement time, negative = days before
+if len(time_sig) > 0:
+    all_time_rel = np.concatenate([time_sig, time_nonsig])
 else:
-    # sig is empty
-    time_sig_num = np.array([])  # empty array
-    alt_sig_arr = np.array([])   # empty array
-    all_time_num = time_nonsig_num
-    min_alt = alt_nonsig_arr.min()
-    max_alt = alt_nonsig_arr.max()
+    all_time_rel = np.array(time_nonsig)
 
-time_bins_num = np.linspace(all_time_num.min(), all_time_num.max(), num_time_bins + 1)
+time_min = all_time_rel.min()  # earliest day
+time_max = 0                   # measurement time = 0 days
+
+##--Create bin edges in the time dimension--##
+time_bins_rel = np.linspace(time_min, time_max, num_time_bins + 1)
+
+##--Create altitude bin edges--##
+min_alt = min(alt_sig_arr.min() if len(alt_sig_arr) > 0 else alt_nonsig_arr.min(),
+              alt_nonsig_arr.min())
+max_alt = max(alt_sig_arr.max() if len(alt_sig_arr) > 0 else alt_nonsig_arr.max(),
+              alt_nonsig_arr.max())
 alt_bins = np.linspace(min_alt, max_alt, num_alt_bins + 1)
 
-##--Compute 2d histogram with time--##
-if len(time_sig_num) > 0 and len(alt_sig_arr) > 0:
-    H_sig_time, _, _ = np.histogram2d(time_sig_num, alt_sig_arr,
-                                      bins=(time_bins_num, alt_bins))
-    ##--Compute percent frequency for each bin--##
-    H_sig_time_percent = 100 * H_sig_time / H_sig_time.sum()
+##--Compute 2d histograms--##
+if len(time_sig) > 0 and len(alt_sig_arr) > 0:
+    H_sig, _, _ = np.histogram2d(time_sig, alt_sig_arr, bins=(time_bins_rel, alt_bins))
+    H_sig_percent = 100 * H_sig / H_sig.sum()
+    H_sig_masked = ma.masked_where(H_sig_percent == 0, H_sig_percent)
     
-    ##--Mask empty bins--##
-    H_sig_masked = ma.masked_where(H_sig_time_percent == 0, H_sig_time_percent)
-
-    ##--Plot alitude vs time--##
-    mesh_sig = ax_time_sig.pcolormesh(time_bins_num, alt_bins, H_sig_masked.T,
-                           cmap='magma', alpha=0.75, edgecolors='none', shading='auto')
-
+    mesh_sig = ax_time_sig.pcolormesh(time_bins_rel, alt_bins, H_sig_masked.T,
+                                      cmap='magma', alpha=0.75, edgecolors='none', shading='auto')
 else:
     mesh_sig = None  # nothing to plot for sig
 
+##--Nonsignificant data (always has data)--##
+H_nonsig, _, _ = np.histogram2d(time_nonsig, alt_nonsig_arr, bins=(time_bins_rel, alt_bins))
+H_nonsig_percent = 100 * H_nonsig / H_nonsig.sum()
+H_nonsig_masked = ma.masked_where(H_nonsig_percent == 0, H_nonsig_percent)
 
-##--Will always work for nonsig times--##
-
-H_nonsig_time, _, _ = np.histogram2d(time_nonsig_num, alt_nonsig_arr, bins=(time_bins_num, alt_bins))
-
-H_nonsig_time_percent = 100 * H_nonsig_time / H_nonsig_time.sum()
-
-H_nonsig_masked = ma.masked_where(H_nonsig_time_percent == 0, H_nonsig_time_percent)
-
-mesh_nonsig = ax_time_nonsig.pcolormesh(time_bins_num, alt_bins, H_nonsig_masked.T,
-                          cmap='magma', alpha=0.75, edgecolors='none', shading='auto')
+mesh_nonsig = ax_time_nonsig.pcolormesh(time_bins_rel, alt_bins, H_nonsig_masked.T,
+                                        cmap='magma', alpha=0.75, edgecolors='none', shading='auto')
 
 ##--Format axis ticks and labels--##
-##--Suggestion from GPT 5 model for removing labels when there is no data--##
 for ax, has_data in [(ax_time_sig, len(time_sig) > 0 and len(alt_sig) > 0),
                      (ax_time_nonsig, True)]:  # nonsig always has data
     if has_data:
-        ax.xaxis_date()
-        ax.xaxis.set_major_formatter(DateFormatter('%b %d'))
-        for label in ax.get_xticklabels():
-            label.set_rotation(30)
-            label.set_horizontalalignment('right')
+        ax.set_xlim(time_min, time_max)  # relative time axis
         ax.set_yticks(np.arange(0, 10000, 2000))
         ax.tick_params(axis='both', labelsize=12)
     else:
-        # Remove all ticks and labels
         ax.set_yticks(np.arange(0, 10000, 2000))
-        ax.set_xticks([])
         ax.tick_params(axis='both', labelsize=12)
+        ax.set_xticks([])
         ax.set_xlabel("")
         ax.set_ylabel("")
-    
-    
+
 ##--Grey out any empty plots--##
-if len(time_sig)==0 or len(alt_sig)==0:
+if len(time_sig) == 0 or len(alt_sig) == 0:
     grey_plots(ax_map_sig)
     grey_plots(ax_time_sig)
+    
+    
+##--Add x-axis labels--##
+if len(time_sig) > 0 and len(alt_sig_arr) > 0: 
+    for ax in [ax_time_sig, ax_time_nonsig]: 
+        ax.set_xlabel("Days before measurement", fontsize=18)
+else: 
+    ax_time_nonsig.set_xlabel("Days before measurement", fontsize=18)
 
-##--Add one colorbar, use the nonsig axis which is always populated--##
+##--Add one colorbar, using nonsig axis which is always populated--##
 cbar2 = plt.colorbar(mesh_nonsig, ax=[ax_time_sig, ax_time_nonsig],
-                    orientation='vertical')
+                     orientation='vertical')
 cbar2.set_label('% Trajectory Frequency', size=12)
 cbar2.ax.tick_params(labelsize=14)
 
