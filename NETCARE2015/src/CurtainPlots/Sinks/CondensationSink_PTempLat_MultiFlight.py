@@ -396,7 +396,7 @@ lat_bin_edges_CS10 = np.linspace(all_latitudes_CS10.min(), all_latitudes_CS10.ma
 ptemp_bin_edges_CS10 = np.linspace(all_ptemps_CS10.min(), all_ptemps_CS10.max(), num_bins_ptemp + 1)
  
 CS10_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_CS10, all_ptemps_CS10, 
-        all_CS10, statistic="mean", bins=[lat_bin_edges_CS10, ptemp_bin_edges_CS10])
+        all_CS10, statistic="median", bins=[lat_bin_edges_CS10, ptemp_bin_edges_CS10])
 
 ################
 ##--PLOTTING--##

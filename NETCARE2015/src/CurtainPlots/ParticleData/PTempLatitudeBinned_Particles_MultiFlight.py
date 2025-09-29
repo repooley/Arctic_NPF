@@ -302,7 +302,7 @@ lat_bin_edges_BC = np.linspace(all_latitudes_BC.min(), all_latitudes_BC.max(), n
 ptemp_bin_edges_BC = np.linspace(all_ptemps_BC.min(), all_ptemps_BC.max(), num_bins_ptemp + 1)
  
 BC_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_BC, all_ptemps_BC, 
-        all_BC_counts, statistic="mean", bins=[lat_bin_edges_BC, ptemp_bin_edges_BC])
+        all_BC_counts, statistic="median", bins=[lat_bin_edges_BC, ptemp_bin_edges_BC])
 
 ##--Binning for CPC3 data--##
 all_latitudes_CPC3 = np.concatenate([df["Latitude"].values for df in CPC3_dfs])
@@ -313,7 +313,7 @@ lat_bin_edges_CPC3 = np.linspace(all_latitudes_CPC3.min(), all_latitudes_CPC3.ma
 ptemp_bin_edges_CPC3 = np.linspace(all_ptemps_CPC3.min(), all_ptemps_CPC3.max(), num_bins_ptemp + 1)
  
 CPC3_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_CPC3, all_ptemps_CPC3, 
-        all_CPC3_concs, statistic="mean", bins=[lat_bin_edges_CPC3, ptemp_bin_edges_CPC3])
+        all_CPC3_concs, statistic="median", bins=[lat_bin_edges_CPC3, ptemp_bin_edges_CPC3])
  
 ##--Binning for CPC10 data--##
 all_latitudes_CPC10 = np.concatenate([df["Latitude"].values for df in CPC10_dfs])
@@ -324,7 +324,7 @@ lat_bin_edges_CPC10 = np.linspace(all_latitudes_CPC10.min(), all_latitudes_CPC10
 ptemp_bin_edges_CPC10 = np.linspace(all_ptemps_CPC10.min(), all_ptemps_CPC10.max(), num_bins_ptemp + 1)
  
 CPC10_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_CPC10, all_ptemps_CPC10, 
-        all_CPC10_concs, statistic="mean", bins=[lat_bin_edges_CPC10, ptemp_bin_edges_CPC10])
+        all_CPC10_concs, statistic="median", bins=[lat_bin_edges_CPC10, ptemp_bin_edges_CPC10])
  
 ##--Binning for nucleating particle data--##
 all_latitudes_nuc = np.concatenate([df["Latitude"].values for df in nuc_dfs])
@@ -335,7 +335,7 @@ lat_bin_edges_nuc = np.linspace(all_latitudes_nuc.min(), all_latitudes_nuc.max()
 ptemp_bin_edges_nuc = np.linspace(all_ptemps_nuc.min(), all_ptemps_nuc.max(), num_bins_ptemp + 1)
  
 nuc_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_nuc, all_ptemps_nuc, 
-        all_nuc_particles, statistic="mean", bins=[lat_bin_edges_nuc, ptemp_bin_edges_nuc])
+        all_nuc_particles, statistic="median", bins=[lat_bin_edges_nuc, ptemp_bin_edges_nuc])
 
 ##--Binning for growth N(10-89) particle data--##
 all_latitudes_grow = np.concatenate([df["Latitude"].values for df in grow_dfs])
@@ -346,7 +346,7 @@ lat_bin_edges_grow = np.linspace(all_latitudes_grow.min(), all_latitudes_grow.ma
 ptemp_bin_edges_grow = np.linspace(all_ptemps_grow.min(), all_ptemps_grow.max(), num_bins_ptemp + 1)
  
 grow_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_grow, all_ptemps_grow, 
-    all_grow_particles, statistic="mean", bins=[lat_bin_edges_grow, ptemp_bin_edges_grow])
+    all_grow_particles, statistic="median", bins=[lat_bin_edges_grow, ptemp_bin_edges_grow])
  
 ################
 ##--PLOTTING--##

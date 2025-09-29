@@ -193,7 +193,7 @@ lat_bin_edges_O3 = np.linspace(all_latitudes_O3.min(), all_latitudes_O3.max(), n
 ptemp_bin_edges_O3 = np.linspace(all_ptemps_O3.min(), all_ptemps_O3.max(), num_bins_ptemp + 1)
  
 O3_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_O3, all_ptemps_O3, 
-        all_O3, statistic="mean", bins=[lat_bin_edges_O3, ptemp_bin_edges_O3])
+        all_O3, statistic="median", bins=[lat_bin_edges_O3, ptemp_bin_edges_O3])
  
 ##--Binning for CO data--##
 all_latitudes_CO = np.concatenate([df["Latitude"].values for df in CO_dfs])
@@ -204,7 +204,7 @@ lat_bin_edges_CO = np.linspace(all_latitudes_CO.min(), all_latitudes_CO.max(), n
 ptemp_bin_edges_CO = np.linspace(all_ptemps_CO.min(), all_ptemps_CO.max(), num_bins_ptemp + 1)
  
 CO_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_CO, all_ptemps_CO, 
-        all_CO, statistic="mean", bins=[lat_bin_edges_CO, ptemp_bin_edges_CO])
+        all_CO, statistic="median", bins=[lat_bin_edges_CO, ptemp_bin_edges_CO])
 
 ##--Binning for CO2 data--##
 all_latitudes_CO2 = np.concatenate([df["Latitude"].values for df in CO2_dfs])
@@ -215,7 +215,7 @@ lat_bin_edges_CO2 = np.linspace(all_latitudes_CO2.min(), all_latitudes_CO2.max()
 ptemp_bin_edges_CO2 = np.linspace(all_ptemps_CO2.min(), all_ptemps_CO2.max(), num_bins_ptemp + 1)
  
 CO2_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_CO2, all_ptemps_CO2, 
-        all_CO2, statistic="mean", bins=[lat_bin_edges_CO2, ptemp_bin_edges_CO2])
+        all_CO2, statistic="median", bins=[lat_bin_edges_CO2, ptemp_bin_edges_CO2])
 
 ################
 ##--PLOTTING--##

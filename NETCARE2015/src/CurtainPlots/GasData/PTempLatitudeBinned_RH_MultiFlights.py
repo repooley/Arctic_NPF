@@ -204,7 +204,7 @@ lat_bin_edges_RH_w = np.linspace(all_latitudes_RH_w.min(), all_latitudes_RH_w.ma
 ptemp_bin_edges_RH_w = np.linspace(all_ptemps_RH_w.min(), all_ptemps_RH_w.max(), num_bins_ptemp + 1)
  
 RH_w_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_RH_w, all_ptemps_RH_w, 
-        all_RH_w, statistic="mean", bins=[lat_bin_edges_RH_w, ptemp_bin_edges_RH_w])
+        all_RH_w, statistic="median", bins=[lat_bin_edges_RH_w, ptemp_bin_edges_RH_w])
  
 ##--Binning for RH wrt ice data--##
 all_latitudes_RH_i = np.concatenate([df["Latitude"].values for df in RH_i_dfs])
@@ -215,7 +215,7 @@ lat_bin_edges_RH_i = np.linspace(all_latitudes_RH_i.min(), all_latitudes_RH_i.ma
 ptemp_bin_edges_RH_i = np.linspace(all_ptemps_RH_i.min(), all_ptemps_RH_i.max(), num_bins_ptemp + 1)
  
 RH_i_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_RH_i, all_ptemps_RH_i, 
-        all_RH_i, statistic="mean", bins=[lat_bin_edges_RH_i, ptemp_bin_edges_RH_i])
+        all_RH_i, statistic="median", bins=[lat_bin_edges_RH_i, ptemp_bin_edges_RH_i])
  
 ################
 ##--PLOTTING--##

@@ -246,7 +246,7 @@ lat_bin_edges_CPC3 = np.linspace(all_latitudes_CPC3.min(), all_latitudes_CPC3.ma
 alt_bin_edges_CPC3 = np.linspace(all_altitudes_CPC3.min(), all_altitudes_CPC3.max(), num_bins_alt + 1)
  
 CPC3_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_CPC3, all_altitudes_CPC3, 
-    all_CPC3_concs, statistic="mean", bins=[lat_bin_edges_CPC3, alt_bin_edges_CPC3])
+    all_CPC3_concs, statistic="median", bins=[lat_bin_edges_CPC3, alt_bin_edges_CPC3])
  
 ##--Binning for CPC10 data--##
 all_latitudes_CPC10 = np.concatenate([df["Latitude"].values for df in CPC10_dfs])
@@ -257,7 +257,7 @@ lat_bin_edges_CPC10 = np.linspace(all_latitudes_CPC10.min(), all_latitudes_CPC10
 alt_bin_edges_CPC10 = np.linspace(all_altitudes_CPC10.min(), all_altitudes_CPC10.max(), num_bins_alt + 1)
  
 CPC10_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_CPC10, all_altitudes_CPC10, 
-    all_CPC10_concs, statistic="mean", bins=[lat_bin_edges_CPC10, alt_bin_edges_CPC10])
+    all_CPC10_concs, statistic="median", bins=[lat_bin_edges_CPC10, alt_bin_edges_CPC10])
  
 ##--Binning for nucleating particle data--##
 all_latitudes_nuc = np.concatenate([df["Latitude"].values for df in nuc_dfs])
@@ -268,7 +268,7 @@ lat_bin_edges_nuc = np.linspace(all_latitudes_nuc.min(), all_latitudes_nuc.max()
 alt_bin_edges_nuc = np.linspace(all_altitudes_nuc.min(), all_altitudes_nuc.max(), num_bins_alt + 1)
  
 nuc_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_nuc, all_altitudes_nuc, 
-    all_nuc_particles, statistic="mean", bins=[lat_bin_edges_nuc, alt_bin_edges_nuc])
+    all_nuc_particles, statistic="median", bins=[lat_bin_edges_nuc, alt_bin_edges_nuc])
 
 ##--Binning for growth N(10-89) particle data--##
 all_latitudes_grow = np.concatenate([df["Latitude"].values for df in grow_dfs])
@@ -279,7 +279,7 @@ lat_bin_edges_grow = np.linspace(all_latitudes_grow.min(), all_latitudes_grow.ma
 alt_bin_edges_grow = np.linspace(all_altitudes_grow.min(), all_altitudes_grow.max(), num_bins_alt + 1)
  
 grow_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_grow, all_altitudes_grow, 
-    all_grow_particles, statistic="mean", bins=[lat_bin_edges_grow, alt_bin_edges_grow])
+    all_grow_particles, statistic="median", bins=[lat_bin_edges_grow, alt_bin_edges_grow])
  
 ################
 ##--PLOTTING--##

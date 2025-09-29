@@ -457,7 +457,7 @@ lat_bin_edges_coagulation = np.linspace(all_latitudes_coagulation.min(), all_lat
 ptemp_bin_edges_coagulation = np.linspace(all_ptemps_coagulation.min(), all_ptemps_coagulation.max(), num_bins_ptemp + 1)
  
 coagulation_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_coagulation, all_ptemps_coagulation, 
-        all_coagulation, statistic="mean", bins=[lat_bin_edges_coagulation, ptemp_bin_edges_coagulation])
+        all_coagulation, statistic="median", bins=[lat_bin_edges_coagulation, ptemp_bin_edges_coagulation])
 
 ################
 ##--PLOTTING--##
