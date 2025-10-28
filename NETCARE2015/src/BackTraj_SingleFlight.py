@@ -18,19 +18,28 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import alphashape
 from scipy.spatial import ConvexHull
+from matplotlib.colors import LogNorm
 
 ###################
 ##--User inputs--##
-###################
-
-##--Set the base directory to project folder--##
-hysplit = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\HYSPLIT\data\trajectories"
- 
+################### 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight5" 
+flight = "Flight3" 
 
 ##--Filter to above the polar dome?--##
-above_dome = True 
+above_dome = True
+
+##--Forward trajectory?--##
+##--Flights 2 and 10 only!--##
+forward = False
+
+##--Set the base directory to project folder--##
+if forward==True:    
+    hysplit = r'C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\HYSPLIT\data\trajectories\forward'
+
+else: 
+    hysplit = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\HYSPLIT\data\trajectories\5min_averaged"
+
 
 ##--Base output path for figures in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\HYSPLIT"
@@ -49,12 +58,12 @@ def find_files(directory, flight):
 flight_directory = find_files(hysplit, flight)
 
 ##--Get timestamps where trajectories were initialized--##
-##--Trajectories were initialized every 10 minutes from the Netcare file--##
+##--Trajectories were initialized every 5 minutes from the Netcare file--##
 single_flight = Netcare[Netcare['Flight_num'] == flight]
 
 start_utc = int(single_flight['Time_start'].min())
 end_utc = int(single_flight['Time_start'].max())
-UTCs = list(range(start_utc, end_utc +1, 600))
+UTCs = list(range(start_utc, end_utc +1, 300))
 
 ##--Subset Netcare to times in UTCs--##
 netcare_subset = single_flight[single_flight['Time_start'].isin(UTCs)]
@@ -65,10 +74,16 @@ netcare_subset = single_flight[single_flight['Time_start'].isin(UTCs)]
 
 ##--Flight-by-flight parameters--##
 if flight == "Flight2":
-    map_extent = [-120, 10, 35, 90]
-    height_ratios = [2, 1]
-    hspace = 0.1
-    htitle = 0.92
+    if forward == True: 
+        map_extent = [-120, 10, 60, 90]
+        height_ratios = [2, 1]
+        hspace = 0.1
+        htitle = 0.92
+    else: 
+        map_extent = [-120, 10, 35, 90]
+        height_ratios = [2, 1]
+        hspace = 0.1
+        htitle = 0.92
 elif flight == ["Flight3", "Flight5"]:
     map_extent = [-120, 10, 70, 90]
     height_ratios = [2, 1]
@@ -100,10 +115,16 @@ elif flight == "Flight9":
     hspace = -0.1
     htitle=0.88
 elif flight == "Flight10":
-    map_extent = [-180, 60, 28, 90]
-    height_ratios = [2, 1]
-    hspace = -0.1
-    htitle=0.88
+    if forward == True: 
+        map_extent = [-180, 90, 65, 90]
+        height_ratios = [2, 1]
+        hspace = -0.1
+        htitle=0.85
+    else: 
+        map_extent = [-180, 60, 28, 90]
+        height_ratios = [2, 1]
+        hspace = -0.1
+        htitle=0.88
 else: 
     map_extent = [-120, 10, 70, 90]
     height_ratios = [2, 1]
@@ -137,13 +158,21 @@ ax_map_nonsig.set_title("No Significant $N_{2.5-10}$", fontsize=14)
 ax_time_sig.set_ylabel("Meters Above Ground Level", fontsize=12)
 #ax_time_nonsig.set_ylabel("Meters Above Ground Level", fontsize=12)
 
-fig.suptitle(f"NETCARE {flight.replace('Flight', 'Flight ')} HYSPLIT Back Trajectories", 
-             fontsize=16, y=htitle)
+if forward==True: 
+    fig.suptitle(f"NETCARE {flight.replace('Flight', 'Flight ')} HYSPLIT Forward Trajectories", 
+                 fontsize=16, y=htitle)
+else: 
+    fig.suptitle(f"NETCARE {flight.replace('Flight', 'Flight ')} HYSPLIT Back Trajectories", 
+                 fontsize=16, y=htitle)
 
 ##--Set axes limits--##
 ax_time_sig.set_ylim(-250, 8000)
 ax_time_nonsig.set_ylim(-250, 8000)
 
+
+##########################
+##--Loop through files--##
+##########################
 
 lats_sig, lons_sig = [], []
 lats_nonsig, lons_nonsig = [], []
@@ -151,17 +180,13 @@ lats_nonsig, lons_nonsig = [], []
 alt_sig, time_sig = [], []
 alt_nonsig, time_nonsig = [], []
 
-##########################
-##--Loop through files--##
-##########################
-
-for file, row in zip(sorted(os.listdir(flight_directory)), netcare_subset.itertuples(index=False)):
-    
+for i, (file, row) in enumerate(zip(sorted(os.listdir(flight_directory)), netcare_subset.itertuples(index=False))):
+     
     ##--Condition: initialized traj must be above the marginal polar dome--##
     ##--Marginal dome boundary is 285 K--##
     if above_dome == True: 
         if row.ptemp > 285:
-    
+
             ##--Determine which axis to use (NPF vs non-NPF)--##
             is_significant = pd.notna(row.nuc_significant)
             ax_map = ax_map_sig if is_significant else ax_map_nonsig
@@ -185,15 +210,35 @@ for file, row in zip(sorted(os.listdir(flight_directory)), netcare_subset.itertu
             for traj_num, group in df.groupby('TRAJ'):
                 group = group.sort_values('DateTime')
                 
+                ##--Suggestion from GPT5 - deal with HYSPLIT wrapping around meridian--##
+                # Normalize to -180 to 180 range
+                group['LONG'] = ((group['LONG'] + 180) % 360) - 180
+                
+                lon = group['LONG'].values
+                lat = group['LAT'].values
                 altitudes = group['ALTITUDE'].values
                 
-                ##--Last time in trajectory = initialization (measurement) time--##
-                t0 = group['DateTime'].iloc[-1]
+                if forward == True: 
+                    ##--Compute relative time in days (forward from initialization)--##
+                    t0 = group['DateTime'].iloc[0]
+                    ##--Simply add negative sign to flip logic--##
+                    time_rel = (group['DateTime'] - t0).dt.total_seconds() / 86400.0
+                    time_rel = time_rel.values  # ensure numpy array
+                else: 
+                    ##--Compute relative time in days (backward from initialization)--##
+                    t0 = group['DateTime'].iloc[-1]
+                    time_rel = (group['DateTime'] - t0).dt.total_seconds() / 86400.0
+                    time_rel = time_rel.values  # ensure numpy array
+            
+                ##--Detect jumps >180° and break line by inserting NaNs--##
+                jump_indices = np.where(np.abs(np.diff(lon)) > 180)[0]
+                if len(jump_indices) > 0:
+                    for j in jump_indices[::-1]:  # reverse order to avoid index shift
+                        lon = np.insert(lon, j + 1, np.nan)
+                        lat = np.insert(lat, j + 1, np.nan)
+                        altitudes = np.insert(altitudes, j + 1, np.nan)
+                        time_rel = np.insert(time_rel, j + 1, np.nan)
                 
-                ##--Compute relative time in days (backward from initialization)--##
-                ##--Divide by length of one day: 86400 seconds--##
-                time_rel = (group['DateTime'] - t0).dt.total_seconds() / 86400.0
-        
                 ##--Cut off trajectory within 1m of surface, HYSPLIT is iffy here--##
                 if any(altitudes < 1):
                     index_end = np.min(np.where(altitudes < 1))
@@ -209,25 +254,28 @@ for file, row in zip(sorted(os.listdir(flight_directory)), netcare_subset.itertu
                 else:
                     color = 'none'
                 
-                ax_map.plot(group['LONG'].iloc[:index_end],
-                    group['LAT'].iloc[:index_end],
-                    transform=ccrs.PlateCarree(),
-                    c=color, lw=linewidth, alpha=alpha, zorder=zorder)
+                '''
+                ax_map.plot(lon[:index_end],
+                            lat[:index_end],
+                            transform=ccrs.PlateCarree(),
+                            c=color, lw=linewidth, alpha=alpha, zorder=zorder)
+                '''
+                ax_time.plot(time_rel[:index_end],
+                             group['ALTITUDE'].iloc[:index_end],
+                             c=color, lw=linewidth, alpha=alpha, zorder=zorder)
                 
-                ax_time.plot(time_rel.iloc[:index_end],
-                    group['ALTITUDE'].iloc[:index_end],
-                    c=color, lw=linewidth, alpha=alpha, zorder=zorder)
-                
+                ##--Append trajectory data for later histogramming--##
                 if is_significant:
-                    lats_sig.extend(group['LAT'].values)
-                    lons_sig.extend(group['LONG'].values)
-                    alt_sig.extend(group['ALTITUDE'].values)
-                    time_sig.extend(time_rel.values) 
+                    lats_sig.extend(lat)
+                    lons_sig.extend(lon)
+                    alt_sig.extend(altitudes)
+                    time_sig.extend(time_rel)
                 else:
-                    lats_nonsig.extend(group['LAT'].values)
-                    lons_nonsig.extend(group['LONG'].values)
-                    alt_nonsig.extend(group['ALTITUDE'].values)
-                    time_nonsig.extend(time_rel.values) 
+                    lats_nonsig.extend(lat)
+                    lons_nonsig.extend(lon)
+                    alt_nonsig.extend(altitudes)
+                    time_nonsig.extend(time_rel)
+        
     else: 
         
         ##--Determine which axis to use (NPF vs non-NPF)--##
@@ -253,15 +301,28 @@ for file, row in zip(sorted(os.listdir(flight_directory)), netcare_subset.itertu
         for traj_num, group in df.groupby('TRAJ'):
             group = group.sort_values('DateTime')
             
+            ##--Suggestion from GPT5 - deal with HYSPLIT wrapping around meridian--##
+            ##--Normalize to -180 to 180 range--##
+            group['LONG'] = ((group['LONG'] + 180) % 360) - 180
+            
+            lon = group['LONG'].values
+            lat = group['LAT'].values
             altitudes = group['ALTITUDE'].values
             
-            ##--Last time in trajectory = initialization (measurement) time--##
-            t0 = group['DateTime'].iloc[-1]
-            
             ##--Compute relative time in days (backward from initialization)--##
-            ##--Divide by length of one day: 86400 seconds--##
+            t0 = group['DateTime'].iloc[-1]
             time_rel = (group['DateTime'] - t0).dt.total_seconds() / 86400.0
-    
+            time_rel = time_rel.values  # ensure numpy array
+        
+            ##--Detect jumps >180° and break line by inserting NaNs--##
+            jump_indices = np.where(np.abs(np.diff(lon)) > 180)[0]
+            if len(jump_indices) > 0:
+                for j in jump_indices[::-1]:  # reverse order to avoid index shift
+                    lon = np.insert(lon, j + 1, np.nan)
+                    lat = np.insert(lat, j + 1, np.nan)
+                    altitudes = np.insert(altitudes, j + 1, np.nan)
+                    time_rel = np.insert(time_rel, j + 1, np.nan)
+            
             ##--Cut off trajectory within 1m of surface, HYSPLIT is iffy here--##
             if any(altitudes < 1):
                 index_end = np.min(np.where(altitudes < 1))
@@ -277,25 +338,27 @@ for file, row in zip(sorted(os.listdir(flight_directory)), netcare_subset.itertu
             else:
                 color = 'none'
             
-            ax_map.plot(group['LONG'].iloc[:index_end],
-                group['LAT'].iloc[:index_end],
-                transform=ccrs.PlateCarree(),
-                c=color, lw=linewidth, alpha=alpha, zorder=zorder)
+            '''
+            ax_map.plot(lon[:index_end],
+                        lat[:index_end],
+                        transform=ccrs.PlateCarree(),
+                        c=color, lw=linewidth, alpha=alpha, zorder=zorder)
+            '''
+            ax_time.plot(time_rel[:index_end],
+                         group['ALTITUDE'].iloc[:index_end],
+                         c=color, lw=linewidth, alpha=alpha, zorder=zorder)
             
-            ax_time.plot(time_rel.iloc[:index_end],
-                group['ALTITUDE'].iloc[:index_end],
-                c=color, lw=linewidth, alpha=alpha, zorder=zorder)
-            
+            ##--Append trajectory data for later histogramming--##
             if is_significant:
-                lats_sig.extend(group['LAT'].values)
-                lons_sig.extend(group['LONG'].values)
-                alt_sig.extend(group['ALTITUDE'].values)
-                time_sig.extend(time_rel.values) 
+                lats_sig.extend(lat)
+                lons_sig.extend(lon)
+                alt_sig.extend(altitudes)
+                time_sig.extend(time_rel)
             else:
-                lats_nonsig.extend(group['LAT'].values)
-                lons_nonsig.extend(group['LONG'].values)
-                alt_nonsig.extend(group['ALTITUDE'].values)
-                time_nonsig.extend(time_rel.values)    
+                lats_nonsig.extend(lat)
+                lons_nonsig.extend(lon)
+                alt_nonsig.extend(altitudes)
+                time_nonsig.extend(time_rel)  
 
 ##--Set up function to grey out empty plots--##
 def grey_plots(ax):
@@ -350,7 +413,6 @@ H_nonsig_density = H_nonsig / areas
 
 ##--Project bin edges into stereographic (x, y)--##
 def stereographic_proj(lon_deg, lat_deg, lon0=0):
-    """North-pole stereographic projection (R=1)."""
     lon = np.deg2rad(lon_deg)
     lat = np.deg2rad(lat_deg)
     lon0 = np.deg2rad(lon0)
@@ -361,7 +423,6 @@ def stereographic_proj(lon_deg, lat_deg, lon0=0):
     y = k * (np.cos(np.pi/2) * np.sin(lat) -
              np.sin(np.pi/2) * np.cos(lat) * np.cos(lon - lon0))
     return x, y
-
 
 lon_grid, lat_grid = np.meshgrid(lon_edges, lat_edges, indexing="ij")
 x_edges, y_edges = stereographic_proj(lon_grid, lat_grid)
@@ -376,8 +437,10 @@ if H_sig.size > 0 and H_sig.sum() > 0:
     
     ##--Plot lat/lon density--##
     bin_colors = ax_map_sig.pcolormesh(lon_grid, lat_grid, H_sig_masked, cmap='plasma', 
+       norm=LogNorm(vmin=np.nanmin(H_sig_masked[H_sig_masked > 0]), 
+                    vmax=np.nanmax(H_sig_masked)),
         alpha=0.25, edgecolors='none', transform=ccrs.PlateCarree(), zorder=4)
-    
+  
     ##--Flatten the histograms--##
     flat_sig = H_sig_percent.flatten()
     
@@ -433,7 +496,6 @@ if H_sig.size > 0 and H_sig.sum() > 0:
         H_sig_masked  = ma.masked_all(H_sig.shape)
         points_sig_bins = np.empty((0, 2))     # safe empty 2D
 
-
 ##--H_nonsig should always have values--##
 
 H_nonsig_percent = 100 * H_nonsig / H_nonsig.sum()   
@@ -441,7 +503,9 @@ H_nonsig_percent = 100 * H_nonsig / H_nonsig.sum()
 H_nonsig_masked = ma.masked_where(H_nonsig_percent == 0, H_nonsig_percent)
 
 bin_colors = ax_map_nonsig.pcolormesh(lon_grid, lat_grid, H_nonsig_masked, cmap='plasma', 
-    alpha=0.25, edgecolors='none', transform=ccrs.PlateCarree(), zorder=4)
+    norm=LogNorm(vmin=np.nanmin(H_nonsig_masked[H_nonsig_masked > 0]), 
+                 vmax=np.nanmax(H_nonsig_masked)), alpha=0.25, edgecolors='none', 
+    transform=ccrs.PlateCarree(), zorder=4)
 
 flat_nonsig = H_nonsig_percent.flatten()
 
@@ -474,7 +538,7 @@ hull_nonsig_bins = alphashape.alphashape(points_nonsig_bins, alpha)
 if hull_nonsig_bins.geom_type == "Polygon":
     x, y = hull_nonsig_bins.exterior.xy
     ax_map_nonsig.fill(x, y, facecolor='None', edgecolor='orangered', ls='--',
-                       linewidth=2.5, transform=ccrs.PlateCarree(), zorder=7)
+                       linewidth=3, transform=ccrs.PlateCarree(), zorder=7)
 
 elif hull_nonsig_bins.geom_type == "MultiPolygon":
     for poly in hull_nonsig_bins.geoms:
@@ -491,88 +555,145 @@ cbar = plt.colorbar(bin_colors, ax=[ax_map_sig, ax_map_nonsig], orientation='ver
 cbar.ax.tick_params(labelsize=14)
 cbar.set_label('% Trajectory Frequency', size=12)
 
-
 ################
 ##--Altitude--##
 ################
 
-##--These bin numbers apply to ALL curtain plots--##
 num_time_bins = 12
 num_alt_bins = 10
 
 ##--Convert altitude lists to arrays--##
-alt_sig_arr = np.array(alt_sig)
-alt_nonsig_arr = np.array(alt_nonsig)
+alt_sig_arr = np.asarray(alt_sig)
+alt_nonsig_arr = np.asarray(alt_nonsig)
 
-##--Determine overall min/max relative times for binning--##
-# relative time: 0 = measurement time, negative = days before
-if len(time_sig) > 0:
-    all_time_rel = np.concatenate([time_sig, time_nonsig])
-else:
-    all_time_rel = np.array(time_nonsig)
+##--And time--##
+time_sig = np.asarray(time_sig)
+time_nonsig = np.asarray(time_nonsig)
 
-time_min = all_time_rel.min()  # earliest day
-time_max = 0                   # measurement time = 0 days
+##--Ensure no NaN values in any array--##
+def clean_valid_pairs(time_arr, alt_arr):
+    mask = np.isfinite(time_arr) & np.isfinite(alt_arr)
+    return time_arr[mask], alt_arr[mask]
+
+time_sig, alt_sig_arr = clean_valid_pairs(time_sig, alt_sig_arr)
+time_nonsig, alt_nonsig_arr = clean_valid_pairs(time_nonsig, alt_nonsig_arr)
+
+##--Handle different time axis for forward trajectories--##
+if forward == True: 
+    
+    ##--Determine overall min/max relative times for binning--##
+    if len(time_sig) > 0:
+        all_time_rel = np.concatenate([time_sig, time_nonsig])
+    else:
+        all_time_rel = np.array(time_nonsig)
+    
+    if len(all_time_rel) > 0:
+        time_min = np.nanmin(all_time_rel)
+        time_max = np.nanmax(all_time_rel)
+    else:
+        ##--Fallback range if no data: 1 day forward--##
+        time_min, time_max = 0, 1
+
+else: 
+    if len(time_sig) > 0:
+        all_time_rel = np.concatenate([time_sig, time_nonsig])
+    else:
+        all_time_rel = np.array(time_nonsig)
+    time_min = np.nanmin(all_time_rel) if len(all_time_rel) > 0 else -5  # fallback
+    time_max = 0  # measurement time = 0 days
 
 ##--Create bin edges in the time dimension--##
 time_bins_rel = np.linspace(time_min, time_max, num_time_bins + 1)
 
+
 ##--Create altitude bin edges--##
-min_alt = min(alt_sig_arr.min() if len(alt_sig_arr) > 0 else alt_nonsig_arr.min(),
-              alt_nonsig_arr.min())
-max_alt = max(alt_sig_arr.max() if len(alt_sig_arr) > 0 else alt_nonsig_arr.max(),
-              alt_nonsig_arr.max())
+all_alt = np.concatenate([alt_sig_arr, alt_nonsig_arr]) if len(alt_sig_arr) > 0 else alt_nonsig_arr
+min_alt = np.nanmin(all_alt) if len(all_alt) > 0 else 0
+max_alt = np.nanmax(all_alt) if len(all_alt) > 0 else 10000
 alt_bins = np.linspace(min_alt, max_alt, num_alt_bins + 1)
 
-##--Compute 2d histograms--##
+############################
+##--Compute 2D histogram--##
+############################
+
+##--Significant trajectories--##
 if len(time_sig) > 0 and len(alt_sig_arr) > 0:
     H_sig, _, _ = np.histogram2d(time_sig, alt_sig_arr, bins=(time_bins_rel, alt_bins))
-    H_sig_percent = 100 * H_sig / H_sig.sum()
-    H_sig_masked = ma.masked_where(H_sig_percent == 0, H_sig_percent)
-    
+    H_sig_sum = H_sig.sum()
+    if H_sig_sum > 0:
+        H_sig_percent = 100 * H_sig / H_sig_sum
+        H_sig_masked = ma.masked_where(H_sig_percent == 0, H_sig_percent)
+    else:
+        H_sig_masked = ma.masked_all((len(time_bins_rel) - 1, len(alt_bins) - 1))
+
     mesh_sig = ax_time_sig.pcolormesh(time_bins_rel, alt_bins, H_sig_masked.T,
                                       cmap='magma', alpha=0.75, edgecolors='none', shading='auto')
 else:
-    mesh_sig = None  # nothing to plot for sig
+    # Empty case
+    H_sig_masked = ma.masked_all((len(time_bins_rel) - 1, len(alt_bins) - 1))
+    mesh_sig = ax_time_sig.pcolormesh(time_bins_rel, alt_bins, H_sig_masked.T,
+                                      cmap='Greys', alpha=0.3, shading='auto')
+    grey_plots(ax_map_sig)
+    grey_plots(ax_time_sig)
 
-##--Nonsignificant data (always has data)--##
-H_nonsig, _, _ = np.histogram2d(time_nonsig, alt_nonsig_arr, bins=(time_bins_rel, alt_bins))
-H_nonsig_percent = 100 * H_nonsig / H_nonsig.sum()
-H_nonsig_masked = ma.masked_where(H_nonsig_percent == 0, H_nonsig_percent)
+##--Nonsignificant trajectories--##
+if len(time_nonsig) > 0 and len(alt_nonsig_arr) > 0:
+    H_nonsig, _, _ = np.histogram2d(time_nonsig, alt_nonsig_arr, bins=(time_bins_rel, alt_bins))
+    H_nonsig_sum = H_nonsig.sum()
+    if H_nonsig_sum > 0:
+        H_nonsig_percent = 100 * H_nonsig / H_nonsig_sum
+        H_nonsig_masked = ma.masked_where(H_nonsig_percent == 0, H_nonsig_percent)
+    else:
+        H_nonsig_masked = ma.masked_all((len(time_bins_rel) - 1, len(alt_bins) - 1))
+else:
+    H_nonsig_masked = ma.masked_all((len(time_bins_rel) - 1, len(alt_bins) - 1))
 
 mesh_nonsig = ax_time_nonsig.pcolormesh(time_bins_rel, alt_bins, H_nonsig_masked.T,
                                         cmap='magma', alpha=0.75, edgecolors='none', shading='auto')
 
-##--Format axis ticks and labels--##
-for ax, has_data in [(ax_time_sig, len(time_sig) > 0 and len(alt_sig) > 0),
-                     (ax_time_nonsig, True)]:  # nonsig always has data
-    if has_data:
-        ax.set_xlim(time_min, time_max)  # relative time axis
+if forward==True: 
+        
+    ##--Format axis ticks and labels--##
+    for ax, has_data in [(ax_time_sig, len(time_sig) > 0 and len(alt_sig) > 0),
+                         (ax_time_nonsig, len(time_nonsig) > 0 and len(alt_nonsig) > 0)]:
+        ax.set_xlim(time_min, time_max)
         ax.set_yticks(np.arange(0, 10000, 2000))
         ax.tick_params(axis='both', labelsize=12)
-    else:
-        ax.set_yticks(np.arange(0, 10000, 2000))
-        ax.tick_params(axis='both', labelsize=12)
-        ax.set_xticks([])
-        ax.set_xlabel("")
-        ax.set_ylabel("")
+        if not has_data:
+            ax.set_xticks([])
+            ax.set_xlabel("")
+            ax.set_ylabel("")
+    
+    ##--Add x-axis labels--##
+    if len(time_sig) > 0 and len(alt_sig_arr) > 0: 
+        for ax in [ax_time_sig, ax_time_nonsig]: 
+            ax.set_xlabel("Day after measurement", fontsize=18)
+            
+    else: 
+        ax_time_nonsig.set_xlabel("Day after measurement", fontsize=18)
 
-##--Grey out any empty plots--##
-if len(time_sig) == 0 or len(alt_sig) == 0:
-    grey_plots(ax_map_sig)
-    grey_plots(ax_time_sig)
-    
-    
-##--Add x-axis labels--##
-if len(time_sig) > 0 and len(alt_sig_arr) > 0: 
-    for ax in [ax_time_sig, ax_time_nonsig]: 
-        ax.set_xlabel("Days before measurement", fontsize=18)
 else: 
-    ax_time_nonsig.set_xlabel("Days before measurement", fontsize=18)
+    ##--Format axis ticks and labels--##
+    for ax, has_data in [(ax_time_sig, len(time_sig) > 0 and len(alt_sig) > 0),
+                         (ax_time_nonsig, len(time_nonsig) > 0 and len(alt_nonsig) > 0)]:
+        ax.set_xlim(time_min, time_max)
+        ax.set_yticks(np.arange(0, 10000, 2000))
+        ax.tick_params(axis='both', labelsize=12)
+        if not has_data:
+            ax.set_xticks([])
+            ax.set_xlabel("")
+            ax.set_ylabel("")
+    
+    ##--Add x-axis labels--##
+    if len(time_sig) > 0 and len(alt_sig_arr) > 0: 
+        for ax in [ax_time_sig, ax_time_nonsig]: 
+            ax.set_xlabel("Days before measurement", fontsize=18)
+            
+    else: 
+        ax_time_nonsig.set_xlabel("Days before measurement", fontsize=18)
 
-##--Add one colorbar, using nonsig axis which is always populated--##
-cbar2 = plt.colorbar(mesh_nonsig, ax=[ax_time_sig, ax_time_nonsig],
-                     orientation='vertical')
+##--Add colorbar (based on nonsig panel)--##
+cbar2 = plt.colorbar(mesh_nonsig, ax=[ax_time_sig, ax_time_nonsig], orientation='vertical')
 cbar2.set_label('% Trajectory Frequency', size=12)
 cbar2.ax.tick_params(labelsize=14)
 
