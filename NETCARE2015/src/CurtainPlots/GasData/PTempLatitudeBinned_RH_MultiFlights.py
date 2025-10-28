@@ -271,12 +271,12 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, o
 ##--Plot for RH wrt Water--##
 plot_curtain(RH_w_bin_medians, lat_bin_edges_RH_w, ptemp_bin_edges_RH_w, vmin=0, vmax=120,
     title="Relative Humidity With Respect to Water", cbar_label="Percent Relative Humidity",
-    output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude\RH_w_MultiFlights.png")
+    output_path=r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude\RH_w_MultiFlights.png")
 
 ##--Plot for RH wrt Ice--##
 plot_curtain(RH_i_bin_medians, lat_bin_edges_RH_i, ptemp_bin_edges_RH_i, vmin=0, vmax=120,
     title="Relative Humidity With Respect to Ice", cbar_label="Percent Relative Humidity",
-    output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude\RH_i_MultiFlights.png")
+    output_path=r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude\RH_i_MultiFlights.png")
 
 ########################
 ##--Diagnostic Plots--##
@@ -341,11 +341,11 @@ def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label, ou
 ##--Plot for RH wrt water counts--##
 plot_curtain(RH_w_bin_counts, lat_bin_edges_RH_w, ptemp_bin_edges_RH_w, vmin=1, vmax=3000, 
     title="RH wrt Water Data Point Counts", cbar_label="Number of Data Points",
-    output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude\RH_w_MultiFlights_diagnostic.png")
+    output_path=r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude\RH_w_MultiFlights_diagnostic.png")
  
 ##--Plot for RH wrt ice counts--##
 plot_curtain(RH_w_bin_counts, lat_bin_edges_RH_w, ptemp_bin_edges_RH_w, vmin=1, vmax=3000,  
     title="RH wrt Ice Data Point Counts", cbar_label="Number of Data Points",
-    output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude\RH_i_MultiFlights_diagnostic.png")
+    output_path=r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\Meteorological\PTempLatitude\RH_i_MultiFlights_diagnostic.png")
 
 #'''

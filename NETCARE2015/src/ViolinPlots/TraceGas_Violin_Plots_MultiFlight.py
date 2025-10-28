@@ -19,14 +19,17 @@ from scipy.stats import mannwhitneyu
 ###################
 
 ##--Set the base directory to project folder--##
-directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw"
+directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw"
 
 ##--Choose which flights to analyze here!--##
 ##--FLIGHT1 HAS NO USHAS FILE--##
 flights_to_analyze = ["Flight2", "Flight3", "Flight4", "Flight5", "Flight6", 'Flight7', 'Flight8', 'Flight9', 'Flight10']
 
+##--Filter to above the polar dome?--##
+above_dome = False
+
 ##--Base output path for figures in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\ViolinPlots\TraceGas"
+output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\ViolinPlots\TraceGas"
 
 #########################
 ##--Open ICARTT Files--##
@@ -50,8 +53,8 @@ def find_files(flight_dir, partial_name):
 
 ##--Pull datasets with zeros not filtered out--##
 ##--Worth it to do flight by flight or no?--##
-CPC3_R1 = icartt.Dataset(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\CPC_R1\CPC3776_Polar6_20150408_R1_L2.ict")    
-CPC10_R1 = icartt.Dataset(r'C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\CPC_R1\CPC3772_Polar6_20150408_R1_L2.ict')
+CPC3_R1 = icartt.Dataset(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\CPC_R1\CPC3776_Polar6_20150408_R1_L2.ict")    
+CPC10_R1 = icartt.Dataset(r'C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\CPC_R1\CPC3772_Polar6_20150408_R1_L2.ict')
 CPC3_R1_conc = CPC3_R1.data['conc']
 CPC10_R1_conc = CPC10_R1.data['conc']
 
@@ -285,15 +288,15 @@ for flight in flights_to_analyze:
     nuc_error_3sigma = (((greater3nm_error)**2 + (greater10nm_error)**2)**(0.5))*3
     
     ##--Make dataframes containing all necessary information per variable to group by--##
-    CO_df = pd.DataFrame({'CO': CO_conc_aligned, 'nucleating': nuc_particles, 'LoD': nuc_error_3sigma})
-    CO2_df = pd.DataFrame({'CO2': CO2_conc_aligned, 'nucleating': nuc_particles, 'LoD': nuc_error_3sigma})
-    O3_df = pd.DataFrame({'O3': O3_conc_aligned, 'nucleating': nuc_particles, 'LoD': nuc_error_3sigma})
+    CO_df = pd.DataFrame({'CO': CO_conc_aligned, 'nucleating': nuc_particles, 'LoD': nuc_error_3sigma, 'PTemp': potential_temp})
+    CO2_df = pd.DataFrame({'CO2': CO2_conc_aligned, 'nucleating': nuc_particles, 'LoD': nuc_error_3sigma, 'PTemp': potential_temp})
+    O3_df = pd.DataFrame({'O3': O3_conc_aligned, 'nucleating': nuc_particles, 'LoD': nuc_error_3sigma, 'PTemp': potential_temp})
     
     ##--Calculate CO/CO2--##
     CO_CO2_ratio = CO_conc_aligned / CO2_conc_aligned
 
     CO_CO2_df = pd.DataFrame({'CO_CO2': CO_CO2_ratio, 'nucleating': nuc_particles,
-                                     'LoD': nuc_error_3sigma})
+                                     'LoD': nuc_error_3sigma, 'PTemp': potential_temp})
 
     # add CO/rBC
     
@@ -327,41 +330,77 @@ CO_CO2_lowlat = pd.concat(CO_CO2_lowlat)
 ##--Filter to NPF and non-NPF times--##
 #######################################
 
+if above_dome==True: 
+    CO_high_mask = CO_highlat['PTemp'] > 285
+    CO_highlat_mask = CO_highlat.loc[CO_high_mask]
+    
+    CO_low_mask = CO_lowlat['PTemp'] > 285
+    CO_lowlat_mask = CO_lowlat.loc[CO_low_mask]
+    
+    CO2_high_mask = CO2_highlat['PTemp'] > 285
+    CO2_highlat_mask = CO2_highlat.loc[CO2_high_mask]
+    
+    CO2_low_mask = CO2_lowlat['PTemp'] > 285
+    CO2_lowlat_mask = CO2_lowlat.loc[CO2_low_mask]
+    
+    O3_high_mask = O3_highlat['PTemp'] > 285
+    O3_highlat_mask = O3_highlat.loc[O3_high_mask]
+    
+    O3_low_mask = O3_lowlat['PTemp'] > 285
+    O3_lowlat_mask = O3_lowlat.loc[O3_low_mask]
+    
+    CO_CO2_high_mask = CO_CO2_highlat['PTemp'] > 285
+    CO_CO2_highlat_mask = CO_CO2_highlat.loc[CO_CO2_high_mask]
+    
+    CO_CO2_low_mask = CO_CO2_lowlat['PTemp'] > 285
+    CO_CO2_lowlat_mask = CO_CO2_lowlat.loc[CO_CO2_low_mask]
+    
+else:
+    CO_highlat_mask = CO_highlat
+    CO_lowlat_mask = CO_lowlat
+    CO2_highlat_mask = CO2_highlat
+    CO2_lowlat_mask = CO2_lowlat
+    O3_highlat_mask = O3_highlat
+    O3_lowlat_mask = O3_lowlat
+    CO_CO2_highlat_mask = CO_CO2_highlat
+    CO_CO2_lowlat_mask = CO_CO2_lowlat
+    
+
 ##--High lat flights--##
-CO_highlat_npf = CO_highlat['CO'][CO_highlat['nucleating']
-                                           > CO_highlat['LoD']]
-CO_highlat_nonpf = CO_highlat['CO'][CO_highlat['nucleating']
-                                           <= CO_highlat['LoD']]
-CO2_highlat_npf = CO2_highlat['CO2'][CO2_highlat['nucleating']
-                                           > CO2_highlat['LoD']]
-CO2_highlat_nonpf = CO2_highlat['CO2'][CO2_highlat['nucleating']
-                                           <= CO2_highlat['LoD']]
-O3_highlat_npf = O3_highlat['O3'][O3_highlat['nucleating']
-                                           > O3_highlat['LoD']]
-O3_highlat_nonpf = O3_highlat['O3'][O3_highlat['nucleating']
-                                           <= O3_highlat['LoD']]
-CO_CO2_highlat_npf = CO_CO2_highlat['CO_CO2'][CO_CO2_highlat['nucleating']
-                                           > CO_CO2_highlat['LoD']]
-CO_CO2_highlat_nonpf = CO_CO2_highlat['CO_CO2'][CO_CO2_highlat['nucleating']
-                                           <= CO_CO2_highlat['LoD']]
+CO_highlat_npf = CO_highlat_mask['CO'][CO_highlat_mask['nucleating']
+                                           > CO_highlat_mask['LoD']]
+CO_highlat_nonpf = CO_highlat_mask['CO'][CO_highlat_mask['nucleating']
+                                           <= CO_highlat_mask['LoD']]
+CO2_highlat_npf = CO2_highlat_mask['CO2'][CO2_highlat_mask['nucleating']
+                                           > CO2_highlat_mask['LoD']]
+CO2_highlat_nonpf = CO2_highlat_mask['CO2'][CO2_highlat_mask['nucleating']
+                                           <= CO2_highlat_mask['LoD']]
+O3_highlat_npf = O3_highlat_mask['O3'][O3_highlat_mask['nucleating']
+                                           > O3_highlat_mask['LoD']]
+O3_highlat_nonpf = O3_highlat_mask['O3'][O3_highlat_mask['nucleating']
+                                           <= O3_highlat_mask['LoD']]
+CO_CO2_highlat_npf = CO_CO2_highlat_mask['CO_CO2'][CO_CO2_highlat_mask['nucleating']
+                                           > CO_CO2_highlat_mask['LoD']]
+CO_CO2_highlat_nonpf = CO_CO2_highlat_mask['CO_CO2'][CO_CO2_highlat_mask['nucleating']
+                                           <= CO_CO2_highlat_mask['LoD']]
 
 ##--Low lat flights--##
-CO_lowlat_npf = CO_lowlat['CO'][CO_lowlat['nucleating']
-                                           > CO_lowlat['LoD']]
-CO_lowlat_nonpf = CO_lowlat['CO'][CO_lowlat['nucleating']
-                                           <= CO_lowlat['LoD']]
-CO2_lowlat_npf = CO2_lowlat['CO2'][CO2_lowlat['nucleating']
-                                           > CO2_lowlat['LoD']]
-CO2_lowlat_nonpf = CO2_lowlat['CO2'][CO2_lowlat['nucleating']
-                                           <= CO2_lowlat['LoD']]
-O3_lowlat_npf = O3_lowlat['O3'][O3_lowlat['nucleating']
-                                           > O3_lowlat['LoD']]
-O3_lowlat_nonpf = O3_lowlat['O3'][O3_lowlat['nucleating']
-                                           <= O3_lowlat['LoD']]
-CO_CO2_lowlat_npf = CO_CO2_lowlat['CO_CO2'][CO_CO2_lowlat['nucleating']
-                                           > CO_CO2_lowlat['LoD']]
-CO_CO2_lowlat_nonpf = CO_CO2_lowlat['CO_CO2'][CO_CO2_lowlat['nucleating']
-                                           <= CO_CO2_lowlat['LoD']]
+CO_lowlat_npf = CO_lowlat_mask['CO'][CO_lowlat_mask['nucleating']
+                                           > CO_lowlat_mask['LoD']]
+CO_lowlat_nonpf = CO_lowlat_mask['CO'][CO_lowlat_mask['nucleating']
+                                           <= CO_lowlat_mask['LoD']]
+CO2_lowlat_npf = CO2_lowlat_mask['CO2'][CO2_lowlat_mask['nucleating']
+                                           > CO2_lowlat_mask['LoD']]
+CO2_lowlat_nonpf = CO2_lowlat_mask['CO2'][CO2_lowlat_mask['nucleating']
+                                           <= CO2_lowlat_mask['LoD']]
+O3_lowlat_npf = O3_lowlat_mask['O3'][O3_lowlat_mask['nucleating']
+                                           > O3_lowlat_mask['LoD']]
+O3_lowlat_nonpf = O3_lowlat_mask['O3'][O3_lowlat_mask['nucleating']
+                                           <= O3_lowlat_mask['LoD']]
+CO_CO2_lowlat_npf = CO_CO2_lowlat_mask['CO_CO2'][CO_CO2_lowlat_mask['nucleating']
+                                           > CO_CO2_lowlat_mask['LoD']]
+CO_CO2_lowlat_nonpf = CO_CO2_lowlat_mask['CO_CO2'][CO_CO2_lowlat_mask['nucleating']
+                                           <= CO_CO2_lowlat_mask['LoD']]
 
 ##--Final dataframes to feed to the violin plots--##
 ##--Drop index to prevent reindexing issues--##
@@ -551,7 +590,10 @@ fig.supylabel('CO (ppmv)', fontsize=12, x=0.01)
 fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
 plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
 
-plt.suptitle('CO', fontsize=12, y=0.92)
+if above_dome ==True:
+    plt.suptitle('CO', fontsize=12, y=0.92)
+else:
+    plt.suptitle('CO', fontsize=12, y=0.92)
 
 ##--Add x-axis label ticks back in--##
 ax_bottom.set_xticks(range(len(group_order)))
@@ -604,8 +646,11 @@ plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
 
 ax.set(xlabel='')
 ax.set(ylabel='CO\u2082 (ppmv)')
-ax.set(title="CO\u2082")
 
+if above_dome==True:
+    ax.set(title="CO\u2082 Above the Polar Dome")
+else: 
+    ax.set(title="CO\u2082")
 ##--Add text labels with N--##
 plt.text(0.17, 0.125, "N={}".format(CO2_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.36, 0.125, "N={}".format(CO2_hi_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
@@ -652,7 +697,11 @@ plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
 
 ax.set(xlabel='')
 ax.set(ylabel='O\u2083 (ppbv)')
-ax.set(title="O\u2083")
+
+if above_dome==True: 
+    ax.set(title="O\u2083 Above the Polar Dome")
+else:
+    ax.set(title="O\u2083") 
 
 ##--Add text labels with N--##
 plt.text(0.17, 0.125, "N={}".format(O3_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
@@ -721,7 +770,11 @@ d_scaled = d * (1 / 8)
 ax2.plot((-d, +d), (1 - d_scaled, 1 + d_scaled), transform=ax_bottom.transAxes, color='k', clip_on=False) 
 
 fig.supylabel('CO/CO\u2082', fontsize=12, x=0.01)
-plt.suptitle('CO/CO\u2082', fontsize=12, y=0.92)
+
+if above_dome==True:
+    plt.suptitle('CO/CO\u2082 Above the Polar Dome', fontsize=12, y=0.92)
+else: 
+    plt.suptitle('CO/CO\u2082', fontsize=12, y=0.92)
 
 ##--Add x-axis label ticks back in--##
 ax_bottom.set_xticks(range(len(group_order)))

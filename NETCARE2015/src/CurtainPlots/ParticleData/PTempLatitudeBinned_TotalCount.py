@@ -18,21 +18,24 @@ from scipy.stats import binned_statistic_2d
 ###################
 
 ##--Set the base directory to project folder--##
-directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
+directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data"
 
 ##--Select flight (Flight2 thru Flight10)--##
 ##--NO UHSAS FILES FOR FLIGHT1--##
-flight = "Flight2"
+flight = "Flight10"
 
 ##--Set binning for PTemp and Latitude--##
 num_bins_lat = 4
 num_bins_ptemp = 8
 
 ##--Bin data are in a CSV file--##
-UHSAS_bins = pd.read_csv(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv")
+UHSAS_bins = pd.read_csv(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv")
+
+##--Bin data are in a CSV file--##
+OPC_bin_info = pd.read_csv(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_OPC_bins.csv")
 
 ##--Base output path for figures in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TotalCount"
+output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\TotalCount"
 
 #########################
 ##--Open ICARTT Files--##
@@ -101,9 +104,6 @@ UHSAS_bins_aligned = UHSAS_bins.set_index('Time').reindex(aimms_time)
 
 ##--OPC Data--##
 OPC_time = OPC.data['Time_UTC'] # seconds since midnight
-
-##--Bin data are in a CSV file--##
-OPC_bin_info = pd.read_csv(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\NETCARE2015_OPC_bins.csv")
 
 ##--Select bins greater than 500 nm (Channel 7 and greater)--##
 OPC_bin_center = OPC_bin_info['bin_avg'].iloc[6:31]

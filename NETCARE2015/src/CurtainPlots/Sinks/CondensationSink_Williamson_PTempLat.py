@@ -18,18 +18,18 @@ import matplotlib.pyplot as plt
 ###################
 
 ##--Set the base directory to project folder--##
-directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
+directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data"
 
 ##--Select flight (Flight2 thru Flight10)--##
 ##--FLIGHT1 HAS NO UHSAS FILES--##
-flight = "Flight6"
+flight = "Flight10"
 
 ##--Set number of bins for latitude and potential temperature--##
 num_bins_lat = 4
 num_bins_ptemp = 8
 
 ##--Base output path for figures in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\CondensationSink"
+output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\CondensationSink"
 
 #########################
 ##--Open ICARTT Files--##
@@ -70,7 +70,7 @@ aimms_time =aimms.data['TimeWave'] # seconds since midnight
 UHSAS_time = UHSAS.data['time'] # seconds since midnight
 
 ##--Bin data are in a CSV file--##
-UHSAS_bins = pd.read_csv(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv")
+UHSAS_bins = pd.read_csv(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv")
 
 ##--Make list of columns to pull, each named bin_x--##
 ##--Bins 1-13 not trustworthy. Bins 76-99 overlap with OPC, discard--##
@@ -104,7 +104,7 @@ UHSAS_total_num = UHSAS_bins_aligned.sum(axis=1, numeric_only=True)
 OPC_time = OPC.data['Time_UTC'] # seconds since midnight
 
 ##--Bin data are in a CSV file--##
-OPC_bin_info = pd.read_csv(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\NETCARE2015_OPC_bins.csv")
+OPC_bin_info = pd.read_csv(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_OPC_bins.csv")
 
 ##--Select bins greater than 500 nm (Channel 7 and greater)--##
 OPC_bin_center = OPC_bin_info['bin_avg'].iloc[6:31]

@@ -18,17 +18,17 @@ from scipy.stats import binned_statistic_2d
 ###################
 
 ##--Set the base directory to project folder--##
-directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
+directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data"
 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight2" 
+flight = "Flight10" 
 
 ##--Define number of bins--##
 num_bins_lat = 4
 num_bins_ptemp = 8
 
 ##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude"
+output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude"
 
 #########################
 ##--Open ICARTT Files--##

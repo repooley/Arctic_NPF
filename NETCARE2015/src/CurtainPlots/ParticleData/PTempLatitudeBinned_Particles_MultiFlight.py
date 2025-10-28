@@ -423,7 +423,7 @@ plot_curtain(CPC10_bin_medians, lat_bin_edges_CPC10, ptemp_bin_edges_CPC10, vmin
     output_path=f"{output_path}\\CPC10/PTempLatitude/MultiFlights.png")
  
 ##--Plot for nucleating particles--##
-plot_curtain(nuc_bin_medians, lat_bin_edges_nuc, ptemp_bin_edges_nuc, vmin=1, vmax=1000,
+plot_curtain(nuc_bin_medians, lat_bin_edges_nuc, ptemp_bin_edges_nuc, vmin=1, vmax=2000,
     title="2.5-10 nm Particle Abundance", cbar_label="2.5-10 nm Particles $(Counts/cm^{3})$",
     output_path=f"{output_path}\\Nucleating/PTempLatitude/MultiFlights.png")
 

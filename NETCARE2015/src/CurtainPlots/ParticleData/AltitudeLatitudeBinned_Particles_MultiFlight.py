@@ -18,7 +18,7 @@ from scipy.stats import binned_statistic_2d
 ###################
 
 ##--Set the base directory to project folder--##
-directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw"
+directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw"
  
 ##--Choose which flights to analyze here!--##
 flights_to_analyze = ["Flight2", "Flight3", "Flight4", "Flight5", "Flight6", "Flight7", "Flight8", "Flight9", "Flight10"]
@@ -28,10 +28,10 @@ num_bins_lat = 8
 num_bins_alt = 8
 
 ##--Base output path for figures in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots"
+output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots"
 
 ##--UHSAS bins--##
-bins_filepath = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv"
+bins_filepath = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv"
 
 #########################
 ##--Open ICARTT Files--##

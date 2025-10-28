@@ -19,14 +19,16 @@ from scipy.stats import mannwhitneyu
 ###################
 
 ##--Set the base directory to project folder--##
-directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
+directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data"
 
 ##--Select flight (Flight2 thru Flight10)--##
 ##--FLIGHT1 HAS NO UHSAS FILES--##
-flight = "Flight10"
+flight = "Flight2"
+
+above_dome = False
 
 ##--Base output path for figures in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\ViolinPlots\Meteorological"
+output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\ViolinPlots\Meteorological"
 
 #########################
 ##--Open ICARTT Files--##
@@ -248,8 +250,8 @@ n_3_10 = pd.DataFrame({'time': aimms_time, '6': nuc_particles}).set_index('time'
 
 ##--Pull datasets with zeros not filtered out--##
 ##--Worth it to do flight by flight or no?--##
-CPC3_R1 = icartt.Dataset(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\CPC_R1\CPC3776_Polar6_20150408_R1_L2.ict")    
-CPC10_R1 = icartt.Dataset(r'C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\CPC_R1\CPC3772_Polar6_20150408_R1_L2.ict')
+CPC3_R1 = icartt.Dataset(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\CPC_R1\CPC3776_Polar6_20150408_R1_L2.ict")    
+CPC10_R1 = icartt.Dataset(r'C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\CPC_R1\CPC3772_Polar6_20150408_R1_L2.ict')
 CPC3_R1_conc = CPC3_R1.data['conc']
 CPC10_R1_conc = CPC10_R1.data['conc']
 
@@ -288,36 +290,63 @@ nuc_error_3sigma = (((greater3nm_error)**2 + (greater10nm_error)**2)**(0.5))*3
 temp_n_3_10 = pd.DataFrame({'Temp': temperature, 'PTemp': potential_temp, 'Nucleation': n_3_10['6'],
                                  'LoD': nuc_error_3sigma})
 
-temp_npf = temp_n_3_10['Temp'][temp_n_3_10['Nucleation'] > temp_n_3_10['LoD']]
-ptemp_npf = temp_n_3_10['PTemp'][temp_n_3_10['Nucleation'] > temp_n_3_10['LoD']]
+##--Filter to above the polar dome only if desired--##
+if above_dome == True: 
+    temp_mask = temp_n_3_10['PTemp'] > 285
+    temp_n_3_10_mask = temp_n_3_10.loc[temp_mask]
+else: 
+    temp_n_3_10_mask = temp_n_3_10
+    
+temp_npf = temp_n_3_10_mask['Temp'][temp_n_3_10_mask['Nucleation'] > temp_n_3_10_mask['LoD']]
+ptemp_npf = temp_n_3_10_mask['PTemp'][temp_n_3_10_mask['Nucleation'] > temp_n_3_10_mask['LoD']]
 
-temp_nonpf = temp_n_3_10['Temp'][temp_n_3_10['Nucleation'] <= temp_n_3_10['LoD']]
-ptemp_nonpf = temp_n_3_10['PTemp'][temp_n_3_10['Nucleation'] <= temp_n_3_10['LoD']]
+temp_nonpf = temp_n_3_10_mask['Temp'][temp_n_3_10_mask['Nucleation'] <= temp_n_3_10_mask['LoD']]
+ptemp_nonpf = temp_n_3_10_mask['PTemp'][temp_n_3_10_mask['Nucleation'] <= temp_n_3_10_mask['LoD']]
 
 temp_df = {'NPF': temp_npf, 'No NPF': temp_nonpf}
 ptemp_df = {'NPF': ptemp_npf, 'No NPF': ptemp_nonpf}
+   
 
 ##--Altitude--##
 
 alt_n_3_10 = pd.DataFrame({'Alt': altitude, 'Nucleation': n_3_10['6'],
-                                 'LoD': nuc_error_3sigma})
-alt_npf = alt_n_3_10['Alt'][alt_n_3_10['Nucleation'] > alt_n_3_10['LoD']]
-alt_nonpf = alt_n_3_10['Alt'][alt_n_3_10['Nucleation'] <= alt_n_3_10['LoD']]
+                                 'LoD': nuc_error_3sigma, 'PTemp': potential_temp})
+
+if above_dome ==True: 
+    alt_mask = alt_n_3_10['PTemp'] > 285
+    alt_n_3_10_mask = alt_n_3_10.loc[alt_mask]
+else:    
+    alt_n_3_10_mask = alt_n_3_10
+        
+alt_npf = alt_n_3_10_mask['Alt'][alt_n_3_10_mask['Nucleation'] > alt_n_3_10_mask['LoD']]
+alt_nonpf = alt_n_3_10_mask['Alt'][alt_n_3_10_mask['Nucleation'] <= alt_n_3_10_mask['LoD']]
 alt_df = {'NPF': alt_npf, 'No NPF': alt_nonpf}
+ 
 
 ##--RH--##
 rh_w_n_3_10 = pd.DataFrame({'RH_w': relative_humidity_w, 'Nucleation': n_3_10['6'],
-                                 'LoD': nuc_error_3sigma})
+                                 'LoD': nuc_error_3sigma, 'PTemp': potential_temp})
 rh_i_n_3_10 = pd.DataFrame({'RH_i': relative_humidity_i, 'Nucleation': n_3_10['6'],
-                                 'LoD': nuc_error_3sigma})
+                                 'LoD': nuc_error_3sigma, 'PTemp': potential_temp})
 
-rh_w_npf = rh_w_n_3_10['RH_w'][rh_w_n_3_10['Nucleation'] > rh_w_n_3_10['LoD']]
-rh_i_npf = rh_i_n_3_10['RH_i'][rh_i_n_3_10['Nucleation'] > rh_i_n_3_10['LoD']]
-
-rh_w_nonpf = rh_w_n_3_10['RH_w'][rh_w_n_3_10['Nucleation'] <= rh_w_n_3_10['LoD']]
-rh_i_nonpf = rh_i_n_3_10['RH_i'][rh_i_n_3_10['Nucleation'] <= rh_i_n_3_10['LoD']]
-
+if above_dome==True: 
+    rh_w_mask = rh_w_n_3_10['PTemp'] > 285
+    rh_w_n_3_10_mask = rh_w_n_3_10.loc[rh_w_mask]
+else:
+    rh_w_n_3_10_mask = rh_w_n_3_10
+    
+rh_w_npf = rh_w_n_3_10_mask['RH_w'][rh_w_n_3_10_mask['Nucleation'] > rh_w_n_3_10_mask['LoD']]
+rh_w_nonpf = rh_w_n_3_10_mask['RH_w'][rh_w_n_3_10_mask['Nucleation'] <= rh_w_n_3_10_mask['LoD']]
 rh_w_df = {'NPF': rh_w_npf, 'No NPF': rh_w_nonpf}
+
+if above_dome==True: 
+    rh_i_mask = rh_i_n_3_10['PTemp'] > 285
+    rh_i_n_3_10_mask = rh_i_n_3_10.loc[rh_w_mask]
+else:
+    rh_i_n_3_10_mask = rh_i_n_3_10
+
+rh_i_npf = rh_i_n_3_10_mask['RH_i'][rh_i_n_3_10_mask['Nucleation'] > rh_i_n_3_10_mask['LoD']]
+rh_i_nonpf = rh_i_n_3_10_mask['RH_i'][rh_i_n_3_10_mask['Nucleation'] <= rh_i_n_3_10_mask['LoD']]
 rh_i_df = {'NPF': rh_i_npf, 'No NPF': rh_i_nonpf}
 
 #############
@@ -424,7 +453,11 @@ fig, ax = plt.subplots(figsize = (4,6))
 temp_plot = sns.violinplot(data=temp_df, palette=palette, ax=ax, cut=0, inner_kws={'whis_width': 0, 'solid_capstyle':'butt'})
 ax.set(xlabel='')
 ax.set(ylabel='Temperature (K)')
-ax.set(title=f"Temperature - {flight.replace('Flight', 'Flight ')}")
+
+if above_dome == True: 
+    ax.set(title=f"Temperature - {flight.replace('Flight', 'Flight ')} Above the Polar Dome")
+else: 
+    ax.set(title=f"Temperature - {flight.replace('Flight', 'Flight ')}")
 
 ##--Add text labels with N--##
 plt.text(0.25, 0.12, "N={}".format(temp_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
@@ -450,8 +483,12 @@ ptemp_plot = sns.violinplot(data = ptemp_df, order=['NPF', 'No NPF'], palette=pa
                             ax=ax, cut=0, inner_kws={'whis_width': 0, 'solid_capstyle':'butt'})
 ax.set(xlabel='')
 ax.set(ylabel='Potential Temperature (K)')
-ax.set(title=f"Potential Temperature - {flight.replace('Flight', 'Flight ')}")
 
+if above_dome == True: 
+    ax.set(title=f"Potential Temperature - {flight.replace('Flight', 'Flight ')} Above the Polar Dome")
+else: 
+    ax.set(title=f"Potential Temperature - {flight.replace('Flight', 'Flight ')}")
+    
 ##--Add text labels with N--##
 plt.text(0.25, 0.12, "N={}".format(ptemp_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.63, 0.12, "N={}".format(ptemp_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
@@ -479,7 +516,11 @@ alt_plot = sns.violinplot(data = alt_df, order=['NPF', 'No NPF'], palette=palett
                           ax=ax, cut=0, inner_kws={'whis_width': 0, 'solid_capstyle':'butt'})
 ax.set(xlabel='')
 ax.set(ylabel='Altitude AMSL (m)')
-ax.set(title=f"Altitude - {flight.replace('Flight', 'Flight ')}")
+
+if above_dome == True: 
+    ax.set(title=f"Altitude - {flight.replace('Flight', 'Flight ')} Above the Polar Dome")
+else: 
+    ax.set(title=f"Altitude - {flight.replace('Flight', 'Flight ')}")
 
 ##--Add text labels with N--##
 plt.text(0.25, 0.12, "N={}".format(alt_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
@@ -508,7 +549,11 @@ alt_plot = sns.violinplot(data = rh_w_df, order=['NPF', 'No NPF'], palette=palet
                           ax=ax, cut=0, inner_kws={'whis_width': 0, 'solid_capstyle':'butt'})
 ax.set(xlabel='')
 ax.set(ylabel='RH with respect to water (%)')
-ax.set(title=f"RH w.r.t. Water - {flight.replace('Flight', 'Flight ')}")
+
+if above_dome ==True: 
+    ax.set(title=f"RH w.r.t. Water - {flight.replace('Flight', 'Flight ')} Above the Polar Dome")
+else: 
+    ax.set(title=f"RH w.r.t. Water - {flight.replace('Flight', 'Flight ')}")
 
 ##--Add text labels with N--##
 plt.text(0.25, 0.12, "N={}".format(rh_w_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
@@ -535,8 +580,12 @@ alt_plot = sns.violinplot(data = rh_i_df, order=['NPF', 'No NPF'], palette=palet
                           ax=ax, cut=0, inner_kws={'whis_width': 0, 'solid_capstyle':'butt'})
 ax.set(xlabel='')
 ax.set(ylabel='RH with respect to ice (%)')
-ax.set(title=f"RH w.r.t. Ice - {flight.replace('Flight', 'Flight ')}")
 
+if above_dome ==True: 
+    ax.set(title=f"RH w.r.t. Ice - {flight.replace('Flight', 'Flight ')} Above the Polar Dome")
+else: 
+    ax.set(title=f"RH w.r.t. Ice - {flight.replace('Flight', 'Flight ')}")
+    
 ##--Add text labels with N--##
 plt.text(0.25, 0.12, "N={}".format(rh_i_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.63, 0.12, "N={}".format(rh_i_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')

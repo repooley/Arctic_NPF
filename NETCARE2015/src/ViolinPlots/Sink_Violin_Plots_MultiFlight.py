@@ -21,7 +21,7 @@ from scipy.stats import mannwhitneyu
 ###################
 
 ##--Set the base directory to project folder--##
-directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw"
+directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw"
 
 ##--Choose which flights to analyze here!--##
 ##--FLIGHT1 HAS NO USHAS FILE--##
@@ -31,8 +31,11 @@ flights_to_analyze = ["Flight2", "Flight3", "Flight4", "Flight5", "Flight6", 'Fl
 num_bins_lat = 10
 num_bins_ptemp = 10
 
+##--Condition for above the polar dome--##
+above_dome = False
+
 ##--Base output path for figures in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\ViolinPlots"
+output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\ViolinPlots"
 
 #########################
 ##--Open ICARTT Files--##
@@ -56,8 +59,8 @@ def find_files(flight_dir, partial_name):
 
 ##--Pull datasets with zeros not filtered out--##
 ##--Worth it to do flight by flight or no?--##
-CPC3_R1 = icartt.Dataset(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\CPC_R1\CPC3776_Polar6_20150408_R1_L2.ict")    
-CPC10_R1 = icartt.Dataset(r'C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\CPC_R1\CPC3772_Polar6_20150408_R1_L2.ict')
+CPC3_R1 = icartt.Dataset(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\CPC_R1\CPC3776_Polar6_20150408_R1_L2.ict")    
+CPC10_R1 = icartt.Dataset(r'C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\CPC_R1\CPC3772_Polar6_20150408_R1_L2.ict')
 CPC3_R1_conc = CPC3_R1.data['conc']
 CPC10_R1_conc = CPC10_R1.data['conc']
 
@@ -197,7 +200,7 @@ for flight in flights_to_analyze:
     UHSAS_time = UHSAS.data['time'] # seconds since midnight
 
     ##--Bin data are in a CSV file--##
-    UHSAS_bins = pd.read_csv(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv")
+    UHSAS_bins = pd.read_csv(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv")
 
     ##--Make list of columns to pull, each named bin_x--##
     ##--Bins 1-13 not trustworthy. Bins 76-99 overlap with OPC, discard--##
@@ -231,7 +234,7 @@ for flight in flights_to_analyze:
     OPC_time = OPC.data['Time_UTC'] # seconds since midnight
 
     ##--Bin data are in a CSV file--##
-    OPC_bin_info = pd.read_csv(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\NETCARE2015_OPC_bins.csv")
+    OPC_bin_info = pd.read_csv(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_OPC_bins.csv")
     
     ##--Select bins greater than 500 nm (Channel 7 and greater)--##
     OPC_bin_center = OPC_bin_info['bin_avg'].iloc[6:31]
@@ -369,6 +372,23 @@ for flight in flights_to_analyze:
 
     ##--Change first column name from string to integer--##
     n_10_89.columns = [49.5]
+    
+    ###########################
+    ##--Calc potential temp--##
+    ###########################
+
+    ##--Convert absolute temperature to potential temperature--##
+    ##--Constants--##
+    p_0 = 1E5 # Reference pressure in Pa (1000 hPa)
+    k = 0.286 # Poisson constant for dry air
+
+    ##--Generate empty list for potential temperature output--##
+    potential_temp = []
+
+    ##--Calculate potential temperature from ambient temp & pressure--##
+    for T, P in zip(temperature, pressure):
+        p_t = T*(p_0/P)**k
+        potential_temp.append(p_t)
 
     ###########################
     ##--Wrangle binned data--##
@@ -469,7 +489,7 @@ for flight in flights_to_analyze:
         cond_sink += cond_contrib
      
     ##--Convert to a df--##
-    cond_sink_df = pd.DataFrame({'Condensation_Sink': cond_sink})
+    cond_sink_df = pd.DataFrame({'Condensation_Sink': cond_sink, 'PTemp': potential_temp})
 
     #####################################
     ##--Coagulation sink calculations--##
@@ -604,7 +624,7 @@ for flight in flights_to_analyze:
         coag_sink += df['Coagulation'].fillna(0)
 
     ##--Populate df--##
-    coag_sink_df = pd.DataFrame({'Coagulation': coag_sink})
+    coag_sink_df = pd.DataFrame({'Coagulation': coag_sink, 'PTemp': potential_temp})
     
     #############################
     ##--Propagate uncertainty--##
@@ -641,6 +661,8 @@ for flight in flights_to_analyze:
     BC_df['nucleating'] = nucleating_series
     BC_df['LoD'] = lod_series
     
+    BC_df['PTemp'] = potential_temp
+    
     ##--Append to correct regional list--##
     if flight in high_lat_flights:
         condensation_sinks_highlat.append(cond_sink_df)
@@ -666,33 +688,62 @@ BC_lowlat = pd.concat(BC_lowlat)
 ##--Filter to NPF and non-NPF times--##
 #######################################
 
+if above_dome==True: 
+    conden_high_mask = condensation_sinks_highlat['PTemp'] > 285
+    condensation_sinks_highlat_mask = condensation_sinks_highlat.loc[conden_high_mask]
+    
+    conden_low_mask = condensation_sinks_lowlat['PTemp'] > 285
+    condensation_sinks_lowlat_mask = condensation_sinks_lowlat.loc[conden_low_mask]
+    
+    coag_high_mask = coagulation_sinks_highlat['PTemp'] > 285
+    coagulation_sinks_highlat_mask = coagulation_sinks_highlat.loc[coag_high_mask]
+    
+    coag_low_mask = coagulation_sinks_lowlat['PTemp'] > 285
+    coagulation_sinks_lowlat_mask = coagulation_sinks_lowlat.loc[coag_low_mask]
+    
+    BC_high_mask = BC_highlat['PTemp'] > 285
+    BC_highlat_mask = BC_highlat.loc[BC_high_mask]
+    
+    BC_low_mask = BC_lowlat['PTemp'] > 285
+    BC_lowlat_mask = BC_lowlat.loc[BC_low_mask]
+    
+else: 
+    condensation_sinks_highlat_mask = condensation_sinks_highlat
+    condensation_sinks_lowlat_mask = condensation_sinks_lowlat
+    
+    coagulation_sinks_highlat_mask = coagulation_sinks_highlat
+    coagulation_sinks_lowlat_mask = coagulation_sinks_lowlat
+    
+    BC_highlat_mask = BC_highlat
+    BC_lowlat_mask = BC_lowlat
+
 ##--High lat flights--##
-condensation_highlat_npf = condensation_sinks_highlat['Condensation_Sink'][condensation_sinks_highlat['nucleating']
-                                           > condensation_sinks_highlat['LoD']]
-condensation_highlat_nonpf = condensation_sinks_highlat['Condensation_Sink'][condensation_sinks_highlat['nucleating']
-                                           <= condensation_sinks_highlat['LoD']]
-coagulation_highlat_npf = coagulation_sinks_highlat['Coagulation'][coagulation_sinks_highlat['nucleating']
-                                           > coagulation_sinks_highlat['LoD']]
-coagulation_highlat_nonpf = coagulation_sinks_highlat['Coagulation'][coagulation_sinks_highlat['nucleating']
-                                           <= coagulation_sinks_highlat['LoD']]
-BC_highlat_npf = BC_highlat['BC_count'][BC_highlat['nucleating']
-                                           > BC_highlat['LoD']]
-BC_highlat_nonpf = BC_highlat['BC_count'][BC_highlat['nucleating']
-                                           <= BC_highlat['LoD']]
+condensation_highlat_npf = condensation_sinks_highlat_mask['Condensation_Sink'][condensation_sinks_highlat_mask['nucleating']
+                                           > condensation_sinks_highlat_mask['LoD']]
+condensation_highlat_nonpf = condensation_sinks_highlat_mask['Condensation_Sink'][condensation_sinks_highlat_mask['nucleating']
+                                           <= condensation_sinks_highlat_mask['LoD']]
+coagulation_highlat_npf = coagulation_sinks_highlat_mask['Coagulation'][coagulation_sinks_highlat_mask['nucleating']
+                                           > coagulation_sinks_highlat_mask['LoD']]
+coagulation_highlat_nonpf = coagulation_sinks_highlat_mask['Coagulation'][coagulation_sinks_highlat_mask['nucleating']
+                                           <= coagulation_sinks_highlat_mask['LoD']]
+BC_highlat_npf = BC_highlat_mask['BC_count'][BC_highlat_mask['nucleating']
+                                           > BC_highlat_mask['LoD']]
+BC_highlat_nonpf = BC_highlat_mask['BC_count'][BC_highlat_mask['nucleating']
+                                           <= BC_highlat_mask['LoD']]
 
 ##--Low lat flights--##
-condensation_lowlat_npf = condensation_sinks_lowlat['Condensation_Sink'][condensation_sinks_lowlat['nucleating']
-                                           > condensation_sinks_lowlat['LoD']]
-condensation_lowlat_nonpf = condensation_sinks_lowlat['Condensation_Sink'][condensation_sinks_lowlat['nucleating']
-                                           <= condensation_sinks_lowlat['LoD']]
-coagulation_lowlat_npf = coagulation_sinks_lowlat['Coagulation'][coagulation_sinks_lowlat['nucleating']
-                                           > coagulation_sinks_lowlat['LoD']]
-coagulation_lowlat_nonpf = coagulation_sinks_lowlat['Coagulation'][coagulation_sinks_lowlat['nucleating']
-                                           <= coagulation_sinks_lowlat['LoD']]
-BC_lowlat_npf = BC_lowlat['BC_count'][BC_lowlat['nucleating']
-                                           > BC_lowlat['LoD']]
-BC_lowlat_nonpf = BC_lowlat['BC_count'][BC_lowlat['nucleating']
-                                           <= BC_lowlat['LoD']]
+condensation_lowlat_npf = condensation_sinks_lowlat_mask['Condensation_Sink'][condensation_sinks_lowlat_mask['nucleating']
+                                           > condensation_sinks_lowlat_mask['LoD']]
+condensation_lowlat_nonpf = condensation_sinks_lowlat_mask['Condensation_Sink'][condensation_sinks_lowlat_mask['nucleating']
+                                           <= condensation_sinks_lowlat_mask['LoD']]
+coagulation_lowlat_npf = coagulation_sinks_lowlat_mask['Coagulation'][coagulation_sinks_lowlat_mask['nucleating']
+                                           > coagulation_sinks_lowlat_mask['LoD']]
+coagulation_lowlat_nonpf = coagulation_sinks_lowlat_mask['Coagulation'][coagulation_sinks_lowlat_mask['nucleating']
+                                           <= coagulation_sinks_lowlat_mask['LoD']]
+BC_lowlat_npf = BC_lowlat_mask['BC_count'][BC_lowlat_mask['nucleating']
+                                           > BC_lowlat_mask['LoD']]
+BC_lowlat_nonpf = BC_lowlat_mask['BC_count'][BC_lowlat_mask['nucleating']
+                                           <= BC_lowlat_mask['LoD']]
 
 ##--Final dataframes to feed to the violin plots--##
 ##--Drop index to prevent reindexing issues--##
@@ -847,7 +898,11 @@ d_scaled = d * (1 / 8)
 ax2.plot((-d, +d), (1 - d_scaled, 1 + d_scaled), transform=ax_bottom.transAxes, color='k', clip_on=False) 
 
 fig.supylabel('Condensation Sink $(S^{-1})$', fontsize=12, x=-0.01)
-plt.suptitle('Condensation Sink', fontsize=12, y=0.92)
+
+if above_dome ==True: 
+    plt.suptitle('Condensation Sink Above the Polar Dome', fontsize=12, y=0.92)
+else: 
+    plt.suptitle('Condensation Sink', fontsize=12, y=0.92)
 
 ax.set(xlabel='')
 ax.set_xticks(range(len(group_order)))
@@ -928,7 +983,11 @@ d_scaled = d * (1 / 8)
 ax2.plot((-d, +d), (1 - d_scaled, 1 + d_scaled), transform=ax_bottom.transAxes, color='k', clip_on=False) 
 
 fig.supylabel('Coagulation Sink $(S^{-1})$', fontsize=12, x=-0.01)
-plt.suptitle('Coagulation Sink', fontsize=12, y=0.92)
+
+if above_dome ==True:
+    plt.suptitle('Coagulation Sink Above the Polar Dome', fontsize=12, y=0.92)
+else: 
+    plt.suptitle('Coagulation Sink', fontsize=12, y=0.92)
 
 ax.set(xlabel='')
 ax.set_xticks(range(len(group_order)))
@@ -1007,8 +1066,12 @@ d_scaled = d * (1 / 8)
 ax2.plot((-d, +d), (1 - d_scaled, 1 + d_scaled), transform=ax_bottom.transAxes, color='k', clip_on=False) 
 
 fig.supylabel('rBC Abundance $(cm^{-3})$', fontsize=12, x=-0.01)
-plt.suptitle('Refractive Black Carbon', fontsize=12, y=0.92)
 
+if above_dome ==True: 
+    plt.suptitle('Refractive Black Carbon Above the Polar Dome', fontsize=12, y=0.92)
+else: 
+    plt.suptitle('Refractive Black Carbon', fontsize=12, y=0.92)
+    
 ax.set(xlabel='')
 ax.set_xticks(range(len(group_order)))
 ax.set_xticklabels(group_order)

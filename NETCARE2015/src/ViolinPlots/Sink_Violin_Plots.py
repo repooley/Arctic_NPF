@@ -21,14 +21,17 @@ from scipy.stats import mannwhitneyu
 ###################
 
 ##--Set the base directory to project folder--##
-directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
+directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data"
 
 ##--Select flight (Flight2 thru Flight10)--##
 ##--FLIGHT1 HAS NO UHSAS FILES--##
 flight = "Flight2"
 
+##--Filter to above the polar dome?--##
+above_dome = False
+
 ##--Base output path for figures in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\ViolinPlots"
+output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\ViolinPlots"
 
 #########################
 ##--Open ICARTT Files--##
@@ -100,7 +103,7 @@ BC_count_aligned = BC_aligned['BC_count']
 UHSAS_time = UHSAS.data['time'] # seconds since midnight
 
 ##--Bin data are in a CSV file--##
-UHSAS_bins = pd.read_csv(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv")
+UHSAS_bins = pd.read_csv(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv")
 
 ##--Make list of columns to pull, each named bin_x--##
 ##--Bins 1-13 not trustworthy. Bins 76-99 overlap with OPC, discard--##
@@ -134,7 +137,7 @@ UHSAS_total_num = UHSAS_bins_aligned.sum(axis=1, numeric_only=True)
 OPC_time = OPC.data['Time_UTC'] # seconds since midnight
 
 ##--Bin data are in a CSV file--##
-OPC_bin_info = pd.read_csv(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\NETCARE2015_OPC_bins.csv")
+OPC_bin_info = pd.read_csv(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_OPC_bins.csv")
 
 ##--Select bins greater than 500 nm (Channel 7 and greater)--##
 OPC_bin_center = OPC_bin_info['bin_avg'].iloc[6:31]
@@ -290,6 +293,23 @@ n_10_89 = pd.DataFrame({'49.5': n_10_89, 'time':aimms_time}).set_index('time')
 
 ##--Change first column name from string to integer--##
 n_10_89.columns = [49.5]
+
+###########################
+##--Calc potential temp--##
+###########################
+
+##--Convert absolute temperature to potential temperature--##
+##--Constants--##
+p_0 = 1E5 # Reference pressure in Pa (1000 hPa)
+k = 0.286 # Poisson constant for dry air
+
+##--Generate empty list for potential temperature output--##
+potential_temp = []
+
+##--Calculate potential temperature from ambient temp & pressure--##
+for T, P in zip(temperature, pressure):
+    p_t = T*(p_0/P)**k
+    potential_temp.append(p_t)
 
 ###########################
 ##--Wrangle binned data--##
@@ -540,8 +560,8 @@ coagulation_sink = pd.DataFrame({'Coagulation': coagulation_sink})
 
 ##--Pull datasets with zeros not filtered out--##
 ##--Worth it to do flight by flight or no?--##
-CPC3_R1 = icartt.Dataset(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\CPC_R1\CPC3776_Polar6_20150408_R1_L2.ict")    
-CPC10_R1 = icartt.Dataset(r'C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\CPC_R1\CPC3772_Polar6_20150408_R1_L2.ict')
+CPC3_R1 = icartt.Dataset(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\CPC_R1\CPC3776_Polar6_20150408_R1_L2.ict")    
+CPC10_R1 = icartt.Dataset(r'C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\CPC_R1\CPC3772_Polar6_20150408_R1_L2.ict')
 CPC3_R1_conc = CPC3_R1.data['conc']
 CPC10_R1_conc = CPC10_R1.data['conc']
 
@@ -576,21 +596,42 @@ nuc_error_3sigma = (((greater3nm_error)**2 + (greater10nm_error)**2)**(0.5))*3
 #######################################
 
 condensation_n_3_10 = pd.DataFrame({'Condensation': condensation_sink['Condensation_Sink'], 'Nucleation': n_3_10['6'],
-                                 'LoD': nuc_error_3sigma})
-condensation_npf = condensation_n_3_10['Condensation'][condensation_n_3_10['Nucleation'] > condensation_n_3_10['LoD']]
-condensation_nonpf = condensation_n_3_10['Condensation'][condensation_n_3_10['Nucleation'] <= condensation_n_3_10['LoD']]
+                                 'LoD': nuc_error_3sigma, 'PTemp': potential_temp})
+
+if above_dome ==True: 
+    conden_mask = condensation_n_3_10['PTemp'] > 285
+    condensation_n_3_10_mask = condensation_n_3_10.loc[conden_mask]
+else: 
+    condensation_n_3_10_mask = condensation_n_3_10
+
+condensation_npf = condensation_n_3_10_mask['Condensation'][condensation_n_3_10_mask['Nucleation'] > condensation_n_3_10_mask['LoD']]
+condensation_nonpf = condensation_n_3_10_mask['Condensation'][condensation_n_3_10_mask['Nucleation'] <= condensation_n_3_10_mask['LoD']]
 conden_df = {'NPF': condensation_npf, 'No NPF': condensation_nonpf}
 
 coagulation_n_3_10 = pd.DataFrame({'Coagulation': coagulation_sink['Coagulation'], 'Nucleation': n_3_10['6'],
-                                   'LoD': nuc_error_3sigma})
-coagulation_npf = coagulation_n_3_10['Coagulation'][coagulation_n_3_10['Nucleation'] > coagulation_n_3_10['LoD']]
-coagulation_nonpf = coagulation_n_3_10['Coagulation'][coagulation_n_3_10['Nucleation'] <= coagulation_n_3_10['LoD']]
+                                   'LoD': nuc_error_3sigma, 'PTemp': potential_temp})
+
+if above_dome ==True: 
+    coag_mask = coagulation_n_3_10['PTemp'] > 285
+    coagulation_n_3_10_mask = coagulation_n_3_10.loc[coag_mask]
+else: 
+    coagulation_n_3_10_mask = coagulation_n_3_10
+
+coagulation_npf = coagulation_n_3_10_mask['Coagulation'][coagulation_n_3_10_mask['Nucleation'] > coagulation_n_3_10_mask['LoD']]
+coagulation_nonpf = coagulation_n_3_10_mask['Coagulation'][coagulation_n_3_10_mask['Nucleation'] <= coagulation_n_3_10_mask['LoD']]
 coag_df = {'NPF':coagulation_npf, 'No NPF': coagulation_nonpf}
 
 BC_n_3_10 = pd.DataFrame({'BC': BC_count_aligned, 'Nucleation': n_3_10['6'],
-                                   'LoD': nuc_error_3sigma})
-BC_npf = BC_n_3_10['BC'][BC_n_3_10['Nucleation'] > BC_n_3_10['LoD']]
-BC_nonpf = BC_n_3_10['BC'][BC_n_3_10['Nucleation'] <= BC_n_3_10['LoD']]
+                                   'LoD': nuc_error_3sigma, 'PTemp': potential_temp})
+
+if above_dome ==True: 
+    BC_mask = BC_n_3_10['PTemp'] > 285
+    BC_n_3_10_mask = BC_n_3_10.loc[BC_mask]
+else: 
+    BC_n_3_10_mask = BC_n_3_10
+
+BC_npf = BC_n_3_10_mask['BC'][BC_n_3_10_mask['Nucleation'] > BC_n_3_10_mask['LoD']]
+BC_nonpf = BC_n_3_10_mask['BC'][BC_n_3_10_mask['Nucleation'] <= BC_n_3_10_mask['LoD']]
 BC_df = {'NPF':BC_npf, 'No NPF': BC_nonpf}
 
 #############
@@ -666,8 +707,12 @@ condensation_plot = sns.violinplot(data=conden_df, palette=palette,
                                    inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, ax=ax, cut=0)
 ax.set(xlabel='')
 ax.set(ylabel='Condensation Sink (S-1)')
-ax.set(title=f"Condensation Sink - {flight.replace('Flight', 'Flight ')}")
 
+if above_dome==True: 
+    ax.set(title=f"Condensation Sink - {flight.replace('Flight', 'Flight ')} Above the Polar Dome")
+else: 
+    ax.set(title=f"Condensation Sink - {flight.replace('Flight', 'Flight ')}")
+    
 ##--Add text labels with N--##
 plt.text(0.25, 0.12, "N={}".format(conden_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.63, 0.12, "N={}".format(conden_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
@@ -692,7 +737,11 @@ coagulation_plot = sns.violinplot(data = coag_df, order=['NPF', 'No NPF'],
                                   inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette2, ax=ax, cut=0)
 ax.set(xlabel='')
 ax.set(ylabel='Coagulation Sink (S-1)')
-ax.set(title=f"Coagulation Sink - {flight.replace('Flight', 'Flight ')}")
+
+if above_dome ==True: 
+    ax.set(title=f"Coagulation Sink - {flight.replace('Flight', 'Flight ')} Above the Polar Dome")
+else: 
+    ax.set(title=f"Coagulation Sink - {flight.replace('Flight', 'Flight ')}")
 
 ##--Add text labels with N--##
 plt.text(0.25, 0.12, "N={}".format(coag_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
@@ -709,6 +758,7 @@ elif p_coag < 0.0005:
 ##--Add r value next to p-value--##
 plt.text(0.525, 0.855, f"r={r_coag:.3f}", transform=fig.transFigure, fontsize=10, color='dimgrey')
  
+
 plt.savefig(f"{output_path}\\Sinks\coagulation\coag_{flight}", dpi=600)
 
 plt.show()
@@ -718,7 +768,11 @@ BC_plot = sns.violinplot(data = BC_df, order=['NPF', 'No NPF'],
                                   inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette3, ax=ax, cut=0)
 ax.set(xlabel='')
 ax.set(ylabel='rBC Abundance (counts/cm\u00B3)')
-ax.set(title=f"rBC Abundance - {flight.replace('Flight', 'Flight ')}")
+
+if above_dome==True: 
+    ax.set(title=f"rBC Abundance - {flight.replace('Flight', 'Flight ')} Above the Polar Dome")
+else:
+    ax.set(title=f"rBC Abundance - {flight.replace('Flight', 'Flight ')}")
 
 ##--Add text labels with N--##
 plt.text(0.25, 0.12, "N={}".format(coag_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')

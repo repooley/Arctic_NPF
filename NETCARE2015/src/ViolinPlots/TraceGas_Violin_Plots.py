@@ -19,14 +19,17 @@ from scipy.stats import mannwhitneyu
 ###################
 
 ##--Set the base directory to project folder--##
-directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data"
+directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data"
 
 ##--Select flight (Flight2 thru Flight10)--##
 ##--FLIGHT1 HAS NO UHSAS FILES--##
 flight = "Flight2"
 
+##--Filter to above the polar dome?--##
+above_dome = True
+
 ##--Base output path for figures in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\ViolinPlots\TraceGas"
+output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\ViolinPlots\TraceGas"
 
 #########################
 ##--Open ICARTT Files--##
@@ -196,8 +199,8 @@ nuc_particles = np.where(nuc_particles >= 0, nuc_particles, np.nan)
 
 ##--Pull datasets with zeros not filtered out--##
 ##--Worth it to do flight by flight or no?--##
-CPC3_R1 = icartt.Dataset(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\CPC_R1\CPC3776_Polar6_20150408_R1_L2.ict")    
-CPC10_R1 = icartt.Dataset(r'C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\CPC_R1\CPC3772_Polar6_20150408_R1_L2.ict')
+CPC3_R1 = icartt.Dataset(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\CPC_R1\CPC3776_Polar6_20150408_R1_L2.ict")    
+CPC10_R1 = icartt.Dataset(r'C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\CPC_R1\CPC3772_Polar6_20150408_R1_L2.ict')
 CPC3_R1_conc = CPC3_R1.data['conc']
 CPC10_R1_conc = CPC10_R1.data['conc']
 
@@ -234,25 +237,46 @@ nuc_error_3sigma = (((greater3nm_error)**2 + (greater10nm_error)**2)**(0.5))*3
 ##--CO--##
 
 CO_n_3_10 = pd.DataFrame({'CO': CO_conc_aligned, 'Nucleation': nuc_particles,
-                                 'LoD': nuc_error_3sigma})
-CO_npf = CO_n_3_10['CO'][CO_n_3_10['Nucleation'] > CO_n_3_10['LoD']]
-CO_nonpf = CO_n_3_10['CO'][CO_n_3_10['Nucleation'] <= CO_n_3_10['LoD']]
+                                 'LoD': nuc_error_3sigma, 'PTemp': potential_temp})
+
+if above_dome==True: 
+    CO_mask = CO_n_3_10['PTemp'] > 285
+    CO_n_3_10_mask = CO_n_3_10.loc[CO_mask]
+else: 
+    CO_n_3_10_mask = CO_n_3_10
+
+CO_npf = CO_n_3_10_mask['CO'][CO_n_3_10_mask['Nucleation'] > CO_n_3_10_mask['LoD']]
+CO_nonpf = CO_n_3_10_mask['CO'][CO_n_3_10_mask['Nucleation'] <= CO_n_3_10_mask['LoD']]
 CO_df = {'NPF': CO_npf, 'No NPF': CO_nonpf}
 
 ##--CO2--##
 
 CO2_n_3_10 = pd.DataFrame({'CO2': CO2_conc_aligned, 'Nucleation': nuc_particles,
-                                 'LoD': nuc_error_3sigma})
-CO2_npf = CO2_n_3_10['CO2'][CO2_n_3_10['Nucleation'] > CO2_n_3_10['LoD']]
-CO2_nonpf = CO2_n_3_10['CO2'][CO2_n_3_10['Nucleation'] <= CO2_n_3_10['LoD']]
+                                 'LoD': nuc_error_3sigma, 'PTemp': potential_temp})
+
+if above_dome==True: 
+    CO2_mask = CO2_n_3_10['PTemp'] > 285
+    CO2_n_3_10_mask = CO2_n_3_10.loc[CO2_mask]
+else: 
+    CO2_n_3_10_mask = CO2_n_3_10
+
+CO2_npf = CO2_n_3_10_mask['CO2'][CO2_n_3_10_mask['Nucleation'] > CO2_n_3_10_mask['LoD']]
+CO2_nonpf = CO2_n_3_10_mask['CO2'][CO2_n_3_10_mask['Nucleation'] <= CO2_n_3_10_mask['LoD']]
 CO2_df = {'NPF': CO2_npf, 'No NPF': CO2_nonpf}
 
 ##--O3--##
 
 O3_n_3_10 = pd.DataFrame({'O3': O3_conc_aligned, 'Nucleation': nuc_particles,
-                                 'LoD': nuc_error_3sigma})
-O3_npf = O3_n_3_10['O3'][O3_n_3_10['Nucleation'] > O3_n_3_10['LoD']]
-O3_nonpf = O3_n_3_10['O3'][O3_n_3_10['Nucleation'] <= O3_n_3_10['LoD']]
+                                 'LoD': nuc_error_3sigma, 'PTemp': potential_temp})
+
+if above_dome==True: 
+    O3_mask = O3_n_3_10['PTemp'] > 285
+    O3_n_3_10_mask = O3_n_3_10.loc[O3_mask]
+else: 
+    O3_n_3_10_mask = O3_n_3_10
+
+O3_npf = O3_n_3_10_mask['O3'][O3_n_3_10_mask['Nucleation'] > O3_n_3_10_mask['LoD']]
+O3_nonpf = O3_n_3_10_mask['O3'][O3_n_3_10_mask['Nucleation'] <= O3_n_3_10_mask['LoD']]
 O3_df = {'NPF': O3_npf, 'No NPF': O3_nonpf}
 
 ##--CO/CO2--##
@@ -260,9 +284,16 @@ O3_df = {'NPF': O3_npf, 'No NPF': O3_nonpf}
 CO_CO2_ratio = CO_conc_aligned / CO2_conc_aligned
 
 CO_CO2_n_3_10 = pd.DataFrame({'CO_CO2': CO_CO2_ratio, 'Nucleation': nuc_particles,
-                                 'LoD': nuc_error_3sigma})
-CO_CO2_npf = CO_CO2_n_3_10['CO_CO2'][CO_CO2_n_3_10['Nucleation'] > CO_CO2_n_3_10['LoD']]
-CO_CO2_nonpf = CO_CO2_n_3_10['CO_CO2'][CO_CO2_n_3_10['Nucleation'] <= CO_CO2_n_3_10['LoD']]
+                                 'LoD': nuc_error_3sigma, 'PTemp': potential_temp})
+
+if above_dome==True: 
+    CO_CO2_mask = CO_CO2_n_3_10['PTemp'] > 285
+    CO_CO2_n_3_10_mask = CO_CO2_n_3_10.loc[CO_CO2_mask]
+else: 
+    CO_CO2_n_3_10_mask = CO_CO2_n_3_10
+
+CO_CO2_npf = CO_CO2_n_3_10_mask['CO_CO2'][CO_CO2_n_3_10_mask['Nucleation'] > CO_CO2_n_3_10_mask['LoD']]
+CO_CO2_nonpf = CO_CO2_n_3_10_mask['CO_CO2'][CO_CO2_n_3_10_mask['Nucleation'] <= CO_CO2_n_3_10_mask['LoD']]
 CO_CO2_df = {'NPF': CO_CO2_npf, 'No NPF': CO_CO2_nonpf}
 
 #############
@@ -356,8 +387,12 @@ fig, ax = plt.subplots(figsize = (4,6))
 CO_plot = sns.violinplot(data=CO_df, palette=palette, ax=ax, cut=0, inner_kws={'whis_width': 0, 'solid_capstyle':'butt'})
 ax.set(xlabel='')
 ax.set(ylabel='CO (ppmv)')
-ax.set(title=f"CO - {flight.replace('Flight', 'Flight ')}")
 
+if above_dome==True: 
+    ax.set(title=f"CO - {flight.replace('Flight', 'Flight ')} Above the Polar Dome")
+else: 
+    ax.set(title=f"CO - {flight.replace('Flight', 'Flight ')}")
+    
 ##--Add text labels with N--##
 plt.text(0.25, 0.12, "N={}".format(CO_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.63, 0.12, "N={}".format(CO_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
@@ -383,7 +418,12 @@ CO2_plot = sns.violinplot(data = CO2_df, order=['NPF', 'No NPF'], palette=palett
                             ax=ax, cut=0, inner_kws={'whis_width': 0, 'solid_capstyle':'butt'})
 ax.set(xlabel='')
 ax.set(ylabel='CO\u2082 (ppmv)')
-ax.set(title=f"CO\u2082 - {flight.replace('Flight', 'Flight ')}")
+
+if above_dome==True: 
+    ax.set(title=f"CO\u2082 - {flight.replace('Flight', 'Flight ')} Above the Polar Dome")
+else: 
+    ax.set(title=f"CO\u2082 - {flight.replace('Flight', 'Flight ')}")     
+    
 plt.text(0.25, 0.12, "N={}".format(CO2_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.63, 0.12, "N={}".format(CO2_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 
@@ -408,7 +448,12 @@ O3_plot = sns.violinplot(data = O3_df, order=['NPF', 'No NPF'], palette=palette3
                           ax=ax, cut=0, inner_kws={'whis_width': 0, 'solid_capstyle':'butt'})
 ax.set(xlabel='')
 ax.set(ylabel='O\u2083 (ppbv)')
-ax.set(title=f"O\u2083 - {flight.replace('Flight', 'Flight ')}")
+
+if above_dome==True: 
+    ax.set(title=f"O\u2083 - {flight.replace('Flight', 'Flight ')} Above the Polar Dome")
+else: 
+    ax.set(title=f"O\u2083 - {flight.replace('Flight', 'Flight ')}")
+
 plt.text(0.25, 0.12, "N={}".format(O3_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.63, 0.12, "N={}".format(O3_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 
@@ -434,7 +479,12 @@ CO_CO2_plot = sns.violinplot(data = CO_CO2_df, order=['NPF', 'No NPF'], palette=
                           ax=ax, cut=0, inner_kws={'whis_width': 0, 'solid_capstyle':'butt'})
 ax.set(xlabel='')
 ax.set(ylabel='CO/CO\u2082 ratio')
-ax.set(title=f"CO/CO\u2082 ratio - {flight.replace('Flight', 'Flight ')}")
+
+if above_dome==True:
+    ax.set(title=f"CO/CO\u2082 ratio - {flight.replace('Flight', 'Flight ')} Above the Polar Dome")
+else:
+    ax.set(title=f"CO/CO\u2082 ratio - {flight.replace('Flight', 'Flight ')}")
+    
 plt.text(0.25, 0.12, "N={}".format(CO_CO2_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.63, 0.12, "N={}".format(CO_CO2_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 

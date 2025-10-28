@@ -271,17 +271,17 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, o
 ##--Plot for O3--##
 plot_curtain(O3_bin_medians, lat_bin_edges_O3, ptemp_bin_edges_O3, vmin=0, vmax=75,
     title="O\u2083 Mixing Ratio", cbar_label="O\u2083 ppbv",
-    output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude\O3_MultiFlights.png")
+    output_path=r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude\O3_MultiFlights.png")
 
 ##--Plot for CO--##
 plot_curtain(CO_bin_medians, lat_bin_edges_CO, ptemp_bin_edges_CO, vmin=110, vmax=155,
     title="CO Mixing Ratio", cbar_label="CO ppbv",
-    output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude\CO_MultiFlights.png")
+    output_path=r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude\CO_MultiFlights.png")
 
 ##--Plot for RH wrt Ice--##
 plot_curtain(CO2_bin_medians, lat_bin_edges_CO2, ptemp_bin_edges_CO2, vmin=400, vmax=410,
     title="CO\u2082 Mixing Ratio", cbar_label="CO\u2082 ppmv",
-    output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude\CO2_MultiFlights.png")
+    output_path=r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude\CO2_MultiFlights.png")
 
 ########################
 ##--Diagnostic Plots--##
@@ -351,16 +351,16 @@ def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label, ou
 ##--Plot for O3 counts--##
 plot_curtain(O3_bin_counts, lat_bin_edges_O3, ptemp_bin_edges_O3, vmin=1, vmax=500, 
     title="O\u2083 Data Point Counts", cbar_label="Number of Data Points",
-    output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude\O3_MultiFlights_diagnostic.png")
+    output_path=r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude\O3_MultiFlights_diagnostic.png")
  
 ##--Plot for CPC10 counts--##
 plot_curtain(CO_bin_counts, lat_bin_edges_CO, ptemp_bin_edges_CO, vmin=1, vmax=6000,  
     title="CO Data Point Counts", cbar_label="Number of Data Points",
-    output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude\CO_MultiFlights_diagnostic.png")
+    output_path=r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude\CO_MultiFlights_diagnostic.png")
  
 ##--Plot for CO2 counts--##
 plot_curtain(CO2_bin_counts, lat_bin_edges_CO2, ptemp_bin_edges_CO2, vmin=1, vmax=6000,  
     title="CO\u2082 Data Point Counts", cbar_label="Number of Data Points",
-    output_path=r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\CurtainPlots\Nucleating\PTempLatitude\CO2_MultiFlights_diagnostic.png")
+    output_path=r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\Nucleating\PTempLatitude\CO2_MultiFlights_diagnostic.png")
 
 #'''

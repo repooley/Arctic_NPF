@@ -19,15 +19,18 @@ from scipy.stats import mannwhitneyu
 ###################
 
 ##--Set the base directory to project folder--##
-directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw"
+directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw"
 
 ##--Choose which flights to analyze here!--##
 ##--FLIGHT1 HAS NO USHAS FILE--##
 # 'Flight7', 'Flight8',
 flights_to_analyze = ["Flight2", "Flight3", "Flight4", "Flight5", "Flight6",  'Flight9', 'Flight10']
 
+##--Filter to above the polar dome?--##
+above_dome = False
+
 ##--Base output path for figures in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\ViolinPlots\Meteorological"
+output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\ViolinPlots\Meteorological"
 
 #########################
 ##--Open ICARTT Files--##
@@ -51,8 +54,8 @@ def find_files(flight_dir, partial_name):
 
 ##--Pull datasets with zeros not filtered out--##
 ##--Worth it to do flight by flight or no?--##
-CPC3_R1 = icartt.Dataset(r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\CPC_R1\CPC3776_Polar6_20150408_R1_L2.ict")    
-CPC10_R1 = icartt.Dataset(r'C:\Users\repooley\REP_PhD\NETCARE2015\data\raw\CPC_R1\CPC3772_Polar6_20150408_R1_L2.ict')
+CPC3_R1 = icartt.Dataset(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\CPC_R1\CPC3776_Polar6_20150408_R1_L2.ict")    
+CPC10_R1 = icartt.Dataset(r'C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\CPC_R1\CPC3772_Polar6_20150408_R1_L2.ict')
 CPC3_R1_conc = CPC3_R1.data['conc']
 CPC10_R1_conc = CPC10_R1.data['conc']
 
@@ -334,11 +337,11 @@ for flight in flights_to_analyze:
     lod_series = nuc_error_3sigma
     
     ##--Make dataframes containing all necessary information per variable to group by--##
-    temp_df = pd.DataFrame({'Temp': temperature, 'nucleating': nucleating_series, 'LoD': lod_series})
+    temp_df = pd.DataFrame({'Temp': temperature, 'nucleating': nucleating_series, 'LoD': lod_series, 'PTemp': potential_temp})
     ptemp_df = pd.DataFrame({'PTemp': potential_temp, 'nucleating': nucleating_series, 'LoD': lod_series})
-    alt_df = pd.DataFrame({'Alt': altitude, 'nucleating': nucleating_series, 'LoD': lod_series})
-    rh_w_df = pd.DataFrame({'RH_w': relative_humidity_w, 'nucleating': nucleating_series, 'LoD': lod_series})
-    rh_i_df = pd.DataFrame({'RH_i': relative_humidity_w, 'nucleating': nucleating_series, 'LoD': lod_series})
+    alt_df = pd.DataFrame({'Alt': altitude, 'nucleating': nucleating_series, 'LoD': lod_series, 'PTemp': potential_temp})
+    rh_w_df = pd.DataFrame({'RH_w': relative_humidity_w, 'nucleating': nucleating_series, 'LoD': lod_series, 'PTemp': potential_temp})
+    rh_i_df = pd.DataFrame({'RH_i': relative_humidity_w, 'nucleating': nucleating_series, 'LoD': lod_series, 'PTemp': potential_temp})
     
     ##--Append to correct regional list--##
     
@@ -374,49 +377,97 @@ rh_i_lowlat = pd.concat(rh_i_lowlat)
 ##--Filter to NPF and non-NPF times--##
 #######################################
 
+##--Condition for above polar dome--##
+if above_dome==True: 
+    temp_high_mask = temp_highlat['PTemp'] > 285
+    temp_highlat_mask = temp_highlat.loc[temp_high_mask]
+    
+    temp_low_mask = temp_lowlat['PTemp'] > 285
+    temp_lowlat_mask = temp_lowlat.loc[temp_low_mask]
+    
+    ptemp_high_mask = ptemp_highlat['PTemp'] > 285
+    ptemp_highlat_mask = temp_highlat.loc[temp_high_mask]
+    
+    ptemp_low_mask = ptemp_lowlat['PTemp'] > 285
+    ptemp_lowlat_mask = ptemp_lowlat.loc[temp_low_mask]
+    
+    alt_high_mask = alt_highlat['PTemp'] > 285
+    alt_highlat_mask = alt_highlat.loc[alt_high_mask]
+    
+    alt_low_mask = alt_lowlat['PTemp'] > 285
+    alt_lowlat_mask = alt_lowlat.loc[alt_low_mask]
+    
+    rh_w_high_mask = rh_w_highlat['PTemp'] > 285
+    rh_w_highlat_mask = rh_w_highlat.loc[rh_w_high_mask]
+    
+    rh_w_low_mask = rh_w_lowlat['PTemp'] > 285
+    rh_w_lowlat_mask = rh_w_lowlat.loc[rh_w_low_mask]
+    
+    rh_i_high_mask = rh_i_highlat['PTemp'] > 285
+    rh_i_highlat_mask = rh_i_highlat.loc[rh_i_high_mask]
+    
+    rh_i_low_mask = rh_i_lowlat['PTemp'] > 285
+    rh_i_lowlat_mask = rh_i_lowlat.loc[rh_i_low_mask]
+
+else: 
+    temp_highlat_mask = temp_highlat
+    temp_lowlat_mask = temp_lowlat
+    
+    ptemp_highlat_mask = ptemp_highlat
+    ptemp_lowlat_mask = ptemp_lowlat
+    
+    alt_highlat_mask = alt_highlat
+    alt_lowlat_mask = alt_lowlat
+    
+    rh_w_highlat_mask = rh_w_highlat
+    rh_w_lowlat_mask = rh_w_lowlat 
+    
+    rh_i_highlat_mask = rh_i_highlat
+    rh_i_lowlat_mask = rh_i_lowlat 
+
 ##--High lat flights--##
-temp_highlat_npf = temp_highlat['Temp'][temp_highlat['nucleating']
-                                           > temp_highlat['LoD']]
-temp_highlat_nonpf = temp_highlat['Temp'][temp_highlat['nucleating']
-                                           <= temp_highlat['LoD']]
-ptemp_highlat_npf = ptemp_highlat['PTemp'][ptemp_highlat['nucleating']
-                                           > ptemp_highlat['LoD']]
-ptemp_highlat_nonpf = ptemp_highlat['PTemp'][ptemp_highlat['nucleating']
-                                           <= ptemp_highlat['LoD']]
-alt_highlat_npf = alt_highlat['Alt'][alt_highlat['nucleating']
-                                           > alt_highlat['LoD']]
-alt_highlat_nonpf = alt_highlat['Alt'][alt_highlat['nucleating']
-                                           <= alt_highlat['LoD']]
-rh_w_highlat_npf = rh_w_highlat['RH_w'][rh_w_highlat['nucleating']
-                                           > rh_w_highlat['LoD']]
-rh_w_highlat_nonpf = rh_w_highlat['RH_w'][rh_w_highlat['nucleating']
-                                           <= rh_w_highlat['LoD']]
-rh_i_highlat_npf = rh_i_highlat['RH_i'][rh_i_highlat['nucleating']
-                                           > rh_i_highlat['LoD']]
-rh_i_highlat_nonpf = rh_i_highlat['RH_i'][rh_i_highlat['nucleating']
-                                           <= rh_i_highlat['LoD']]
+temp_highlat_npf = temp_highlat_mask['Temp'][temp_highlat_mask['nucleating']
+                                           > temp_highlat_mask['LoD']]
+temp_highlat_nonpf = temp_highlat_mask['Temp'][temp_highlat_mask['nucleating']
+                                           <= temp_highlat_mask['LoD']]
+ptemp_highlat_npf = ptemp_highlat_mask['PTemp'][ptemp_highlat_mask['nucleating']
+                                           > ptemp_highlat_mask['LoD']]
+ptemp_highlat_nonpf = ptemp_highlat_mask['PTemp'][ptemp_highlat_mask['nucleating']
+                                           <= ptemp_highlat_mask['LoD']]
+alt_highlat_npf = alt_highlat_mask['Alt'][alt_highlat_mask['nucleating']
+                                           > alt_highlat_mask['LoD']]
+alt_highlat_nonpf = alt_highlat_mask['Alt'][alt_highlat_mask['nucleating']
+                                           <= alt_highlat_mask['LoD']]
+rh_w_highlat_npf = rh_w_highlat_mask['RH_w'][rh_w_highlat_mask['nucleating']
+                                           > rh_w_highlat_mask['LoD']]
+rh_w_highlat_nonpf = rh_w_highlat_mask['RH_w'][rh_w_highlat_mask['nucleating']
+                                           <= rh_w_highlat_mask['LoD']]
+rh_i_highlat_npf = rh_i_highlat_mask['RH_i'][rh_i_highlat_mask['nucleating']
+                                           > rh_i_highlat_mask['LoD']]
+rh_i_highlat_nonpf = rh_i_highlat_mask['RH_i'][rh_i_highlat_mask['nucleating']
+                                           <= rh_i_highlat_mask['LoD']]
 
 ##--Low lat flights--##
-temp_lowlat_npf = temp_lowlat['Temp'][temp_lowlat['nucleating']
-                                           > temp_lowlat['LoD']]
-temp_lowlat_nonpf = temp_lowlat['Temp'][temp_lowlat['nucleating']
-                                           <= temp_lowlat['LoD']]
-ptemp_lowlat_npf = ptemp_lowlat['PTemp'][ptemp_lowlat['nucleating']
-                                           > ptemp_lowlat['LoD']]
-ptemp_lowlat_nonpf = ptemp_lowlat['PTemp'][ptemp_lowlat['nucleating']
-                                           <= ptemp_lowlat['LoD']]
-alt_lowlat_npf = alt_lowlat['Alt'][alt_lowlat['nucleating']
-                                           > alt_lowlat['LoD']]
-alt_lowlat_nonpf = alt_lowlat['Alt'][alt_lowlat['nucleating']
-                                           <= alt_lowlat['LoD']]
-rh_w_lowlat_npf = rh_w_lowlat['RH_w'][rh_w_lowlat['nucleating']
-                                           > rh_w_lowlat['LoD']]
-rh_w_lowlat_nonpf = rh_w_lowlat['RH_w'][rh_w_lowlat['nucleating']
-                                           <= rh_w_lowlat['LoD']]
-rh_i_lowlat_npf = rh_i_lowlat['RH_i'][rh_i_lowlat['nucleating']
-                                           > rh_i_lowlat['LoD']]
-rh_i_lowlat_nonpf = rh_i_lowlat['RH_i'][rh_i_lowlat['nucleating']
-                                           <= rh_i_lowlat['LoD']]
+temp_lowlat_npf = temp_lowlat_mask['Temp'][temp_lowlat_mask['nucleating']
+                                           > temp_lowlat_mask['LoD']]
+temp_lowlat_nonpf = temp_lowlat_mask['Temp'][temp_lowlat_mask['nucleating']
+                                           <= temp_lowlat_mask['LoD']]
+ptemp_lowlat_npf = ptemp_lowlat_mask['PTemp'][ptemp_lowlat_mask['nucleating']
+                                           > ptemp_lowlat_mask['LoD']]
+ptemp_lowlat_nonpf = ptemp_lowlat_mask['PTemp'][ptemp_lowlat_mask['nucleating']
+                                           <= ptemp_lowlat_mask['LoD']]
+alt_lowlat_npf = alt_lowlat_mask['Alt'][alt_lowlat_mask['nucleating']
+                                           > alt_lowlat_mask['LoD']]
+alt_lowlat_nonpf = alt_lowlat_mask['Alt'][alt_lowlat_mask['nucleating']
+                                           <= alt_lowlat_mask['LoD']]
+rh_w_lowlat_npf = rh_w_lowlat_mask['RH_w'][rh_w_lowlat_mask['nucleating']
+                                           > rh_w_lowlat_mask['LoD']]
+rh_w_lowlat_nonpf = rh_w_lowlat_mask['RH_w'][rh_w_lowlat_mask['nucleating']
+                                           <= rh_w_lowlat_mask['LoD']]
+rh_i_lowlat_npf = rh_i_lowlat_mask['RH_i'][rh_i_lowlat_mask['nucleating']
+                                           > rh_i_lowlat_mask['LoD']]
+rh_i_lowlat_nonpf = rh_i_lowlat_mask['RH_i'][rh_i_lowlat_mask['nucleating']
+                                           <= rh_i_lowlat_mask['LoD']]
 
 ##--Final dataframes to feed to the violin plots--##
 ##--Drop index to prevent reindexing issues--##
@@ -613,7 +664,11 @@ fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
 plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
 
 ax.set(ylabel='Temperature (K)')
-ax.set(title='Temperature')
+
+if above_dome==True: 
+    ax.set(title='Temperature Above the Polar Dome')
+else:
+    ax.set(title='Temperature')
 
 ##--Add text labels with N--##
 plt.text(0.17, 0.125, "N={}".format(temp_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
@@ -662,7 +717,11 @@ fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
 plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
 
 ax.set(ylabel='Potential Temperature (K)')
-ax.set(title="Potential Temperature")
+
+if above_dome==True:
+    ax.set(title="Potential Temperature Above the Polar Dome")
+else: 
+    ax.set(title='Potential Temperature')
 
 ##--Add text labels with N--##
 plt.text(0.17, 0.125, "N={}".format(ptemp_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
@@ -710,8 +769,11 @@ fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
 plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
 
 ax.set(ylabel='Altitude A.M.S.L. (m)')
-ax.set(title="Altitude")
 
+if above_dome==True:
+    ax.set(title="Altitude Above the Polar Dome")
+else: 
+    ax.set(title='Altitude')
 ##--Add text labels with N--##
 plt.text(0.17, 0.125, "N={}".format(alt_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.36, 0.125, "N={}".format(alt_hi_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
@@ -758,7 +820,11 @@ fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
 plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
 
 ax.set(ylabel='Relative Humidity (%)')
-ax.set(title="Relative Humidity w.r.t. Water")
+
+if above_dome==True: 
+    ax.set(title="Relative Humidity w.r.t. Water Above the Polar Dome")
+else: 
+    ax.set(title="Relative Humidity w.r.t. Water")
 
 ##--Add text labels with N--##
 plt.text(0.17, 0.125, "N={}".format(rh_w_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
@@ -806,7 +872,11 @@ fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
 plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
 
 ax.set(ylabel='Relative Humidity (%)')
-ax.set(title="Relative Humidity w.r.t. Ice")
+
+if above_dome==True: 
+    ax.set(title="Relative Humidity w.r.t. Ice Above the Polar Dome")
+else: 
+    ax.set(title='Relative Humidity w.r.t. Ice')
 
 ##--Add text labels with N--##
 plt.text(0.17, 0.125, "N={}".format(rh_i_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')

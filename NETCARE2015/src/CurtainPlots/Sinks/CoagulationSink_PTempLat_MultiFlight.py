@@ -126,13 +126,14 @@ for flight in flights_to_analyze:
     ##--USHAS Data--##
     UHSAS_time = UHSAS.data['time'] # seconds since midnight
 
-    ##--Bin data are in a CSV file--##
-    UHSAS_bins = pd.read_csv(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv")
-
     ##--Make list of columns to pull, each named bin_x--##
     ##--Bins 1-13 not trustworthy. Bins 76-99 overlap with OPC, discard--##
     ##--Trim to use bins 14-76 (500>85 nm)--##
     UHSAS_bin_num = [f'bin_{i}' for i in range(14, 75)]
+    
+    
+    ##--Bin data are in a CSV file--##
+    UHSAS_bins = pd.read_csv(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv")
 
     ##--Information for bins 14 thru 99--##
     UHSAS_bin_center = UHSAS_bins['bin_avg'].iloc[14:75]
@@ -159,7 +160,8 @@ for flight in flights_to_analyze:
 
     ##--OPC Data--##
     OPC_time = OPC.data['Time_UTC'] # seconds since midnight
-
+    
+    
     ##--Bin data are in a CSV file--##
     OPC_bin_info = pd.read_csv(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_OPC_bins.csv")
 
