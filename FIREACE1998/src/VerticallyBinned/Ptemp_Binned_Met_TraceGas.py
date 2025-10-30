@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Aug  1 09:05:48 2025
+Created on Wed Oct 29 08:28:32 2025
 
 @author: repooley
 """
 
-import icartt
 import glob
 import os
 import pandas as pd
@@ -21,7 +20,7 @@ directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\FIREACE1998\data"
 
 ##--Select flight (F01 thru F18)--##
 ##--NO 1 hz data for flights 4,5,6 currently--##
-flight = "Flight18"
+flight = "Flight3"
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\FIRACE1998\data\processed\VerticallyBinnedData"
@@ -108,7 +107,7 @@ saturation_humidity_w = []
 relative_humidity_w = []
 
 ##--Calculate saturation humidity in ppmv and relative humidity--##
-for T, P, H2O in zip(temperature_c, pressure, H2O_STP):
+for T, P, H2O in zip(temperature_c, pressure, H2O_data):
     ##--Only calculate within temp range--##
     if -50 <= T < 50:
         ##--saturation vapor pressure using Lowe and Ficke (1974) eqn--##
@@ -142,7 +141,7 @@ saturation_humidity_i = []
 relative_humidity_i = []
 
 ##--Calculate saturation humidity wrt ice in ppmv and RH--##
-for T, P, H2O in zip(temperature_c, pressure, H2O_STP):
+for T, P, H2O in zip(temperature_c, pressure, H2O_data):
     ##--Only calculate within temp range--##
     if -50 <= T < 0:
         ##--Saturation vapor pressure using Lowe and Ficke (1974) eqn--##
@@ -159,10 +158,15 @@ for T, P, H2O in zip(temperature_c, pressure, H2O_STP):
         saturation_humidity_i.append(np.nan)  
         relative_humidity_i.append(np.nan)    
 
+#######################################
+##--Calculate potential temperature--##
+#######################################
+
 ##--Convert absolute temperature to potential temperature--##
 ##--Constants--##
 p_0 = 1E5 # Reference pressure in Pa (1000 hPa)
 k = 0.286 # Poisson constant for dry air
+
 
 ##--Generate empty list for potential temperature output--##
 potential_temp = []
@@ -179,8 +183,8 @@ for T, P in zip(temperature, pressure):
 ##--Creates a Pandas dataframe with all variables--##
 df = pd.DataFrame({'Altitude': altitude, 'Temperature': temperature, 
                    'Potential_temp': potential_temp, 
-                   'CO2_ppmv': CO2_STP,
-                   'H2O_ppmv': H2O_STP, 'Probe_Humidity': RH_probe,
+                   'CO2_ppmv': CO2_data,
+                   'H2O_ppmv': H2O_data, 'Probe_Humidity': RH_probe,
                    'Relative_Humidity_w': relative_humidity_w, 
                    'Saturation_Humidity_w' : saturation_humidity_w, 
                    'Relative_Humidity_i': relative_humidity_i, 
@@ -224,6 +228,7 @@ binned_df = df.groupby('Altitude_bin', observed=False).agg(
     Potential_temp_max=('Potential_temp', 'max'),
     Potential_temp_25th=('Potential_temp', lambda x: x.quantile(0.25)),
     Potential_temp_75th=('Potential_temp', lambda x: x.quantile(0.75)),
+    Ptemp_center=('Potential_temp', 'median'), 
     H2O_conc_avg=('H2O_ppmv', 'mean'),
     H2O_conc_min=('H2O_ppmv', 'min'),
     H2O_conc_max=('H2O_ppmv', 'max'),
@@ -259,63 +264,46 @@ binned_df = df.groupby('Altitude_bin', observed=False).agg(
 ################
 
 ##--Creates figure with 7 horizontally stacked subplots sharing a y-axis--##
-fig, axs = plt.subplots(1, 7, figsize=(21, 6), sharey=True)
+fig, axs = plt.subplots(1, 5, figsize=(15, 6), sharey=True)
 
-##--First subplot: Absolute Temperature vs Altitude--##
-##--Averaged data in each bin is plotted against bin center--##
-axs[0].plot(binned_df['Temperature_avg'], binned_df['Altitude_center'], color='#1c250c', label='Absolute Temperature')
-##--Range is given by filling between data minimum and maximum for each bin--##
-axs[0].fill_betweenx(binned_df['Altitude_center'], binned_df['Temperature_25th'], binned_df['Temperature_75th'], color='darkolivegreen', alpha=0.4)
-axs[0].fill_betweenx(binned_df['Altitude_center'], binned_df['Temperature_min'], binned_df['Temperature_max'], color='darkolivegreen', alpha=0.2)
-axs[0].set_xlabel('Absolute Temperature (K)')
-axs[0].set_ylabel('Altitude (m)')
-axs[0].set_title('Absolute Temperature')
+##--First subplot: Water MR--##
+axs[0].plot(binned_df['H2O_conc_avg'], binned_df['Ptemp_center'], color='#002323', label='Water mr')
+axs[0].fill_betweenx(binned_df['Ptemp_center'], binned_df['H2O_conc_25th'], binned_df['H2O_conc_75th'], color='teal', alpha=0.4)
+axs[0].fill_betweenx(binned_df['Ptemp_center'], binned_df['H2O_conc_min'], binned_df['H2O_conc_max'], color='teal', alpha=0.2)
+axs[0].set_xlabel('ppmv Water')
+axs[0].set_title('Water Mixing Ratio')
+axs[0].set_ylabel('Potential Temperature (K)')
 #axs[0].set_xlim(-45, -16)
 
-##--Second subplot: Altitude vs Potential Temperature--##
-axs[1].plot(binned_df['Potential_temp_avg'], binned_df['Altitude_center'], color='#004242', label='Potential Temperature')
-axs[1].fill_betweenx(binned_df['Altitude_center'], binned_df['Potential_temp_25th'], binned_df['Potential_temp_75th'], color='seagreen', alpha=0.4)
-axs[1].fill_betweenx(binned_df['Altitude_center'], binned_df['Potential_temp_min'], binned_df['Potential_temp_max'], color='seagreen', alpha=0.2)
-axs[1].set_xlabel('Potential Temperature (K)')
-axs[1].set_title('Potential Temperature')
-
-##--Third subplot: Water MR--##
-axs[2].plot(binned_df['H2O_conc_avg'], binned_df['Altitude_center'], color='#002323', label='Water mr')
-axs[2].fill_betweenx(binned_df['Altitude_center'], binned_df['H2O_conc_25th'], binned_df['H2O_conc_75th'], color='teal', alpha=0.4)
-axs[2].fill_betweenx(binned_df['Altitude_center'], binned_df['H2O_conc_min'], binned_df['H2O_conc_max'], color='teal', alpha=0.2)
-axs[2].set_xlabel('ppmv Water')
-axs[2].set_title('Water Mixing Ratio')
+##--Second subplot: CO2 MR--##
+axs[1].plot(binned_df['CO2_conc_avg'], binned_df['Ptemp_center'], color='#002323', label='CO2 mr')
+axs[1].fill_betweenx(binned_df['Ptemp_center'], binned_df['CO2_conc_25th'], binned_df['CO2_conc_75th'], color='teal', alpha=0.4)
+axs[1].fill_betweenx(binned_df['Ptemp_center'], binned_df['CO2_conc_min'], binned_df['CO2_conc_max'], color='teal', alpha=0.2)
+axs[1].set_xlabel('ppmv CO2')
+axs[1].set_title('CO2 Mixing Ratio')
 #axs[2].set_xlim(-45, -16)
 
-##--Fourth subplot: CO2 MR--##
-axs[3].plot(binned_df['CO2_conc_avg'], binned_df['Altitude_center'], color='#002323', label='CO2 mr')
-axs[3].fill_betweenx(binned_df['Altitude_center'], binned_df['CO2_conc_25th'], binned_df['CO2_conc_75th'], color='teal', alpha=0.4)
-axs[3].fill_betweenx(binned_df['Altitude_center'], binned_df['CO2_conc_min'], binned_df['CO2_conc_max'], color='teal', alpha=0.2)
-axs[3].set_xlabel('ppmv CO2')
-axs[3].set_title('CO2 Mixing Ratio')
-#axs[2].set_xlim(-45, -16)
-
-##--Fifth subplot: RH wrt water from H2O data--##
-axs[4].plot(binned_df['Rel_humidity_w_avg'], binned_df['Altitude_center'], color='darkslategray', label='Absolute Temperature')
-axs[4].fill_betweenx(binned_df['Altitude_center'], binned_df['Rel_humidity_w_25th'], binned_df['Rel_humidity_w_75th'], color='cadetblue', alpha=0.7)
-axs[4].fill_betweenx(binned_df['Altitude_center'], binned_df['Rel_humidity_w_min'], binned_df['Rel_humidity_w_max'], color='cadetblue', alpha=0.3)
-axs[4].set_xlabel('Relative Humidity (%)')
-axs[4].set_title('RH from MR WRT Water')
+##--Third subplot: RH wrt water from H2O data--##
+axs[2].plot(binned_df['Rel_humidity_w_avg'], binned_df['Ptemp_center'], color='darkslategray', label='Absolute Temperature')
+axs[2].fill_betweenx(binned_df['Ptemp_center'], binned_df['Rel_humidity_w_25th'], binned_df['Rel_humidity_w_75th'], color='cadetblue', alpha=0.7)
+axs[2].fill_betweenx(binned_df['Ptemp_center'], binned_df['Rel_humidity_w_min'], binned_df['Rel_humidity_w_max'], color='cadetblue', alpha=0.3)
+axs[2].set_xlabel('Relative Humidity (%)')
+axs[2].set_title('RH from MR WRT Water')
 #axs[3].set_xlim(-45, -16)
 
-##--Sixth subplot: RH wrt ice from H2O data--##
-axs[5].plot(binned_df['Rel_humidity_i_avg'], binned_df['Altitude_center'], color='navy', label='Potential Temperature')
-axs[5].fill_betweenx(binned_df['Altitude_center'], binned_df['Rel_humidity_i_25th'], binned_df['Rel_humidity_i_75th'], color='lightsteelblue', alpha=1)
-axs[5].fill_betweenx(binned_df['Altitude_center'], binned_df['Rel_humidity_i_min'], binned_df['Rel_humidity_i_max'], color='lightsteelblue', alpha=0.4)
-axs[5].set_xlabel('Relative Humidity (%)')
-axs[5].set_title('RH from MR WRT Ice')
+##--Fourth subplot: RH wrt ice from H2O data--##
+axs[3].plot(binned_df['Rel_humidity_i_avg'], binned_df['Ptemp_center'], color='navy', label='Potential Temperature')
+axs[3].fill_betweenx(binned_df['Ptemp_center'], binned_df['Rel_humidity_i_25th'], binned_df['Rel_humidity_i_75th'], color='lightsteelblue', alpha=1)
+axs[3].fill_betweenx(binned_df['Ptemp_center'], binned_df['Rel_humidity_i_min'], binned_df['Rel_humidity_i_max'], color='lightsteelblue', alpha=0.4)
+axs[3].set_xlabel('Relative Humidity (%)')
+axs[3].set_title('RH from MR WRT Ice')
 
 ##--Seventh subplot: RH from probe--##
-axs[6].plot(binned_df['Probe_humidity_avg'], binned_df['Altitude_center'], color='indigo', label='Probe RH', alpha=1)
-axs[6].fill_betweenx(binned_df['Altitude_center'], binned_df['Probe_humidity_25th'], binned_df['Probe_humidity_75th'], color='rebeccapurple', alpha=0.4)
-axs[6].fill_betweenx(binned_df['Altitude_center'], binned_df['Probe_humidity_min'], binned_df['Probe_humidity_max'], color='rebeccapurple', alpha=0.2)
-axs[6].set_xlabel('Relative Humidity (%)')
-axs[6].set_title('RH from Probe') 
+axs[4].plot(binned_df['Probe_humidity_avg'], binned_df['Ptemp_center'], color='indigo', label='Probe RH', alpha=1)
+axs[4].fill_betweenx(binned_df['Ptemp_center'], binned_df['Probe_humidity_25th'], binned_df['Probe_humidity_75th'], color='rebeccapurple', alpha=0.4)
+axs[4].fill_betweenx(binned_df['Ptemp_center'], binned_df['Probe_humidity_min'], binned_df['Probe_humidity_max'], color='rebeccapurple', alpha=0.2)
+axs[4].set_xlabel('Relative Humidity (%)')
+axs[4].set_title('RH from Probe') 
 #axs[5].set_xlim(0, 120)
 
 ##--Use f-string to embed flight # variable in plot title--##
@@ -325,7 +313,7 @@ plt.suptitle(f"Vertical Meteorological Profiles - {flight.replace('Flight', 'Fli
 plt.tight_layout(rect=[0, 0, 1, 0.99])
 
 ##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\AltitudeBinnedData\Meteorological"
+#output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\AltitudeBinnedData\Meteorological"
 
 ##--Use f-string to save file with flight# appended--##
 #output_path = f"{output_path}\\{flight}"

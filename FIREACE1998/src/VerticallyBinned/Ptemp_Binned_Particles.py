@@ -20,7 +20,7 @@ directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\FIREACE1998\data"
 
 ##--Select flight (F01 thru F18)--##
 ##--NO 1 hz data for flights 4,5,6 currently--##
-flight = "Flight1"
+flight = "Flight17"
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\FIRACE1998\data\processed\VerticallyBinnedData"

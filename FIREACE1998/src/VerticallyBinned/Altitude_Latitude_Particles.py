@@ -5,7 +5,6 @@ Created on Fri Aug  1 10:43:59 2025
 @author: repooley
 """
 
-import icartt
 import os
 import glob
 import numpy as np
@@ -22,7 +21,8 @@ directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\FIREACE1998\data"
 
 ##--Select flight (F01 thru F18)--##
 ##--NO 1 hz data for flights 4,5,6 currently--##
-flight = "Flight17"
+##--NO PCASP data for flights 1, 2--##
+flight = "Flight3"
 
 ##--Set binning for PTemp and Latitude--##
 num_bins_lat = 4
@@ -31,7 +31,8 @@ num_bins_alt = 8
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\FIRACE1998\data\processed\AltitudeLatitudeBinned"
 
-#%%
+PCASP_bins_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\FIREACE1998\data\raw\FIREACE1998_PCASP_bins.csv"
+
 
 ################################
 ##--Open Files and pull data--##
@@ -44,8 +45,13 @@ def find_files(directory, flight, partial_name):
     search_pattern = os.path.join(flight_dir, f"*{partial_name}*")
     return sorted(glob.glob(search_pattern))
 
-##--'raw' contains a 1hz and 2min datafile, the 1hz one is always first--##
+##--'raw' contains a 1hz and 2min datafile, the 1 hz one is always first--##
 data = pd.read_csv(find_files(directory, flight, "FIREACE")[0])
+
+averaged_data = pd.read_csv(find_files(directory, flight, "FIREACE")[1])
+averaged_data = averaged_data.set_index('Time', drop=False)
+
+PCASP_bins = pd.read_csv(PCASP_bins_path)
 
 ##--Pull data variables from file--##
 time = data['Time'] # HHMMSS UTC time
@@ -56,6 +62,31 @@ altitude = data['Altitude'] # in m (agl?)
 latitude = data['Latitude'] # degrees
 longitude = data['Longitude'] # degrees
 
+PCASP_data = averaged_data.iloc[:, 14:29] # select PCASP data
+
+##--Add time, total_num to UHSAS_bins df--##
+PCASP_data.insert(0, 'Time', averaged_data['Time'])
+
+##--Set time as the index for later alignment--##
+PCASP_data = PCASP_data.set_index('Time')
+
+##--15 total bins--##
+PCASP_bin_num = [f'bin_{i}' for i in range(1, 16)]
+
+##--Information for bins--##
+PCASP_bin_center = PCASP_bins['bin_avg']
+PCASP_lower_bound = PCASP_bins['lower_bound']
+PCASP_upper_bound = PCASP_bins['upper_bound']
+
+##--Put column names and content in a dictionary and then convert to a Pandas df--##
+PCASP_df = pd.DataFrame({col: PCASP_data[col] for col in PCASP_bin_num})
+
+##--Create new column names by rounding the bin center values to the nearest integer--##
+PCASP_new_col_names = PCASP_bin_center.round().astype(int).tolist()
+
+##--Rename the PCASP_bins df columns to bin average values--##
+PCASP_data.columns = PCASP_new_col_names
+
 ##--Based on the supplied data, I strongly believe these two variables were swapped--##
 CO2_data = data['H2O'] # just labeled as 'mv' but there's clear pressure dependence
 H2O_data = data['CO2'] # 'mv'
@@ -64,7 +95,6 @@ H2O_data = data['CO2'] # 'mv'
 CPC3_data = data['CN3025_corrected'] # Uncorrected data has a flow issue
 CPC10_data = data['CN7610']
 
-#%%
 ######################
 ##--Calc N(2.5-10)--##
 ######################
@@ -112,6 +142,88 @@ nuc_particles = np.where(nuc_particles >= 0, nuc_particles, np.nan)
 ##--Add nucleating particles to df--##
 df['nuc_particles'] = nuc_particles
 
+##--Put N(2.5-10) bin center in a df--##
+n_3_10_center = pd.DataFrame([6.25]) # Mean of 2.5 and 10
+
+############################
+##--Normalize PCASP Data--##
+############################
+
+##--Calculate dlogDp for each bin in numpy array--##
+dlogDp = np.log(PCASP_upper_bound.values) - np.log(PCASP_lower_bound.values)
+
+##--Get only particle count data (excluding 'Time')--##
+PCASP_particle_counts = PCASP_data.loc[:, PCASP_new_col_names]
+
+##--Normalize counts by dividing by dlogDp across all rows--##
+PCASP_dNdlogDp = PCASP_data.divide(dlogDp, axis=1)
+
+##--Convert to STP!--##
+P_STP = 101325  # Pa
+T_STP = 273.15  # K
+
+##--Create empty list for OPC particles--##
+PCASP_STP = []
+
+for PCASP, T, P in zip(PCASP_dNdlogDp.values, averaged_data['Temperature']+273.15, averaged_data['Pressure']*100):
+    if np.isnan(T) or np.isnan(P):
+        ##--Append with NaN if any input is NaN--##
+        PCASP_STP.append([np.nan]*len(PCASP))
+    else:
+        ##--Perform conversion if all inputs are valid--##
+        corrected_PCASP = PCASP * (P_STP / P) * (T / T_STP)
+        PCASP_STP.append(corrected_PCASP)
+
+##--Convert back to DataFrame with same columns and index--##
+PCASP_STP = pd.DataFrame(PCASP_STP, columns=PCASP_dNdlogDp.columns, index=PCASP_dNdlogDp.index)
+
+######################
+##--Calc N(10-130)--##
+######################
+
+##--Create df with UHSAS total counts--##
+PCASP_total = pd.DataFrame({'Time': averaged_data['Time'], 'Total_count': averaged_data['PCTcon']})
+
+##--Create df with CPC10 counts and set index to time--##
+CPC10_counts = pd.DataFrame({'Time':averaged_data['Time'], 'Counts':averaged_data['CN7610']}).set_index('Time')
+
+##--Calculate particles below UHSAS lower cutoff--##
+n_10_130 = (averaged_data['CN7610'] - PCASP_total['Total_count'])
+
+##--Change calculated particle counts less than zero to NaN--##
+n_10_130 = np.where(n_10_130 >= 0, n_10_130, np.nan)
+
+##--Put N(10-130) bin center in a df--##
+n_10_130_center = pd.DataFrame([70])
+
+##--Convert n_10_130 to a df--##
+n_10_130 = pd.DataFrame({'70': n_10_130, 'Time':averaged_data['Time']}).set_index('Time')
+
+###########################
+##--Wrangle binned data--##
+###########################
+
+##--Concatenate bin edges--##
+combined_bin_edges = np.concatenate([
+    [2.5],      # start of first bin
+    [10],       # upper edge of N(2.5-10), also lower of next
+    [130],       # upper edge of N(10-130), also lower of next
+    PCASP_upper_bound.values,  # PCASP bins continue from 130
+])
+
+time_averaged = averaged_data['Time']
+
+##--Calculate time edges for each bin--##
+time_step = time_averaged.iloc[1] - time_averaged.iloc[0]  
+time_edges = np.append(time_averaged, time_averaged.iloc[-1] + time_step)  # length N + 1
+
+##--Concatenate bin centers and reindex--##
+bin_centers = pd.concat([n_10_130_center, PCASP_bin_center], axis=0).reset_index(drop=True)
+
+##--Place all binned data in a single df--##
+all_bins_aligned = pd.concat([n_10_130, PCASP_STP], axis=1)
+
+total_particle_count = all_bins_aligned.sum(axis=1, numeric_only=True) 
 
 ###########################
 ##--Create 2D histogram--##
@@ -149,6 +261,26 @@ CPC10_bin_medians, _, _, _ = binned_statistic_2d(CPC10_clean_df['Latitude'],
 ##--N(2.5-10)--##
 nuc_bin_medians, _, _, _ = binned_statistic_2d(nuc_clean_df['Latitude'], 
     nuc_clean_df['Altitude'], nuc_clean_df['nuc_particles'], statistic='median', bins=[common_lat_bin_edges, common_alt_bin_edges])
+
+
+##--Total count--##
+##--Float type NaNs in potential_temp cannot convert to int, so must be removed--##
+Count_df = pd.DataFrame({'Altitude': averaged_data['Altitude'], 'Latitude': averaged_data['Latitude'], 
+                               'Count': total_particle_count})
+Count_clean_df = Count_df.dropna()
+
+##--Compute global min/max values across all data BEFORE dropping NaNs--##
+lat_min, lat_max = np.nanmin(latitude), np.nanmax(latitude)
+alt_min, alt_max = np.nanmin(averaged_data['Altitude']), np.nanmax(averaged_data['Altitude'])
+
+##--Generate common bin edges using specified number of bins--##
+common_lat_bin_edges = np.linspace(lat_min, lat_max, num_bins_lat + 1)
+common_alt_bin_edges_2 = np.linspace(alt_min, alt_max, num_bins_alt + 1)
+
+##--Make 2D histograms using common bins--##
+Count_bin_medians, _, _, _ = binned_statistic_2d(Count_clean_df['Latitude'], 
+    Count_clean_df['Altitude'], Count_clean_df['Count'], statistic='median', 
+    bins=[common_lat_bin_edges, common_alt_bin_edges_2])
 
 ################
 ##--PLOTTING--##
@@ -235,6 +367,39 @@ ax3.set_title(f"2.5-10 nm Particle Abundance - {flight.replace('Flight', 'Flight
 ##--Use f-string to save file with flight# appended--##
 nuc_output_path = f"{output_path}\\/{flight}"
 #plt.savefig(nuc_output_path, dpi=600, bbox_inches='tight') 
+
+plt.tight_layout()
+plt.show()
+
+##--Particles larger than 3 nm--##
+fig1, ax1 = plt.subplots(figsize=(8, 6))
+
+##--Make special color map where 0 values are white--##
+new_cmap = plt.get_cmap('viridis')
+##--Values under specified minimum will be white--##
+new_cmap.set_under('w')
+
+##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
+Count_plot = ax1.pcolormesh(common_lat_bin_edges, common_alt_bin_edges, Count_bin_medians.T,  # Transpose to align correctly
+    shading='auto', cmap=new_cmap, vmin=0, vmax=5000)
+
+##--Add colorbar--##
+cb = fig1.colorbar(Count_plot, ax=ax1)
+cb.minorticks_on()
+cb.ax.tick_params(labelsize=16)
+cb.set_label('Total Count $(STP/cm^{3})$', fontsize=16)
+
+##--Set axis labels--##
+ax1.set_xlabel('Latitude (°)', fontsize=16)
+ax1.set_ylabel('Altitude (m)', fontsize=16)
+ax1.tick_params(axis='both', labelsize=16)
+ax1.set_title(f"Total Particle Count - {flight.replace('Flight', 'Flight ')}", fontsize=18)
+#ax1.set_ylim(245, 301)
+#ax1.set_xlim(79.5, 83.7)
+
+##--Use f-string to save file with flight# appended--##
+#Count_output_path = f"{output_path}\\{flight}"
+#plt.savefig(Count_output_path, dpi=600, bbox_inches='tight') 
 
 plt.tight_layout()
 plt.show()
