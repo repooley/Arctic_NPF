@@ -41,11 +41,11 @@ hysplit = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\HYSPLIT\da
 high_lat = ["Flight2", "Flight3", "Flight4", "Flight5", "Flight6", "Flight7"]
 low_lat = ["Flight8", "Flight9", "Flight10"]
 
-flights_to_analyze = low_lat
+flights_to_analyze = high_lat
 
 ##--Decide whether to analyze above the polar dome--##
 
-above_dome = False
+above_dome = True
 
 ##--Base output path for figures in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\ViolinPlots\Meteorological"
@@ -312,7 +312,7 @@ for ax_map in [ax_map_sig, ax_map_nonsig]:
 ##--Set labels--##
 ax_map_sig.set_title("$N_{2.5-10}$ Event", fontsize=24)
 ax_map_nonsig.set_title("No Significant $N_{2.5-10}$", fontsize=24)
-ax_RH_sig.set_ylabel("Meters Above Ground Level", fontsize=20)
+ax_RH_sig.set_ylabel("Meters Above Sea Level", fontsize=20)
 fig.suptitle("NETCARE HYSPLIT Back Trajectories", fontsize=30, y=1.05)
 
 ##--Map colorbars--##
@@ -327,12 +327,12 @@ cb2.set_label(r"Nano$_{\rm surf}$ (mg/m$^3$)", size=14)
 cb2.ax.tick_params(labelsize=14)
 
 ##--Set axes limits for curtain plots below maps--##
-ax_temp_sig.set_ylim(-250, 8000)
-ax_temp_nonsig.set_ylim(-250, 8000)
-ax_RH_sig.set_ylim(-250, 8000)
-ax_RH_nonsig.set_ylim(-250, 8000)
-ax_rain_sig.set_ylim(-250, 8000)
-ax_rain_nonsig.set_ylim(-250, 8000)
+ax_temp_sig.set_ylim(-250, 10000)
+ax_temp_nonsig.set_ylim(-250, 10000)
+ax_RH_sig.set_ylim(-250, 10000)
+ax_RH_nonsig.set_ylim(-250, 10000)
+ax_rain_sig.set_ylim(-250, 10000)
+ax_rain_nonsig.set_ylim(-250, 10000)
 
 ##########################
 ##--Group trajectories--##
@@ -341,7 +341,8 @@ ax_rain_nonsig.set_ylim(-250, 8000)
 ##--Sort trajectory outputs into signficant or non-significant NPF lists--##
 lats_sig, lats_nonsig = [], []
 lons_sig, lons_nonsig = [], []
-alt_sig, alt_nonsig = [], []
+magl_sig, magl_nonsig = [], []
+masl_sig, masl_nonsig = [], []
 time_sig, time_nonsig = [], []
 temp_sig, temp_nonsig = [], []
 RH_sig, RH_nonsig = [], []
@@ -397,10 +398,13 @@ for flight in flights_to_analyze:
                     
                     lon = group['LONG'].values
                     lat = group['LAT'].values
-                    altitudes = group['ALTITUDE'].values
+                    magl = group['ALTITUDE'].values
                     temps = group['AIR_TEMP'].tolist() 
                     RHs = group['RELHUMID'].values
                     rain = group['RAINFALL'].values
+                    
+                    ##--Calculate meters above sea level from elev and terrain height--##
+                    masl = group['ALTITUDE'].values + group['TERR_MSL'].values
                     
                     ##--Compute relative time in days (backward from initialization)--##
                     t0 = group['DateTime'].iloc[-1]
@@ -413,15 +417,21 @@ for flight in flights_to_analyze:
                         for j in jump_indices[::-1]:  # reverse order to avoid index shift
                             lon = np.insert(lon, j + 1, np.nan)
                             lat = np.insert(lat, j + 1, np.nan)
-                            altitudes = np.insert(altitudes, j + 1, np.nan)
+                            magl = np.insert(magl, j + 1, np.nan)
+                            masl = np.insert(masl, j + 1, np.nan)
                             time_rel = np.insert(time_rel, j + 1, np.nan)
                             temps = np.insert(temps, j + 1, np.nan)
                             RHs = np.insert(RHs, j + 1, np.nan)
                             rain = np.insert(rain, j + 1, np.nan)
             
                     ##--Cut off trajectory within 1m of surface, HYSPLIT is iffy here--##
-                    if any(altitudes < 1):
-                        index_end = np.min(np.where(altitudes < 1))
+                    if any(magl < 1):
+                        index_end = np.min(np.where(magl < 1))
+                    else:
+                        index_end = len(group) 
+                        
+                    if any(masl < 1):
+                        index_end = np.min(np.where(masl < 1))
                     else:
                         index_end = len(group) 
                         
@@ -454,19 +464,21 @@ for flight in flights_to_analyze:
                     if is_significant:
                         lats_sig.extend(lat)
                         lons_sig.extend(lon)
-                        alt_sig.extend(altitudes)
+                        magl_sig.extend(magl)
                         time_sig.extend(time_rel) 
                         temp_sig.extend(temps)
                         RH_sig.extend(RHs)
                         rain_sig.extend(rain)
+                        masl_sig.extend(masl)
                     else:
                         lats_nonsig.extend(lat)
                         lons_nonsig.extend(lon)
-                        alt_nonsig.extend(altitudes)
+                        magl_nonsig.extend(magl)
                         time_nonsig.extend(time_rel) 
                         temp_nonsig.extend(temps)
                         RH_nonsig.extend(RHs)
                         rain_nonsig.extend(rain)
+                        masl_nonsig.extend(masl)
         else: 
             ##--Determine which axis to use (NPF vs non-NPF)--##
             is_significant = pd.notna(row.nuc_significant)
@@ -499,7 +511,7 @@ for flight in flights_to_analyze:
                 
                 lon = group['LONG'].values
                 lat = group['LAT'].values
-                altitudes = group['ALTITUDE'].values
+                magl = group['ALTITUDE'].values
                 temps = group['AIR_TEMP'].tolist() 
                 RHs = group['RELHUMID'].values
                 rain = group['RAINFALL'].values
@@ -515,15 +527,21 @@ for flight in flights_to_analyze:
                     for j in jump_indices[::-1]:  # reverse order to avoid index shift
                         lon = np.insert(lon, j + 1, np.nan)
                         lat = np.insert(lat, j + 1, np.nan)
-                        altitudes = np.insert(altitudes, j + 1, np.nan)
+                        magl = np.insert(magl, j + 1, np.nan)
+                        masl = np.insert(masl, j + 1, np.nan)
                         time_rel = np.insert(time_rel, j + 1, np.nan)
                         temps = np.insert(temps, j + 1, np.nan)
                         RHs = np.insert(RHs, j + 1, np.nan)
                         rain = np.insert(rain, j + 1, np.nan)
         
                 ##--Cut off trajectory within 1m of surface, HYSPLIT is iffy here--##
-                if any(altitudes < 1):
-                    index_end = np.min(np.where(altitudes < 1))
+                if any(magl < 1):
+                    index_end = np.min(np.where(magl < 1))
+                else:
+                    index_end = len(group) 
+                    
+                if any(masl < 1):
+                    index_end = np.min(np.where(masl < 1))
                 else:
                     index_end = len(group) 
                     
@@ -556,19 +574,21 @@ for flight in flights_to_analyze:
                 if is_significant:
                     lats_sig.extend(lat)
                     lons_sig.extend(lon)
-                    alt_sig.extend(altitudes)
+                    magl_sig.extend(magl)
                     time_sig.extend(time_rel) 
                     temp_sig.extend(temps)
                     RH_sig.extend(RHs)
                     rain_sig.extend(rain)
+                    masl_sig.extend(masl)
                 else:
                     lats_nonsig.extend(lat)
                     lons_nonsig.extend(lon)
-                    alt_nonsig.extend(altitudes)
+                    magl_nonsig.extend(magl)
                     time_nonsig.extend(time_rel) 
                     temp_nonsig.extend(temps)
                     RH_nonsig.extend(RHs)
                     rain_nonsig.extend(rain)
+                    masl_sig.extend(masl)
             
 ############################################
 ##--Map: Convex Hull around trajectories--##
@@ -599,8 +619,8 @@ sin_edges = np.linspace(np.sin(np.deg2rad(lat_min)),
 lat_edges = np.rad2deg(np.arcsin(sin_edges))
 
 ##--Filter to below 500 m.a.g.l--##
-mask_sig = np.array(alt_sig) < 500
-mask_nonsig = np.array(alt_nonsig) < 500
+mask_sig = np.array(masl_sig) < 500
+mask_nonsig = np.array(masl_nonsig) < 500
 
 lons_sig_low = np.array(lons_sig)[mask_sig]
 lats_sig_low = np.array(lats_sig)[mask_sig]
@@ -764,12 +784,22 @@ num_time_bins = 10
 num_alt_bins = 8
 
 ##--Convert altitude lists to arrays--##
-alt_sig_arr = np.array(alt_sig)
-alt_nonsig_arr = np.array(alt_nonsig)
+alt_sig_arr = np.array(masl_sig)
+alt_nonsig_arr = np.array(masl_nonsig)
 
 ##--And time--##
 time_sig = np.asarray(time_sig)
 time_nonsig = np.asarray(time_nonsig)
+
+##--Suggestion from GPT 5 model - pad mismatched arrays to align--##
+def pad_to_match(a, b):
+    L = max(len(a), len(b))
+    a = np.pad(a, (0, L - len(a)), constant_values=np.nan)
+    b = np.pad(b, (0, L - len(b)), constant_values=np.nan)
+    return a, b
+
+time_sig, alt_sig_arr = pad_to_match(time_sig, alt_sig_arr)
+time_nonsig, alt_nonsig_arr = pad_to_match(time_nonsig, alt_nonsig_arr)
 
 ##--Ensure no NaN values in any array--##
 def clean_valid_pairs(time_arr, val_arr):
@@ -801,6 +831,7 @@ for ax in [ax_temp_sig, ax_temp_nonsig,
            ax_RH_sig, ax_RH_nonsig,
            ax_rain_sig, ax_rain_nonsig]:
     ax.set_xlim(time_min, time_max)  # 0 on right
+    ax.set_yticks(np.arange(0, 10000, 2000))
     ax.tick_params(axis='both', labelsize=16)
     
 ###################
@@ -937,14 +968,18 @@ cbar4.set_label('Rainfall (mm/hr)', size=14)
 cbar4.ax.tick_params(labelsize=14)
 
 ##--Add text labels to each set of plots--##
-ax_map_sig.text(0.61, 0.93, 'Nanophytoplankton', horizontalalignment='center', 
+ax_map_sig.text(0.50, 0.91, 'Nanophytoplankton', horizontalalignment='center', 
          verticalalignment='center', transform=ax_map_sig.transAxes, fontsize=18,
-         bbox=dict(boxstyle="round, pad=0.5", fc="white", ec='none', lw=1, alpha=0.75))
-ax_temp_sig.text(0.80, 0.9, 'Temperature', horizontalalignment='center', 
-         verticalalignment='center', transform=ax_temp_sig.transAxes, fontsize=18)
-ax_RH_sig.text(0.73, 0.9, 'Relative Humidity', horizontalalignment='center', 
-         verticalalignment='center', transform=ax_RH_sig.transAxes, fontsize=18)
-ax_rain_sig.text(0.87, 0.9, 'Rainfall', horizontalalignment='center', 
-         verticalalignment='center', transform=ax_rain_sig.transAxes, fontsize=18)
+         bbox=dict(boxstyle="round, pad=0.5", fc="white", ec='none', lw=1, alpha=0.75,
+                   zorder=10))
+ax_temp_sig.text(0.78, 1.1, 'Temperature', horizontalalignment='center', 
+         verticalalignment='center', transform=ax_temp_sig.transAxes, fontsize=18,
+         zorder=10)
+ax_RH_sig.text(0.70, 1.1, 'Relative Humidity', horizontalalignment='center', 
+         verticalalignment='center', transform=ax_RH_sig.transAxes, fontsize=18,
+         zorder=10)
+ax_rain_sig.text(0.87, 1.1, 'Rainfall', horizontalalignment='center', 
+         verticalalignment='center', transform=ax_rain_sig.transAxes, fontsize=18,
+         zorder=10)
 
 plt.show()

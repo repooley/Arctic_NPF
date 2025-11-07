@@ -325,7 +325,7 @@ for ax_map in [ax_map_sig, ax_map_nonsig]:
  
     ##--Add ocean layer to maps--##
     ax_map.add_feature(cfeature.OCEAN, fc='#F0FFFF', ec='k', lw=0.2, zorder=1)
-
+'''
     ##--Add topographic data to maps--##
     elev_map = ax_map.pcolormesh(top_lon, top_lat, elevation, 
         transform=ccrs.PlateCarree(), # match transform to projection used
@@ -335,7 +335,7 @@ for ax_map in [ax_map_sig, ax_map_nonsig]:
     chlor_map = ax_map.pcolormesh(chlor_lon, chlor_lat, nano_abundance,
           transform=ccrs.PlateCarree(), cmap=cmap2, 
           norm=LogNorm(vmin=0.01, vmax=100), shading='auto', zorder=1)
-  
+'''
 ##--Right column colorbar slots--##
 ##--Suggestion from GPT 5: split map colorbar slots into two--##
 cax_mapslot = fig.add_subplot(gs[0, 2])
@@ -363,13 +363,13 @@ fig.suptitle(f"NETCARE {flight.replace('Flight', 'Flight ')} HYSPLIT Back Trajec
              fontsize=24, y=htitle)
 
 ##--Set axes limits--##
-ax_temp_sig.set_ylim(-250, 8000)
-ax_temp_nonsig.set_ylim(-250, 8000)
-ax_RH_sig.set_ylim(-250, 8000)
-ax_RH_nonsig.set_ylim(-250, 8000)
-ax_rain_sig.set_ylim(-250, 8000)
-ax_rain_nonsig.set_ylim(-250, 8000)
-
+ax_temp_sig.set_ylim(-250, 10000)
+ax_temp_nonsig.set_ylim(-250, 10000)
+ax_RH_sig.set_ylim(-250, 10000)
+ax_RH_nonsig.set_ylim(-250, 10000)
+ax_rain_sig.set_ylim(-250, 10000)
+ax_rain_nonsig.set_ylim(-250, 10000)
+'''
 ##--Map colorbars--## 
 cb1 = fig.colorbar(elev_map, cax=cax_elev, orientation="vertical", shrink=0.5)
 cb1.set_label("Elevation (m)", size=12)
@@ -378,7 +378,7 @@ cb1.ax.tick_params(labelsize=14)
 cb2 = fig.colorbar(chlor_map, cax=cax_chlor, orientation="vertical", shrink=0.5)
 cb2.set_label(r"Nano$_{\rm surf}$ (mg/m$^3$)", size=12)
 cb2.ax.tick_params(labelsize=14)
-
+'''
 ##########################
 ##--Group trajectories--##
 ##########################
@@ -386,7 +386,8 @@ cb2.ax.tick_params(labelsize=14)
 ##--Sort trajectory outputs into signficant or non-significant NPF lists--##
 lats_sig, lats_nonsig = [], []
 lons_sig, lons_nonsig = [], []
-alt_sig, alt_nonsig = [], []
+magl_sig, magl_nonsig = [], []
+masl_sig, masl_nonsig = [], []
 time_sig, time_nonsig = [], []
 temp_sig, temp_nonsig = [], []
 RH_sig, RH_nonsig = [], []
@@ -424,7 +425,10 @@ for file, row in zip(sorted(os.listdir(flight_directory)), netcare_subset.itertu
             for traj_num, group in df.groupby('TRAJ'):
                 group = group.sort_values('DateTime')
                 
-                altitudes = group['ALTITUDE'].values
+                magl = group['ALTITUDE'].values
+                
+                ##--Calculate meters above sea level from elev and terrain height--##
+                masl = group['ALTITUDE'].values + group['TERR_MSL'].values
                 
                 ##--Last time in trajectory = initialization (measurement) time--##
                 t0 = group['DateTime'].iloc[-1]
@@ -434,10 +438,15 @@ for file, row in zip(sorted(os.listdir(flight_directory)), netcare_subset.itertu
                 time_rel = (group['DateTime'] - t0).dt.total_seconds() / 86400.0
         
                 ##--Cut off trajectory within 1m of surface, HYSPLIT is iffy here--##
-                if any(altitudes < 1):
-                    index_end = np.min(np.where(altitudes < 1))
+                if any(magl < 1):
+                    index_end = np.min(np.where(magl < 1))
                 else:
                     index_end = len(group) 
+                    
+                if any(masl < 1):
+                    index_end = np.min(np.where(masl < 1))
+                else:
+                    index_end = len(group)
                     
                ##--Plot original (unperturbed) trajectory--##
                 if traj_num == 1:
@@ -448,35 +457,41 @@ for file, row in zip(sorted(os.listdir(flight_directory)), netcare_subset.itertu
                 else:
                     color = 'none'
             
+                ax_map.plot(group['LONG'].iloc[:index_end],
+                    group['LAT'].iloc[:index_end],
+                    transform=ccrs.PlateCarree(),
+                    c=color, lw=linewidth, alpha=alpha, zorder=zorder)
                 
                 ax_temp.plot(time_rel.iloc[:index_end],
-                    group['ALTITUDE'].iloc[:index_end],
+                    masl[:index_end],
                     c=color, lw=linewidth, alpha=alpha, zorder=zorder)
                 
                 ax_RH.plot(time_rel.iloc[:index_end],
-                    group['ALTITUDE'].iloc[:index_end],
+                    masl[:index_end],
                     c=color, lw=linewidth, alpha=alpha, zorder=zorder)
                 
                 ax_rain.plot(time_rel.iloc[:index_end],
-                    group['ALTITUDE'].iloc[:index_end],
+                    masl[:index_end],
                     c=color, lw=linewidth, alpha=alpha, zorder=zorder)
                 
                 if is_significant:
                     lats_sig.extend(group['LAT'].values)
                     lons_sig.extend(group['LONG'].values)
-                    alt_sig.extend(group['ALTITUDE'].values)
+                    magl_sig.extend(group['ALTITUDE'].values)
                     time_sig.extend(time_rel.values)  
                     temp_sig.extend(group['AIR_TEMP'].tolist())
                     RH_sig.extend(group['RELHUMID'].values)
                     rain_sig.extend(group['RAINFALL'].values)
+                    masl_sig.extend(masl)
                 else:
                     lats_nonsig.extend(group['LAT'].values)
                     lons_nonsig.extend(group['LONG'].values)
-                    alt_nonsig.extend(group['ALTITUDE'].values)
+                    magl_nonsig.extend(group['ALTITUDE'].values)
                     time_nonsig.extend(time_rel.values)  
                     temp_nonsig.extend(group['AIR_TEMP'].tolist())
                     RH_nonsig.extend(group['RELHUMID'].values)
                     rain_nonsig.extend(group['RAINFALL'].values)
+                    masl_nonsig.extend(masl)
     else: 
         ##--Determine which axis to use (NPF vs non-NPF)--##
         is_significant = pd.notna(row.nuc_significant)
@@ -504,6 +519,9 @@ for file, row in zip(sorted(os.listdir(flight_directory)), netcare_subset.itertu
             group = group.sort_values('DateTime')
             
             altitudes = group['ALTITUDE'].values
+            
+            ##--Calculate meters above sea level from elev and terrain height--##
+            masl = group['ALTITUDE'].values + group['TERR_MSL'].values
             
             ##--Last time in trajectory = initialization (measurement) time--##
             t0 = group['DateTime'].iloc[-1]
@@ -533,33 +551,35 @@ for file, row in zip(sorted(os.listdir(flight_directory)), netcare_subset.itertu
                 c=color, lw=linewidth, alpha=alpha, zorder=zorder)
             
             ax_temp.plot(time_rel.iloc[:index_end],
-                group['ALTITUDE'].iloc[:index_end],
+                masl[:index_end],
                 c=color, lw=linewidth, alpha=alpha, zorder=zorder)
             
             ax_RH.plot(time_rel.iloc[:index_end],
-                group['ALTITUDE'].iloc[:index_end],
+                masl[:index_end],
                 c=color, lw=linewidth, alpha=alpha, zorder=zorder)
             
             ax_rain.plot(time_rel.iloc[:index_end],
-                group['ALTITUDE'].iloc[:index_end],
+                masl[:index_end],
                 c=color, lw=linewidth, alpha=alpha, zorder=zorder)
             
             if is_significant:
                 lats_sig.extend(group['LAT'].values)
                 lons_sig.extend(group['LONG'].values)
-                alt_sig.extend(group['ALTITUDE'].values)
+                magl_sig.extend(magl)
                 time_sig.extend(time_rel.values)  
                 temp_sig.extend(group['AIR_TEMP'].tolist())
                 RH_sig.extend(group['RELHUMID'].values)
                 rain_sig.extend(group['RAINFALL'].values)
+                masl_sig.extend(masl)
             else:
                 lats_nonsig.extend(group['LAT'].values)
                 lons_nonsig.extend(group['LONG'].values)
-                alt_nonsig.extend(group['ALTITUDE'].values)
+                magl_nonsig.extend(magl)
                 time_nonsig.extend(time_rel.values)  
                 temp_nonsig.extend(group['AIR_TEMP'].tolist())
                 RH_nonsig.extend(group['RELHUMID'].values)
                 rain_nonsig.extend(group['RAINFALL'].values)
+                masl_nonsig.extend(masl)
 
 ############################################
 ##--Map: Convex Hull around trajectories--##
@@ -744,8 +764,8 @@ num_time_bins = 12
 num_alt_bins = 10
 
 ##--Convert altitude lists to arrays--##
-alt_sig_arr = np.array(alt_sig)
-alt_nonsig_arr = np.array(alt_nonsig)
+alt_sig_arr = np.array(masl_sig)
+alt_nonsig_arr = np.array(masl_nonsig)
 
 ##--Determine overall min/max relative times for binning--##
 # relative time: 0 = measurement time, negative = days before
@@ -791,7 +811,7 @@ temp_nonsig_arr = np.array(temp_nonsig)
 ##--Sum all temperature values in each histogram bin--##
 temp_sig_sum, _, _ = np.histogram2d(time_sig, alt_sig_arr, 
                         bins=(time_bins_rel, alt_bins), weights=temp_sig_arr)
-temp_nonsig_sum, _, _ = np.histogram2d(time_nonsig, alt_nonsig,
+temp_nonsig_sum, _, _ = np.histogram2d(time_nonsig, masl_nonsig,
                         bins=(time_bins_rel, alt_bins), weights=temp_nonsig_arr)
 
 ##--Compute the average RH per bins with counts--##
@@ -830,7 +850,7 @@ RH_nonsig_arr = np.array(RH_nonsig)
 ##--Sum all RH values in each histogram bin--##
 RH_sig_sum, _, _ = np.histogram2d(time_sig, alt_sig_arr, 
                         bins=(time_bins_rel, alt_bins), weights=RH_sig_arr)
-RH_nonsig_sum, _, _ = np.histogram2d(time_nonsig, alt_nonsig,
+RH_nonsig_sum, _, _ = np.histogram2d(time_nonsig, masl_nonsig,
                         bins=(time_bins_rel, alt_bins), weights=RH_nonsig_arr)
 
 ##--Compute the average RH per bins with counts--##
@@ -869,7 +889,7 @@ rain_nonsig_arr = np.array(rain_nonsig)
 ##--Sum of rainfall (in mm/hr) per each bin--##
 rain_sig_sum, _, _ = np.histogram2d(time_sig, alt_sig_arr, 
                         bins=(time_bins_rel, alt_bins), weights=rain_sig_arr)
-rain_nonsig_sum, _, _ = np.histogram2d(time_nonsig, alt_nonsig,
+rain_nonsig_sum, _, _ = np.histogram2d(time_nonsig, masl_nonsig,
                         bins=(time_bins_rel, alt_bins), weights=rain_nonsig_arr)
 
 ##--Average rainfall per bin for values greater than 0--##
@@ -902,11 +922,11 @@ def grey_plots(ax):
                  facecolor='lightgrey', alpha=0.6, zorder=7))
 
 ##--Suggestion from GPT 5 model for removing labels when there is no data--##
-for ax, has_data in [(ax_temp_sig, len(time_sig) > 0 and len(alt_sig) > 0),
+for ax, has_data in [(ax_temp_sig, len(time_sig) > 0 and len(masl_sig) > 0),
                      (ax_temp_nonsig, True),   # nonsig always has data
-                     (ax_RH_sig, len(time_sig) > 0 and len(alt_sig) > 0),
+                     (ax_RH_sig, len(time_sig) > 0 and len(masl_sig) > 0),
                      (ax_RH_nonsig, True),
-                     (ax_rain_sig, len(time_sig) > 0 and len(alt_sig) > 0),
+                     (ax_rain_sig, len(time_sig) > 0 and len(masl_sig) > 0),
                      (ax_rain_nonsig, True)]:
 
     if has_data:
@@ -923,7 +943,7 @@ for ax, has_data in [(ax_temp_sig, len(time_sig) > 0 and len(alt_sig) > 0),
         ax.set_ylabel("")
 
 ##--Grey out any completely empty sig plots--##
-if len(time_sig) == 0 or len(alt_sig) == 0:
+if len(time_sig) == 0 or len(masl_sig) == 0:
     grey_plots(ax_map_sig)
     grey_plots(ax_temp_sig)
     grey_plots(ax_RH_sig)

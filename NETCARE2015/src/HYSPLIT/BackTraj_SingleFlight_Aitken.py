@@ -16,14 +16,13 @@ import matplotlib.patches as mpatches
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import alphashape
-from scipy.spatial import ConvexHull
 from matplotlib.colors import LogNorm
 
 ###################
 ##--User inputs--##
 ################### 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight3" 
+flight = "Flight8" 
 
 ##--Filter to above the polar dome?--##
 above_dome = True
@@ -38,7 +37,6 @@ if forward==True:
 
 else: 
     hysplit = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\HYSPLIT\data\trajectories\5min_averaged"
-
 
 ##--Base output path for figures in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\HYSPLIT"
@@ -83,8 +81,8 @@ if flight == "Flight2":
         height_ratios = [2, 1]
         hspace = 0.1
         htitle = 0.92
-elif flight == ["Flight3", "Flight5"]:
-    map_extent = [-120, 10, 70, 90]
+elif flight == "Flight3":
+    map_extent = [-120, 10, 60, 90]
     height_ratios = [2, 1]
     hspace = 0
     htitle=0.91
@@ -92,6 +90,11 @@ elif flight == "Flight4":
     map_extent = [-120, 15, 60, 90]
     height_ratios = [2, 1]
     hspace = 0.1
+    htitle=0.91
+elif flight == "Flight5":
+    map_extent = [-120, 10, 70, 90]
+    height_ratios = [2, 1]
+    hspace = 0
     htitle=0.91
 elif flight == "Flight6":
     map_extent = [-120, 10, 65, 90]
@@ -152,9 +155,9 @@ for ax_map in [ax_map_sig, ax_map_nonsig]:
     ax_map.add_feature(cfeature.OCEAN, fc='lightblue', ec='k', lw=0.2, zorder=1)
 
 ##--Set labels--##
-ax_map_sig.set_title("$N_{2.5-10}$ Event", fontsize=14)
-ax_map_nonsig.set_title("No Significant $N_{2.5-10}$", fontsize=14)
-ax_time_sig.set_ylabel("Meters Above Ground Level", fontsize=12)
+ax_map_sig.set_title("$N_{10-89}$ Event", fontsize=14)
+ax_map_nonsig.set_title("No Significant $N_{10-89}$", fontsize=14)
+ax_time_sig.set_ylabel("Meters Above Sea Level", fontsize=12)
 #ax_time_nonsig.set_ylabel("Meters Above Ground Level", fontsize=12)
 
 if forward==True: 
@@ -165,8 +168,8 @@ else:
                  fontsize=16, y=htitle)
 
 ##--Set axes limits--##
-ax_time_sig.set_ylim(-250, 8000)
-ax_time_nonsig.set_ylim(-250, 8000)
+ax_time_sig.set_ylim(-250, 10000)
+ax_time_nonsig.set_ylim(-250, 10000)
 
 
 ##########################
@@ -176,8 +179,10 @@ ax_time_nonsig.set_ylim(-250, 8000)
 lats_sig, lons_sig = [], []
 lats_nonsig, lons_nonsig = [], []
 
-alt_sig, time_sig = [], []
-alt_nonsig, time_nonsig = [], []
+magl_sig, time_sig = [], []
+magl_nonsig, time_nonsig = [], []
+p_sig, p_nonsig = [], []
+masl_sig, masl_nonsig = [], []
 
 for i, (file, row) in enumerate(zip(sorted(os.listdir(flight_directory)), netcare_subset.itertuples(index=False))):
      
@@ -215,7 +220,11 @@ for i, (file, row) in enumerate(zip(sorted(os.listdir(flight_directory)), netcar
                 
                 lon = group['LONG'].values
                 lat = group['LAT'].values
-                altitudes = group['ALTITUDE'].values
+                magl = group['ALTITUDE'].values
+                pressure = group['PRESSURE'].values
+                
+                ##--Calculate meters above sea level from elev and terrain height--##
+                masl = group['ALTITUDE'].values + group['TERR_MSL'].values
                 
                 if forward == True: 
                     ##--Compute relative time in days (forward from initialization)--##
@@ -235,12 +244,18 @@ for i, (file, row) in enumerate(zip(sorted(os.listdir(flight_directory)), netcar
                     for j in jump_indices[::-1]:  # reverse order to avoid index shift
                         lon = np.insert(lon, j + 1, np.nan)
                         lat = np.insert(lat, j + 1, np.nan)
-                        altitudes = np.insert(altitudes, j + 1, np.nan)
+                        magl = np.insert(magl, j + 1, np.nan)
                         time_rel = np.insert(time_rel, j + 1, np.nan)
+                        masl = np.insert(masl, j + 1, np.nan)
                 
                 ##--Cut off trajectory within 1m of surface, HYSPLIT is iffy here--##
-                if any(altitudes < 1):
-                    index_end = np.min(np.where(altitudes < 1))
+                if any(magl < 1):
+                    index_end = np.min(np.where(magl < 1))
+                else:
+                    index_end = len(group) 
+                    
+                if any(masl < 1):
+                    index_end = np.min(np.where(masl < 1))
                 else:
                     index_end = len(group) 
                     
@@ -260,20 +275,24 @@ for i, (file, row) in enumerate(zip(sorted(os.listdir(flight_directory)), netcar
                             c=color, lw=linewidth, alpha=alpha, zorder=zorder)
                 '''
                 ax_time.plot(time_rel[:index_end],
-                             group['ALTITUDE'].iloc[:index_end],
+                             masl[:index_end],
                              c=color, lw=linewidth, alpha=alpha, zorder=zorder)
                 
                 ##--Append trajectory data for later histogramming--##
                 if is_significant:
                     lats_sig.extend(lat)
                     lons_sig.extend(lon)
-                    alt_sig.extend(altitudes)
+                    magl_sig.extend(magl)
                     time_sig.extend(time_rel)
+                    p_sig.extend(pressure)
+                    masl_sig.extend(masl)
                 else:
                     lats_nonsig.extend(lat)
                     lons_nonsig.extend(lon)
-                    alt_nonsig.extend(altitudes)
+                    magl_nonsig.extend(magl)
                     time_nonsig.extend(time_rel)
+                    p_nonsig.extend(pressure)
+                    masl_nonsig.extend(masl)
         
     else: 
         
@@ -306,7 +325,11 @@ for i, (file, row) in enumerate(zip(sorted(os.listdir(flight_directory)), netcar
             
             lon = group['LONG'].values
             lat = group['LAT'].values
-            altitudes = group['ALTITUDE'].values
+            magl = group['ALTITUDE'].values
+            pressure = group['PRESSURE'].values
+            
+            ##--Calculate meters above sea level from elev and terrain height--##
+            masl = group['ALTITUDE'].values + group['TERR_MSL'].values
             
             ##--Compute relative time in days (backward from initialization)--##
             t0 = group['DateTime'].iloc[-1]
@@ -319,12 +342,18 @@ for i, (file, row) in enumerate(zip(sorted(os.listdir(flight_directory)), netcar
                 for j in jump_indices[::-1]:  # reverse order to avoid index shift
                     lon = np.insert(lon, j + 1, np.nan)
                     lat = np.insert(lat, j + 1, np.nan)
-                    altitudes = np.insert(altitudes, j + 1, np.nan)
+                    magl = np.insert(magl, j + 1, np.nan)
                     time_rel = np.insert(time_rel, j + 1, np.nan)
+                    masl = np.insert(masl, j +1, np.nan)
             
             ##--Cut off trajectory within 1m of surface, HYSPLIT is iffy here--##
-            if any(altitudes < 1):
-                index_end = np.min(np.where(altitudes < 1))
+            if any(magl < 1):
+                index_end = np.min(np.where(magl < 1))
+            else:
+                index_end = len(group) 
+                
+            if any(masl < 1):
+                index_end = np.min(np.where(masl < 1))
             else:
                 index_end = len(group) 
                 
@@ -344,20 +373,24 @@ for i, (file, row) in enumerate(zip(sorted(os.listdir(flight_directory)), netcar
                         c=color, lw=linewidth, alpha=alpha, zorder=zorder)
             '''
             ax_time.plot(time_rel[:index_end],
-                         group['ALTITUDE'].iloc[:index_end],
+                         masl[:index_end],
                          c=color, lw=linewidth, alpha=alpha, zorder=zorder)
             
             ##--Append trajectory data for later histogramming--##
             if is_significant:
                 lats_sig.extend(lat)
                 lons_sig.extend(lon)
-                alt_sig.extend(altitudes)
+                magl_sig.extend(magl)
                 time_sig.extend(time_rel)
+                p_sig.extend(pressure)
+                masl_sig.extend(masl)
             else:
                 lats_nonsig.extend(lat)
                 lons_nonsig.extend(lon)
-                alt_nonsig.extend(altitudes)
+                magl_nonsig.extend(magl)
                 time_nonsig.extend(time_rel)  
+                p_nonsig.extend(pressure)
+                masl_nonsig.extend(masl)
 
 ##--Set up function to grey out empty plots--##
 def grey_plots(ax):
@@ -436,8 +469,7 @@ if H_sig.size > 0 and H_sig.sum() > 0:
     
     ##--Plot lat/lon density--##
     bin_colors = ax_map_sig.pcolormesh(lon_grid, lat_grid, H_sig_masked, cmap='plasma', 
-           norm=LogNorm(vmin=np.nanmin(H_sig_masked[H_sig_masked > 0]), 
-                        vmax=np.nanmax(H_sig_masked)),
+           norm=LogNorm(vmin=0.001, vmax=2),
         alpha=0.25, edgecolors='none', transform=ccrs.PlateCarree(), zorder=4)
     
     ##--Flatten the histograms--##
@@ -506,8 +538,7 @@ if H_nonsig.size > 0 and np.nansum(H_nonsig) > 0:
     
     ##--Plot lat/lon density--##
     bin_colors = ax_map_nonsig.pcolormesh(lon_grid, lat_grid, H_nonsig_masked, cmap='plasma',
-          norm=LogNorm(vmin=np.nanmin(H_nonsig_masked[H_nonsig_masked > 0]), 
-                       vmax=np.nanmax(H_nonsig_masked)),
+          norm=LogNorm(vmin=0.001, vmax=2),
         alpha=0.25, edgecolors='none', transform=ccrs.PlateCarree(), zorder=4)
     
 
@@ -549,14 +580,14 @@ if H_nonsig.size > 0 and np.nansum(H_nonsig) > 0:
 
         if hull_nonsig_bins.geom_type == "Polygon":
             x, y = hull_nonsig_bins.exterior.xy
-            ax_map_nonsig.fill(x, y, facecolor='None', edgecolor='#9D0759', ls='--',
+            ax_map_nonsig.fill(x, y, facecolor='None', edgecolor='orangered', ls='--',
                 linewidth=2, transform=ccrs.PlateCarree(), zorder=7)
 
         elif hull_nonsig_bins.geom_type == "MultiPolygon":
             for poly in hull_nonsig_bins.geoms:
                 if not poly.is_empty:
                     x, y = poly.exterior.xy
-                    ax_map_nonsig.fill(x, y, facecolor='None', edgecolor='#9D0759', ls='--',
+                    ax_map_nonsig.fill(x, y, facecolor='None', edgecolor='orangered', ls='--',
                         linewidth=2, transform=ccrs.PlateCarree(), zorder=7)
         else:
             print("Alpha shape is not a polygon:", hull_nonsig_bins.geom_type)
@@ -584,12 +615,23 @@ num_time_bins = 12
 num_alt_bins = 10
 
 ##--Convert altitude lists to arrays--##
-alt_sig_arr = np.asarray(alt_sig)
-alt_nonsig_arr = np.asarray(alt_nonsig)
+##--USING CALCULATED METERS ABOVE SEA LEVEL--##
+alt_sig_arr = np.asarray(masl_sig)
+alt_nonsig_arr = np.asarray(masl_nonsig)
 
 ##--And time--##
 time_sig = np.asarray(time_sig)
 time_nonsig = np.asarray(time_nonsig)
+
+##--Suggestion from GPT 5 model - pad mismatched arrays to align--##
+def pad_to_match(a, b):
+    L = max(len(a), len(b))
+    a = np.pad(a, (0, L - len(a)), constant_values=np.nan)
+    b = np.pad(b, (0, L - len(b)), constant_values=np.nan)
+    return a, b
+
+time_sig, alt_sig_arr = pad_to_match(time_sig, alt_sig_arr)
+time_nonsig, alt_nonsig_arr = pad_to_match(time_nonsig, alt_nonsig_arr)
 
 ##--Ensure no NaN values in any array--##
 def clean_valid_pairs(time_arr, alt_arr):
@@ -630,7 +672,7 @@ time_bins_rel = np.linspace(time_min, time_max, num_time_bins + 1)
 ##--Create altitude bin edges--##
 all_alt = np.concatenate([alt_sig_arr, alt_nonsig_arr]) if len(alt_sig_arr) > 0 else alt_nonsig_arr
 min_alt = np.nanmin(all_alt) if len(all_alt) > 0 else 0
-max_alt = np.nanmax(all_alt) if len(all_alt) > 0 else 10000
+max_alt = np.nanmax(all_alt) if len(all_alt) > 0 else 12000
 alt_bins = np.linspace(min_alt, max_alt, num_alt_bins + 1)
 
 ############################
@@ -638,10 +680,10 @@ alt_bins = np.linspace(min_alt, max_alt, num_alt_bins + 1)
 ############################
 
 ##--Define the empty cases--##
-sig_empty = (len(time_sig) == 0 or len(alt_sig) == 0
+sig_empty = (len(time_sig) == 0 or len(masl_sig) == 0
     or (H_sig is not None and np.sum(H_sig) == 0))
 
-nonsig_empty = (len(time_nonsig) == 0 or len(alt_nonsig) == 0
+nonsig_empty = (len(time_nonsig) == 0 or len(masl_nonsig) == 0
     or (H_nonsig is not None and np.sum(H_nonsig) == 0))
 
 ##--Explicitly assign which axes are maps and histograms for later handling--##
@@ -688,7 +730,7 @@ else:
     # Empty case
     H_sig_masked = ma.masked_all((len(time_bins_rel) - 1, len(alt_bins) - 1))
     mesh_sig = ax_time_sig.pcolormesh(time_bins_rel, alt_bins, H_sig_masked.T,
-                                      cmap='Greys', alpha=0.3, shading='auto')
+                                      cmap='Greys', alpha=0.3, shading='auto', vmin=0, vmax=10)
 
 ##--Nonsignificant trajectories--##
 if len(time_nonsig) > 0 and len(alt_nonsig_arr) > 0:
@@ -703,13 +745,14 @@ else:
     H_nonsig_masked = ma.masked_all((len(time_bins_rel) - 1, len(alt_bins) - 1))
 
 mesh_nonsig = ax_time_nonsig.pcolormesh(time_bins_rel, alt_bins, H_nonsig_masked.T,
-                                        cmap='magma', alpha=0.75, edgecolors='none', shading='auto')
+                                        cmap='magma', alpha=0.75, edgecolors='none', shading='auto',
+                                        vmin=0, vmax=10)
 
 if forward==True: 
         
     ##--Format axis ticks and labels--##
-    for ax, has_data in [(ax_time_sig, len(time_sig) > 0 and len(alt_sig) > 0),
-                         (ax_time_nonsig, len(time_nonsig) > 0 and len(alt_nonsig) > 0)]:
+    for ax, has_data in [(ax_time_sig, len(time_sig) > 0 and len(masl_sig) > 0),
+                         (ax_time_nonsig, len(time_nonsig) > 0 and len(masl_nonsig) > 0)]:
         ax.set_xlim(time_min, time_max)
         ax.set_yticks(np.arange(0, 10000, 2000))
         ax.tick_params(axis='both', labelsize=12)
@@ -728,8 +771,8 @@ if forward==True:
 
 else: 
     ##--Format axis ticks and labels--##
-    for ax, has_data in [(ax_time_sig, len(time_sig) > 0 and len(alt_sig) > 0),
-                         (ax_time_nonsig, len(time_nonsig) > 0 and len(alt_nonsig) > 0)]:
+    for ax, has_data in [(ax_time_sig, len(time_sig) > 0 and len(masl_sig) > 0),
+                         (ax_time_nonsig, len(time_nonsig) > 0 and len(masl_nonsig) > 0)]:
         ax.set_xlim(time_min, time_max)
         ax.set_yticks(np.arange(0, 10000, 2000))
         ax.tick_params(axis='both', labelsize=12)
