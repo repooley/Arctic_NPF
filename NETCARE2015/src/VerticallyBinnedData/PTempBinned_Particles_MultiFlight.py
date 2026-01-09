@@ -11,6 +11,7 @@ import glob
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt 
+from datetime import date
 
 ###################
 ##--User inputs--##
@@ -19,9 +20,29 @@ import matplotlib.pyplot as plt
 ##--Set the base directory to project folder--##
 directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw"
 
-##--Choose which flights to analyze here!--##
+##--Flights to analyze - flights 1-10 (flight 1 has missing data)--##
 flights_to_analyze = ["Flight2", "Flight3", "Flight4", "Flight5", "Flight6", 
                       "Flight7", "Flight8", "Flight9", "Flight10"]
+
+##--Assign dates to the flights--##
+flight_dates = {"Flight1":  date(2015, 4, 5),
+    "Flight2":  date(2015, 4, 7),
+    "Flight3":  date(2015, 4, 8),
+    "Flight4":  date(2015, 4, 8),
+    "Flight5":  date(2015, 4, 9),
+    "Flight6":  date(2015, 4, 11),
+    "Flight7":  date(2015, 4, 13),
+    "Flight8":  date(2015, 4, 20),
+    "Flight9":  date(2015, 4, 20),
+    "Flight10": date(2015, 4, 21)}
+
+##--Pull datasets with zeros not filtered out--##
+CPC3_R1 = icartt.Dataset(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\CPC_R1\CPC3776_Polar6_20150408_R1_L2.ict")    
+CPC10_R1 = icartt.Dataset(r'C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\CPC_R1\CPC3772_Polar6_20150408_R1_L2.ict')
+
+##--Bin data are in a CSV file--##
+UHSAS_bins = pd.read_csv(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv")
+
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\PTempBinnedData\Particle"
@@ -49,15 +70,13 @@ def find_files(flight_dir, partial_name):
 #################
 
 ##--Store processed data here: --##
-CPC3_dfs = []
-CPC10_dfs = []
-nuc_dfs = []
-ptemp_dfs = []
- 
+unified_dfs = []
+
 ##--Loop through each flight, pulling and analyzing data--##
 for flight in flights_to_analyze:
     ##--Follow which flight is processing--##
     print(f"Processing {flight}...")
+    
     ##--Populate flight_dir established in above function--##
     flight_dir = os.path.join(directory, flight)
     ##--Pull meteorological data from AIMMS monitoring system--##
@@ -121,6 +140,65 @@ for flight in flights_to_analyze:
     ##--Make a new df reindexed to aimms_time. Populate with CPC10 conc--##
     CPC10_conc_aligned = CPC10_df.reindex(aimms_time)['conc']
     
+    ##--USHAS Data--##
+    UHSAS_time = UHSAS.data['time'] # seconds since midnight
+    ##--Total count is computed for N > 85 nm--##
+    ICARTT_UHSAS_total = UHSAS.data['total_number_conc'] # particles/cm^3
+
+    ##--Make list of columns to pull, each named bin_x--##
+    ##--Bins 1-13 not trustworthy. Bins 76-99 overlap with OPC, discard--##
+    ##--Trim to use bins 14-76 (500>85 nm)--##
+    UHSAS_bin_num = [f'bin_{i}' for i in range(14, 75)]
+
+    ##--Information for bins 14 thru 99--##
+    UHSAS_bin_center = UHSAS_bins['bin_avg'].iloc[14:75]
+    UHSAS_lower_bound = UHSAS_bins['lower_bound'].iloc[14:75]
+    UHSAS_upper_bound = UHSAS_bins['upper_bound'].iloc[14:75]
+
+    ##--Put column names and content in a dictionary and then convert to a Pandas df--##
+    UHSAS_bin_names = pd.DataFrame({col: UHSAS.data[col] for col in UHSAS_bin_num})
+
+    ##--Create new column names by rounding the bin center values to the nearest integer--##
+    UHSAS_new_col_names = UHSAS_bin_center.round().astype(int).tolist()
+
+    ##--Rename the UHSAS_bins df columns to bin average values--##
+    UHSAS_bin_names.columns = UHSAS_new_col_names
+    
+    ##--Add time to UHSAS_bins df--##
+    UHSAS_bin_names.insert(0, 'Time', UHSAS_time)
+
+    ##--Align UHSAS_bins time to AIMMS time--##
+    UHSAS_bins_aligned = UHSAS_bin_names.set_index('Time').reindex(aimms_time)
+
+    ###############################
+    ##--De-Normalize UHSAS Data--##
+    ###############################
+
+    ##--Calculate dlogDp for UHSAS bins--##
+    UHSAS_dlogDp = np.log(UHSAS_upper_bound.values) - np.log(UHSAS_lower_bound.values)
+
+    ##--Get only particle count data (excluding 'Time')--##
+    UHSAS_particle_counts = UHSAS_bins_aligned.loc[:, UHSAS_new_col_names]  # Adjust column names as needed
+
+    ##--De-Normalize counts by multiplying by dlogDp across all rows--##
+    UHSAS_denorm_counts = UHSAS_particle_counts.multiply(UHSAS_dlogDp, axis=1)
+    
+    #######################################
+    ##--Calculate potential temperature--##
+    #######################################
+
+    ##--Constants--##
+    p_0 = 1E5 # Reference pressure in Pa (1000 hPa)
+    k = 0.286 # Poisson constant for dry air
+
+    ##--Generate empty list for potential temperature output--##
+    potential_temp = []
+
+    ##--Calculate potential temperature from ambient temp & pressure--##
+    for T, P in zip(temperature, pressure):
+        p_t = T*(p_0/P)**k
+        potential_temp.append(p_t)
+
     ######################
     ##--Calc N(2.5-10)--##
     ######################
@@ -153,139 +231,202 @@ for flight in flights_to_analyze:
             CPC10_conversion = CPC10 * (P_STP / P) * (T / T_STP)
             CPC10_conc_STP.append(CPC10_conversion)
 
-    ##--Creates a Pandas dataframe for CPC data--##
-    CPC_df = pd.DataFrame({'CPC3_conc':CPC3_conc_STP, 'CPC10_conc': CPC10_conc_STP})
+    ##--Creates a Pandas dataframe for particle data--##
+    df = pd.DataFrame({'PTemp': potential_temp, 
+                       'CPC3_conc':CPC3_conc_STP, 'CPC10_conc': CPC10_conc_STP})
 
     ##--Calculate N3-10 particles--##
-    nuc_particles = (CPC_df['CPC3_conc'] - CPC_df['CPC10_conc'])
+    nuc_particles = (df['CPC3_conc'] - df['CPC10_conc'])
 
     ##--Change calculated particle counts less than zero to NaN--##
     nuc_particles = np.where(nuc_particles >= 0, nuc_particles, np.nan)
+
+    ##--Add nucleating particles to df--##
+    df['nuc_particles'] = nuc_particles
     
-    #######################################
-    ##--Calculate potential temperature--##
-    #######################################
+    #####################
+    ##--Calc N(10-89)--##
+    #####################
 
-    ##--Constants--##
-    p_0 = 1E5 # Reference pressure in Pa (1000 hPa)
-    k = 0.286 # Poisson constant for dry air
+    ##--Re-compute UHSAS total count using denormalized data--##
+    UHSAS_total = UHSAS_denorm_counts.sum(axis=1)
 
-    ##--Generate empty list for potential temperature output--##
-    potential_temp = []
+    ##--Create df with UHSAS total counts and index to AIMMS time--##
+    UHSAS_total_aligned = pd.DataFrame({'Time': aimms_time, 'Total_count': UHSAS_total}).set_index('Time')
 
-    ##--Calculate potential temperature from ambient temp & pressure--##
-    for T, P in zip(temperature, pressure):
-        p_t = T*(p_0/P)**k
-        potential_temp.append(p_t)
+    ##--Create df with CPC10 counts and set index to time--##
+    CPC10_counts = pd.DataFrame({'Time':aimms_time, 'Counts':CPC10_conc_STP}).set_index('Time')
+
+    ##--Calculate particles below UHSAS lower cutoff--##
+    n_10_89 = (CPC10_counts['Counts'] - UHSAS_total_aligned['Total_count'])
+
+    ##--Change calculated particle counts less than zero to NaN--##
+    n_10_89 = np.where(n_10_89 >= 0, n_10_89, np.nan)
+
+    ##--Add 10-89 nm particles to the dataframe--##
+    df['n_10_89'] = n_10_89
+        
+    #############################
+    ##--Calculate Uncertainty--##        
+    #############################
+
+    ##--Pull CPC data from R1 data--##
+    CPC3_R1_conc = CPC3_R1.data['conc']
+    CPC10_R1_conc = CPC10_R1.data['conc']
+
+    ##--Isolate zero periods, setting conservative upper limit of 50 counts--##
+    ##--Numpy doesn't recognize -9999 as NaN, tell it to ignore these values--##
+    CPC3_zeros_c = CPC3_R1_conc[(CPC3_R1_conc < 50) & (CPC3_R1_conc != -9999)]
+    CPC10_zeros_c = CPC10_R1_conc[(CPC10_R1_conc < 50) & (CPC10_R1_conc != -99999)]
+
+    ##--Calculate standard deviation of zeros--##
+    CPC3_sigma = np.std(CPC3_zeros_c, ddof=1)  # Use ddof=1 for sample standard deviation
+    CPC10_sigma = np.std(CPC10_zeros_c, ddof=1)
+
+    ##--UHSAS doesn't have zero periods, using Poisson counting uncertainty--##
+    UHSAS_total_sqrt = np.sqrt(UHSAS_denorm_counts)
+
+    ##--Use simple sum of UHSAS uncertainties per bin for conservative estimate--##
+    ##--Similar result as using sqrt of squares but erring on side of caution--##
+    UHSAS_total_error = UHSAS_total_sqrt.sum(axis=1)
+
+    # %%
+    #############################
+    ##--Propagate uncertainty--##
+    #############################
+
+    ##--The ICARTT files for CPC instruments say 10% uncertainty of meas value - feels conservative for large counts!--##
+    ##--Calculate the 3 sigma uncertainty for nucleating particles--##
+
+    T_error = 0.3 # K, constant
+    P_error = 100 + 0.0005*(pressure)
+
+    ##--Use formula for mult/div to compute error after converting to STP--##
+    greater3nm_error = (CPC3_conc_aligned)*(((P_error)/(pressure))**2 + ((T_error)/(temperature))**2 + ((CPC3_sigma)/(CPC3_conc_aligned)))**(0.5)
+    greater10nm_error = (CPC10_conc_aligned)*(((P_error)/(pressure))**2 + ((T_error)/(temperature))**2 + ((CPC10_sigma)/(CPC10_conc_aligned)))**(0.5)
+
+    ##--Use add/subtract forumula to compute 3sigma error--##
+    nuc_error_3sigma = (((greater3nm_error)**2 + (greater10nm_error)**2)**(0.5))*3
+
+    ##--nuc_error_3sigma still has a time index, reset to integer to align--##
+    df['nuc_error_3sigma'] = nuc_error_3sigma
+
+    ##--Calculate error in difference between CPC10 and UHSAS--##
+    aitken_error_3sigma = (((greater10nm_error)**2 + (UHSAS_total_error)**2)**(0.5))*3
+
+    ##--Add uncertainty for 10-85 nm bin to big df--##
+    df['aitken_error_3sigma'] = aitken_error_3sigma
     
     #########################
     ##--Create dataframes--##
     #########################
-    
-    ##--Drop NaNs, done for individual datasets for data preservation--##
-    CPC3_df = pd.DataFrame({'Ptemp': potential_temp, 'Latitude': latitude, 
-                            'CPC3_conc': CPC3_conc_STP}).dropna()
-    CPC10_df = pd.DataFrame({'Ptemp': potential_temp, 'Latitude': latitude, 
-                            'CPC10_conc': CPC10_conc_STP}).dropna()
-    nuc_df = pd.DataFrame({'Ptemp': potential_temp, 'Latitude': latitude, 
-                           'nuc_particles': nuc_particles}).dropna()
-    ptemp_df = pd.DataFrame({'Ptemp': potential_temp})
 
-    ##--Store all processed data and ensure in numpy arrays--##
-    CPC3_dfs.append(CPC3_df[['Ptemp', 'Latitude', 'CPC3_conc']])
-    CPC10_dfs.append(CPC10_df[['Ptemp', 'Latitude', 'CPC10_conc']])
-    nuc_dfs.append(nuc_df[['Ptemp', 'Latitude', 'nuc_particles']])
-    ptemp_dfs.append(ptemp_df[['Ptemp']])
+    ##--Convert everything to a single DataFrame--##
+    df = pd.DataFrame({
+        'Ptemp': potential_temp,
+        'Latitude': latitude,
+        'CPC3_conc': CPC3_conc_STP,
+        'CPC10_conc': CPC10_conc_STP,
+        'nuc_particles': nuc_particles,
+        'grow_particles': n_10_89,
+        'nuc_error': nuc_error_3sigma,
+        'grow_error': aitken_error_3sigma
+    })
+    
+    ##--Drop nans--##
+    df = df.dropna(subset=[
+        'Ptemp', 'Latitude',
+        'CPC3_conc', 'CPC10_conc',
+        'nuc_particles', 'grow_particles'
+    ]).reset_index(drop=True)
+    
+    ##--Store for later binning--##
+    unified_dfs.append(df)
 
 #%%
 ###############
 ##--BINNING--##
 ###############
 
-# Loop through all datasets
-for i, (cpc3_df, cpc10_df, nuc_df, ptemp_df) in enumerate(zip(CPC3_dfs, CPC10_dfs, nuc_dfs, ptemp_dfs)):
+nuc_uncertainties = []
+grow_uncertainties = []
+num_bins = 60
 
-    print(f"Plotting dataset {i+1}...")
+for df in unified_dfs:
 
-    # Recreate a combined dataframe for binning
-    df = pd.concat([ptemp_df, cpc3_df.drop(columns="Ptemp"), 
-                    cpc10_df.drop(columns="Ptemp"), 
-                    nuc_df.drop(columns="Ptemp")], axis=1)
-    
-    # Set bin edges
-    num_bins = 60
+    ##--Bin edges--##
+    bin_edges = np.linspace(df['Ptemp'].min(), df['Ptemp'].max(), num_bins + 1)
 
-    # Bin edges
-    min_ptemp = df['Ptemp'].min(skipna=True)
-    max_ptemp = df['Ptemp'].max(skipna=True)
-    bin_edges = np.linspace(min_ptemp, max_ptemp, num_bins + 1)
-
+    ##--Cut into Ptemp bins--##
     df['PTemp_bin'] = pd.cut(df['Ptemp'], bins=bin_edges)
 
-    # Group into bins
+    ##--Compute bin medians, including uncertainty--##
     binned_df = df.groupby('PTemp_bin', observed=False).agg(
         PTemp_center=('Ptemp', 'median'),
         CPC10_conc_center=('CPC10_conc', 'median'),
-        CPC3_conc_center=('CPC3_conc', 'median')
+        CPC3_conc_center=('CPC3_conc', 'median'),
+        nuc_particles_center=('nuc_particles', 'median'),
+        nuc_error_median=('nuc_error', 'median'),
+        grow_particles_center=('grow_particles', 'median'),
+        grow_error_median=('grow_error', 'median')
     ).reset_index()
+
+    ##--Store flight-level mean-median uncertainties--##
+    nuc_uncertainties.append(binned_df['nuc_error_median'].mean())
+    grow_uncertainties.append(binned_df['grow_error_median'].mean())
+
 #%%
 
 ################
 ##--PLOTTING--##
 ################
 
-# Create figure with 3 horizontally stacked subplots sharing y-axis
-fig, axs = plt.subplots(1, 3, figsize=(9, 6), sharey=True)
+fig, axs = plt.subplots(1, 4, figsize=(12, 6), sharey=True)
 
-# Choose a colormap for gradient coloring
+##--Colormap - assign a color to each flight--##
 cmap = plt.cm.viridis
-n_flights = len(flights_to_analyze)
+n_flights = len(unified_dfs)
 colors = [cmap(i / (n_flights - 1)) for i in range(n_flights)]
 
-for i, flight in enumerate(flights_to_analyze):
-    cpc3_df = CPC3_dfs[i]
-    cpc10_df = CPC10_dfs[i]
-    nuc_df = nuc_dfs[i]
-    ptemp_df = ptemp_dfs[i]
+##--Loop over flights--##
+for i, (flight, df) in enumerate(zip(flights_to_analyze, unified_dfs)):
+    
+    ####################################
+    ##--Assign date to flight number--##
+    ####################################
 
-    # Merge aligned dataframes (keep one Ptemp column)
-    df = pd.concat([
-        ptemp_df,
-        cpc3_df.drop(columns="Ptemp"),
-        cpc10_df.drop(columns="Ptemp"),
-        nuc_df.drop(columns="Ptemp")
-    ], axis=1)
+    flight_date = flight_dates[flight]  
 
-    # Bin edges
-    min_ptemp = df["Ptemp"].min(skipna=True)
-    max_ptemp = df["Ptemp"].max(skipna=True)
+    ##--Bin edges--##
+    min_ptemp = df["Ptemp"].min()
+    max_ptemp = df["Ptemp"].max()
     bin_edges = np.linspace(min_ptemp, max_ptemp, num_bins + 1)
-
+    
+    ##--Potential temperature bins--##
     df["PTemp_bin"] = pd.cut(df["Ptemp"], bins=bin_edges)
-
-    # Bin by potential temperature
+    
+    ##--Bin medians--##
     binned_df = df.groupby("PTemp_bin", observed=False).agg(
         PTemp_center=("Ptemp", "median"),
         CPC10_conc_center=("CPC10_conc", "median"),
         CPC3_conc_center=("CPC3_conc", "median"),
-        nuc_particles_center=("nuc_particles", "median")
+        nuc_particles_center=("nuc_particles", "median"),
+        grow_particles_center=("grow_particles", "median")
     ).reset_index()
-
-    color = colors[i]
-
-    # --- Subplot 1: CPC10 ---
-    axs[0].plot(binned_df["CPC10_conc_center"], binned_df["PTemp_center"],
-                label=flight, color=color)
-
-    # --- Subplot 2: CPC3 ---
-    axs[1].plot(binned_df["CPC3_conc_center"], binned_df["PTemp_center"],
-                label=flight, color=color)
-
-    # --- Subplot 3: Nucleating ---
+    
+    axs[0].plot(binned_df["CPC3_conc_center"], binned_df["PTemp_center"],
+                color=colors[i], label=f'Flight {i+1} ({flight_date})')
+    
+    axs[1].plot(binned_df["CPC10_conc_center"], binned_df["PTemp_center"],
+                color=colors[i], label=f'Flight {i+1} ({flight_date})')
+    
     axs[2].plot(binned_df["nuc_particles_center"], binned_df["PTemp_center"],
-                label=flight, color=color)
+                color=colors[i], label=f'Flight {i+1} ({flight_date})')
+    
+    axs[3].plot(binned_df["grow_particles_center"], binned_df["PTemp_center"],
+                color=colors[i], label=f'Flight {i+1} ({flight_date})')
 
-# ---- Format subplot 1 ----
+##--Subplot 1--##
 axs[0].set_ylabel("Potential Temperature (K)", fontsize=16)
 axs[0].set_xlabel("Counts/cm³", fontsize=14)
 axs[0].set_title("N ≥ 10 nm", fontsize=16)
@@ -294,14 +435,14 @@ axs[0].tick_params(axis='both', labelsize=12)
 axs[0].axhline(y=285, color="k", linestyle="--", linewidth=1)
 axs[0].axhline(y=299, color="k", linestyle="--", linewidth=1)
 
-# Polar dome labels
+##=-Polar dome labels--##
 x_text = axs[0].get_xlim()[0] + 1050
 axs[0].text(x_text, 282, "Polar Dome", fontsize=11, color="k",
             verticalalignment="center", horizontalalignment="left")
 axs[0].text(x_text, 288, "Marginal Dome", fontsize=11, color="k",
             verticalalignment="center", horizontalalignment="left")
 
-# ---- Format subplot 2 ----
+##--Subplot 2--##
 axs[1].set_title("N ≥ 2.5 nm", fontsize=16)
 axs[1].set_xlabel("Counts/cm³", fontsize=14)
 axs[1].set_xlim(-50, 3400)
@@ -309,15 +450,29 @@ axs[1].tick_params(axis='both', labelsize=12)
 axs[1].axhline(y=285, color="k", linestyle="--", linewidth=1)
 axs[1].axhline(y=299, color="k", linestyle="--", linewidth=1)
 
-# ---- Format subplot 3 ----
+##--Subplot 3--##
 axs[2].set_title("$N_{2.5-10}$", fontsize=16)
 axs[2].set_xlabel("Counts/cm³", fontsize=14)
 axs[2].tick_params(axis='both', labelsize=12)
 axs[2].axhline(y=285, color="k", linestyle="--", linewidth=1)
 axs[2].axhline(y=299, color="k", linestyle="--", linewidth=1)
 
-# ---- Legend and title ----
-axs[2].legend(loc="lower right", fontsize=12)
+##--Add mean uncertainty--##
+global_uncertainty_line = np.mean(nuc_uncertainties)
+axs[2].axvline(global_uncertainty_line, color='crimson', linestyle='dashed', linewidth=1, label='3$\sigma$ Uncertainty')
+
+##--Subplot 4--##
+axs[3].set_title("$N_{10-89}$", fontsize=16)
+axs[3].set_xlabel("Counts/cm³", fontsize=14)
+axs[3].tick_params(axis='both', labelsize=12)
+axs[3].axhline(y=285, color="k", linestyle="--", linewidth=1)
+axs[3].axhline(y=299, color="k", linestyle="--", linewidth=1)
+
+global_uncertainty_line2 = np.mean(grow_uncertainties)
+axs[3].axvline(global_uncertainty_line2, color='crimson', linestyle='dashed', linewidth=1, label='3$\sigma$ Uncertainty')
+
+
+axs[3].legend(loc="lower right", fontsize=10)
 
 plt.suptitle("NETCARE 2015 Vertical Particle Profiles", fontsize=18)
 
