@@ -12,6 +12,8 @@ import numpy as np
 import pandas as pd
 from scipy.stats import binned_statistic_2d
 import matplotlib.pyplot as plt 
+import matplotlib.ticker as ticker
+import cmcrameri as cm
 
 ###################
 ##--User inputs--##
@@ -403,10 +405,10 @@ CS10_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_CS10, all_ptemps_C
 ################
 
 ##--Particles larger than 3 nm--##
-fig1, ax1 = plt.subplots(figsize=(8, 6))
+fig1, ax1 = plt.subplots(figsize=(6, 6))
 
 ##--Make special color map where 0 values are white--##
-new_cmap = plt.get_cmap('plasma')
+new_cmap = cm.cm.batlow
 ##--Values under specified minimum will be white--##
 new_cmap.set_under('w')
 
@@ -415,22 +417,24 @@ CS10_plot = ax1.pcolormesh(lat_bin_edges_CS10, ptemp_bin_edges_CS10, CS10_bin_me
     shading='auto', cmap=new_cmap, vmin=0, vmax=0.006)
 
 ##--Add dashed horizontal lines for the polar dome boundaries--##
-ax1.axhline(y=285, color='k', linestyle='--', linewidth=1)
-ax1.axhline(y=299, color='k', linestyle='--', linewidth=1)
+ax1.axhline(y=285, color='k', linestyle='--', linewidth=2)
+ax1.axhline(y=299, color='k', linestyle='--', linewidth=2)
 
 ##--Add colorbar--##
-cb = fig1.colorbar(CS10_plot, ax=ax1)
+cb = fig1.colorbar(CS10_plot, ax=ax1, orientation='horizontal', location='bottom', pad=0.15)
 cb.minorticks_on()
-cb.ax.tick_params(labelsize=16)
-cb.set_label('Condensation $s^{-1}$', fontsize=16)
+cb.ax.tick_params(labelsize=18)
+cb.set_label('Condensation $s^{-1}$', fontsize=18)
 
 ##--Set axis labels--##
-ax1.set_xlabel('Latitude (°)', fontsize=16)
-ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=16)
-ax1.tick_params(axis='both', labelsize=16)
-ax1.set_title("Condensation Sink for $N_{2.5-10}$", fontsize=18)
-#ax1.set_ylim(238, 301)
-#ax1.set_xlim(79.5, 83.7)
+ax1.set_xlabel('Latitude (°)', fontsize=18)
+ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=18)
+ax1.tick_params(axis='both', labelsize=18)
+ax1.set_title("Condensation Sink for $N_{2.5-10}$", fontsize=20)
+ax1.set_ylim(238, 316)
+ax1.set_xlim(64, 86)
+ax1.xaxis.set_major_locator(ticker.MultipleLocator(5))
+ax1.yaxis.set_major_locator(ticker.MultipleLocator(10))
 
 ##--Use f-string to save file with flight# appended--##
 CS10_output_path = f"{output_path}\\{flight}_MultiFlights"

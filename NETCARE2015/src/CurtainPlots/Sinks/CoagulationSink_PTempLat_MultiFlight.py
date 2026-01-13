@@ -11,7 +11,7 @@ import glob
 import numpy as np
 import pandas as pd
 from scipy.stats import binned_statistic_2d
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt  
 
 ###################
 ##--User inputs--##
@@ -466,10 +466,10 @@ coagulation_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_coagulation
 ################
 
 ##--Particles larger than 3 nm--##
-fig1, ax1 = plt.subplots(figsize=(8, 6))
+fig1, ax1 = plt.subplots(figsize=(6, 6))
 
 ##--Make special color map where 0 values are white--##
-new_cmap = plt.get_cmap('plasma')
+new_cmap = plt.get_cmap('viridis')
 ##--Values under specified minimum will be white--##
 new_cmap.set_under('w')
 
@@ -482,8 +482,9 @@ ax1.axhline(y=285, color='k', linestyle='--', linewidth=1)
 ax1.axhline(y=299, color='k', linestyle='--', linewidth=1)
 
 ##--Add colorbar--##
-cb = fig1.colorbar(Coagulation_plot, ax=ax1)
+cb = fig1.colorbar(Coagulation_plot, ax=ax1, orientation='horizontal', location='bottom', pad=0.15)
 cb.minorticks_on()
+cb.set_ticks([0, 0.0004, 0.0008, 0.0012])
 cb.ax.tick_params(labelsize=16)
 cb.set_label('Coagulation $s^{-1}$', fontsize=16)
 

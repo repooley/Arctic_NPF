@@ -12,6 +12,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt 
 from scipy.stats import binned_statistic_2d
+import matplotlib.ticker as ticker
+import cmcrameri as cm 
  
 ###################
 ##--User inputs--##
@@ -47,6 +49,7 @@ def find_files(flight_dir, partial_name):
 O3_dfs = []
 CO_dfs = []
 CO2_dfs = []
+CO_CO2_dfs = []
  
 ##--Loop through each flight, pulling and analyzing data--##
 for flight in flights_to_analyze:
@@ -146,6 +149,17 @@ for flight in flights_to_analyze:
     CO2_df = pd.DataFrame({'time':CO2_time, 'conc': CO2_conc}).set_index('time')
     CO2_conc_aligned = CO2_df.reindex(aimms_time)['conc']
     
+    ##--Flatten aligned concentrations for computation--##
+    CO_conc_flat = CO_conc_aligned.values.flatten()
+    CO2_conc_flat = CO2_conc_aligned.values.flatten()
+    
+    CO_CO2 = CO_conc_flat / CO2_conc_flat
+    
+    CO_CO2_conc_aligned = pd.DataFrame({'time': aimms_time, 'conc': CO_CO2}).set_index('time')
+    
+    ##--Flatten--##
+    CO_CO2_conc_aligned = CO_CO2_conc_aligned.values.flatten()
+    
     ####################
     ##--Calculations--##
     ####################
@@ -174,11 +188,13 @@ for flight in flights_to_analyze:
     O3_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'O3_conc': O3_conc_aligned}).dropna()
     CO_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'CO_conc': CO_conc_aligned}).dropna()
     CO2_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'CO2_conc': CO2_conc_aligned}).dropna()
+    CO_CO2_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'CO_CO2_conc': CO_CO2_conc_aligned}).dropna()
 
     ##--Store all processed data and ensure in numpy arrays--##
     O3_dfs.append(O3_df[['PTemp', 'Latitude', 'O3_conc']])
     CO_dfs.append(CO_df[['PTemp', 'Latitude', 'CO_conc']])
     CO2_dfs.append(CO2_df[['PTemp', 'Latitude', 'CO2_conc']])
+    CO_CO2_dfs.append(CO_CO2_df[['PTemp', 'Latitude', 'CO_CO2_conc']])
 
 ###########################
 ##--Prepare for Binning--##
@@ -217,25 +233,36 @@ ptemp_bin_edges_CO2 = np.linspace(all_ptemps_CO2.min(), all_ptemps_CO2.max(), nu
 CO2_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_CO2, all_ptemps_CO2, 
         all_CO2, statistic="median", bins=[lat_bin_edges_CO2, ptemp_bin_edges_CO2])
 
+##--Binning for CO/CO2 data--##
+all_latitudes_CO_CO2 = np.concatenate([df["Latitude"].values for df in CO_CO2_dfs])
+all_ptemps_CO_CO2 = np.concatenate([df["PTemp"].values for df in CO_CO2_dfs])
+all_CO_CO2 = np.concatenate([df["CO_CO2_conc"].values for df in CO_CO2_dfs])
+ 
+lat_bin_edges_CO_CO2 = np.linspace(all_latitudes_CO_CO2.min(), all_latitudes_CO_CO2.max(), num_bins_lat + 1)
+ptemp_bin_edges_CO_CO2 = np.linspace(all_ptemps_CO_CO2.min(), all_ptemps_CO_CO2.max(), num_bins_ptemp + 1)
+ 
+CO_CO2_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_CO_CO2, all_ptemps_CO_CO2, 
+        all_CO_CO2, statistic="median", bins=[lat_bin_edges_CO_CO2, ptemp_bin_edges_CO_CO2])
+
 ################
 ##--PLOTTING--##
 ################
  
 def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, output_path):
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(6, 6))
  
     ##--Make special color map where 0 values are white--##
-    new_cmap = plt.get_cmap('cividis')
+    new_cmap = cm.cm.bamako
     new_cmap.set_under('w')
  
     ##--Plot the 2D data using pcolormesh--##
     mesh = ax.pcolormesh(x_edges, y_edges, bin_medians.T, shading="auto", cmap=new_cmap, vmin=vmin, vmax=vmax)
  
     ##--Add colorbar--##
-    cb = fig.colorbar(mesh, ax=ax)
+    cb = fig.colorbar(mesh, ax=ax, orientation='horizontal', location='bottom', pad=0.15)
     cb.minorticks_on()
-    cb.ax.tick_params(labelsize=16)
-    cb.set_label(cbar_label, fontsize=16)
+    cb.ax.tick_params(labelsize=18)
+    cb.set_label(cbar_label, fontsize=18)
     
     ##--Add dashed horizontal lines for the polar dome boundaries--##
     ##--Boundaries are defined from Bozem et al 2019 (ACP)--##
@@ -258,10 +285,12 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, o
     ##--Set axis labels and title--##
     ax.set_xlabel("Latitude (°)", fontsize=18)
     ax.set_ylabel("Potential Temperature \u0398 (K)", fontsize=18)
-    ax.tick_params(axis='both', labelsize=16)
-    ax.set_title(title, fontsize=18)
-    #ax.set_ylim(238, 301)
-    #ax.set_xlim(79.5, 83.7)
+    ax.tick_params(axis='both', labelsize=18)
+    ax.set_title(title, fontsize=20)
+    ax.set_ylim(238, 316)
+    ax.set_xlim(64, 86)
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(5))
+    ax.yaxis.set_major_locator(ticker.MultipleLocator(10))
     
     ##--Save the plot--##
     #plt.savefig(output_path, dpi=600, bbox_inches="tight")
@@ -282,6 +311,12 @@ plot_curtain(CO_bin_medians, lat_bin_edges_CO, ptemp_bin_edges_CO, vmin=110, vma
 plot_curtain(CO2_bin_medians, lat_bin_edges_CO2, ptemp_bin_edges_CO2, vmin=400, vmax=410,
     title="CO\u2082 Mixing Ratio", cbar_label="CO\u2082 ppmv",
     output_path=r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude\CO2_MultiFlights.png")
+
+##--Plot for RH wrt Ice--##
+plot_curtain(CO_CO2_bin_medians, lat_bin_edges_CO_CO2, ptemp_bin_edges_CO_CO2, vmin=0, vmax=1,
+    title="CO/CO\u2082 Mixing Ratio", cbar_label="CO/CO\u2082 ppmv",
+    output_path=r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude\CO_CO2_MultiFlights.png")
+
 
 ########################
 ##--Diagnostic Plots--##

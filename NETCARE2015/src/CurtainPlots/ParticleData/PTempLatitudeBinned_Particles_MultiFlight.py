@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt 
 from scipy.stats import binned_statistic_2d
+import matplotlib.ticker as ticker
 
 ###################
 ##--User inputs--##
@@ -30,6 +31,9 @@ num_bins_ptemp = 10
 
 ##--UHSAS bins--##
 bins_filepath = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv"
+
+##--Bin data are in a CSV file--##
+OPC_bin_info = pd.read_csv(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_OPC_bins.csv")
 
 ##--Base output path for figures in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots"
@@ -56,6 +60,7 @@ CPC3_dfs = []
 CPC10_dfs = []
 nuc_dfs = []
 grow_dfs = []
+total_dfs = []
  
 ##--Loop through each flight, pulling and analyzing data--##
 for flight in flights_to_analyze:
@@ -98,6 +103,12 @@ for flight in flights_to_analyze:
     else: 
         print(f"No UHSAS file found for {flight}. Skipping...")
         continue
+    
+    OPC_files = find_files(flight_dir, "OPC")
+    if OPC_files:
+        OPC = icartt.Dataset(OPC_files[0])
+    else: 
+        print(f"No OPC file found for {flight}. Skipping...")
     
     #########################
     ##--Pull & align data--##
@@ -171,6 +182,32 @@ for flight in flights_to_analyze:
     ##--Align UHSAS_bins time to AIMMS time--##
     UHSAS_bins_aligned = UHSAS_bins.set_index('Time').reindex(aimms_time)
     
+    ##--OPC Data--##
+    OPC_time = OPC.data['Time_UTC'] # seconds since midnight
+
+    ##--Select bins greater than 500 nm (Channel 7 and greater)--##
+    OPC_bin_center = OPC_bin_info['bin_avg'].iloc[6:31]
+    OPC_lower_bound = OPC_bin_info['lower_bound'].iloc[6:31]
+    OPC_upper_bound = OPC_bin_info['upper_bound'].iloc[6:31]
+
+    ##--Make list of columns to pull, each named Channel_x--##
+    OPC_bin_num = [f'Channel_{i}' for i in range(7, 32)]
+
+    ##--Put column names and content in a dictionary and then convert to a Pandas df--##
+    OPC_bins = pd.DataFrame({col: OPC.data[col] for col in OPC_bin_num})
+
+    ##--Create new column names by rounding the bin center values to the nearest integer--##
+    OPC_new_col_names = OPC_bin_center.round().astype(int).tolist()
+
+    ##--Rename the OPC_bins df columns to bin average values--##
+    OPC_bins.columns = OPC_new_col_names
+
+    ##--Add time, total_num to OPC_bins df--##
+    OPC_bins.insert(0, 'Time', OPC_time)
+
+    ##--Align OPC_bins time to AIMMS time--##
+    OPC_bins_aligned = OPC_bins.set_index('Time').reindex(aimms_time)
+
     ##--10 nm CPC data--##
     CPC10_time = CPC10.data['time']
     CPC10_conc = CPC10.data['conc'] # count/cm^3
@@ -188,6 +225,43 @@ for flight in flights_to_analyze:
     CPC10_df = pd.DataFrame({'time': CPC10_time, 'conc': CPC10_conc}).set_index('time')
     ##--Make a new df reindexed to aimms_time. Populate with CPC10 conc--##
     CPC10_conc_aligned = CPC10_df.reindex(aimms_time)['conc']
+    
+    ##########################
+    ##--Normalize OPC Data--##
+    ##########################
+
+    ##--OPC samples every six seconds. Most rows are NaN--##
+    ##--Forward-fill NaN values to propagate last valid reading--##
+    ##--Limit forward filling to 5 NaN rows--##
+    OPC_bins_filled = OPC_bins_aligned.ffill(limit=5)
+
+    ##--Calculate dlogDp for each bin in numpy array--##
+    dlogDp = np.log(OPC_upper_bound.values) - np.log(OPC_lower_bound.values)
+
+    ##--Get only particle count data (excluding 'Time')--##
+    OPC_particle_counts = OPC_bins_filled.loc[:, OPC_new_col_names]
+
+    ##--Normalize counts by dividing by dlogDp across all rows--##
+    OPC_dNdlogDp = OPC_bins_filled.divide(dlogDp, axis=1)
+
+    ##--Convert to STP!--##
+    P_STP = 101325  # Pa
+    T_STP = 273.15  # K
+
+    ##--Create empty list for OPC particles--##
+    OPC_conc_STP = []
+
+    for OPC, T, P in zip(OPC_dNdlogDp.values, temperature, pressure):
+        if np.isnan(T) or np.isnan(P):
+            ##--Append with NaN if any input is NaN--##
+            OPC_conc_STP.append([np.nan]*len(OPC))
+        else:
+            ##--Perform conversion if all inputs are valid--##
+            corrected_OPC = OPC * (P_STP / P) * (T / T_STP)
+            OPC_conc_STP.append(corrected_OPC)
+
+    ##--Convert back to DataFrame with same columns and index--##
+    OPC_conc_STP = pd.DataFrame(OPC_conc_STP, columns=OPC_dNdlogDp.columns, index=OPC_dNdlogDp.index)
     
     ######################
     ##--Calc N(2.5-10)--##
@@ -229,6 +303,12 @@ for flight in flights_to_analyze:
 
     ##--Change calculated particle counts less than zero to NaN--##
     nuc_particles = np.where(nuc_particles >= 0, nuc_particles, np.nan)
+    
+    ##--Put N(2.5-10) bin center in a df--##
+    n_3_10_center = pd.DataFrame([6.25]) # Mean of 2.5 and 10
+
+    ##--Create a dataframe for N 2.5-10--##
+    n_3_10 = pd.DataFrame({'time': aimms_time, '6': nuc_particles}).set_index('time')
 
     #####################
     ##--Calc N(10-89)--##
@@ -248,6 +328,20 @@ for flight in flights_to_analyze:
 
     ##--Change calculated particle counts less than zero to NaN--##
     n_10_89 = np.where(n_10_89 >= 0, n_10_89, np.nan)
+    
+    ##--Put N(10-85) bin center in a df--##
+    n_10_89_center = pd.DataFrame([49.5])
+
+    ##--Convert n_10_85 to a df--##
+    n_10_89_df = pd.DataFrame({'49.5': n_10_89, 'time':aimms_time}).set_index('time')
+    
+    ###########################
+    ##--Wrangle binned data--##
+    ###########################
+
+    ##--Place all binned data in a single df--##
+    all_bins_aligned = pd.concat([n_3_10, n_10_89_df, UHSAS_total_aligned, OPC_bins_filled], axis=1)
+    total_particle_count = all_bins_aligned.sum(axis=1, numeric_only=True) 
     
     #######################################
     ##--Calculate potential temperature--##
@@ -281,6 +375,10 @@ for flight in flights_to_analyze:
     ##--Calling n 10-89 'growth'--##
     grow_df = pd.DataFrame({'Ptemp': potential_temp, 'Latitude': latitude, 
                            'n_10_89': n_10_89}).dropna()
+    
+    ##--Total count--##
+    total_df = pd.DataFrame({'Ptemp': potential_temp, 'Latitude': latitude, 
+                             'total':total_particle_count}).dropna()
 
     ##--Store all processed data and ensure in numpy arrays--##
     SP2_dfs.append(SP2_df[['Ptemp', 'Latitude', 'BC_count']])
@@ -288,6 +386,8 @@ for flight in flights_to_analyze:
     CPC10_dfs.append(CPC10_df[['Ptemp', 'Latitude', 'CPC10_conc']])
     nuc_dfs.append(nuc_df[['Ptemp', 'Latitude', 'nuc_particles']])
     grow_dfs.append(grow_df[['Ptemp', 'Latitude', 'n_10_89']])
+    
+    total_dfs.append(total_df)
 
 ###########################
 ##--Prepare for Binning--##
@@ -347,13 +447,24 @@ ptemp_bin_edges_grow = np.linspace(all_ptemps_grow.min(), all_ptemps_grow.max(),
  
 grow_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_grow, all_ptemps_grow, 
     all_grow_particles, statistic="median", bins=[lat_bin_edges_grow, ptemp_bin_edges_grow])
+
+##--Binning for total particle data--##
+all_latitudes_total = np.concatenate([df["Latitude"].values for df in total_dfs])
+all_ptemps_total = np.concatenate([df["Ptemp"].values for df in total_dfs])
+all_total = np.concatenate([df["total"].values for df in total_dfs])
+ 
+lat_bin_edges_total = np.linspace(all_latitudes_total.min(), all_latitudes_total.max(), num_bins_lat + 1)
+ptemp_bin_edges_total = np.linspace(all_ptemps_total.min(), all_ptemps_total.max(), num_bins_ptemp + 1)
+ 
+total_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_total, all_ptemps_total, 
+    all_total, statistic="median", bins=[lat_bin_edges_total, ptemp_bin_edges_total])
  
 ################
 ##--PLOTTING--##
 ################
  
 def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, output_path):
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(6, 6))
  
     ##--Makecolor map where 0 values are white--##
     new_cmap = plt.get_cmap('viridis')
@@ -363,15 +474,15 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, o
     mesh = ax.pcolormesh(x_edges, y_edges, bin_medians.T, shading="auto", cmap=new_cmap, vmin=vmin, vmax=vmax)
  
     ##--Add colorbar--##
-    cb = fig.colorbar(mesh, ax=ax)
+    cb = fig.colorbar(mesh, ax=ax, orientation='horizontal', location='bottom', pad=0.15) 
     cb.minorticks_on()
-    cb.ax.tick_params(labelsize=16)
-    cb.set_label(cbar_label, fontsize=16)
+    cb.ax.tick_params(labelsize=18)
+    cb.set_label(cbar_label, fontsize=18)
     
     ##--Add dashed horizontal lines for the polar dome boundaries--##
     ##--Boundaries are defined from Bozem et al 2019 (ACP)--##
-    ax.axhline(y=285, color='k', linestyle='--', linewidth=1)
-    ax.axhline(y=299, color='k', linestyle='--', linewidth=1)
+    ax.axhline(y=285, color='k', linestyle='--', linewidth=2)
+    ax.axhline(y=299, color='k', linestyle='--', linewidth=2)
     
     '''
     ##--Add text labels on the left-hand side within the plot area--##
@@ -388,18 +499,20 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, o
             verticalalignment='center', horizontalalignment='center')
     '''
     ##--Set axis labels and title--##
-    ax.set_xlabel("Latitude (°)", fontsize=16)
-    ax.set_ylabel("Potential Temperature \u0398 (K)", fontsize=16)
-    ax.tick_params(axis='both', labelsize=16)
-    ax.set_title(title, fontsize=18)
-    #ax.set_ylim(238, 301)
-    #ax.set_xlim(79.5, 83.7)
+    ax.set_xlabel("Latitude (°)", fontsize=18)
+    ax.set_ylabel("Potential Temperature \u0398 (K)", fontsize=18)
+    ax.tick_params(axis='both', labelsize=18)
+    ax.set_title(title, fontsize=20)
+    ax.set_ylim(238, 316)
+    ax.set_xlim(64, 86)
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(5))
+    ax.yaxis.set_major_locator(ticker.MultipleLocator(10))
     
     # Polar dome labels
     #x_text = ax.get_xlim()[0] + 10
-    ax.text(73, 282, "Polar Dome", fontsize=14, color="k",
+    ax.text(71.5, 282, "Polar Dome", fontsize=14, color="k",
                 verticalalignment="center", horizontalalignment="left")
-    ax.text(73, 288, "Marginal Dome", fontsize=14, color="k",
+    ax.text(71.5, 288, "Marginal Dome", fontsize=14, color="k",
                 verticalalignment="center", horizontalalignment="left")
  
     ##--Save the plot--##
@@ -423,7 +536,7 @@ plot_curtain(CPC10_bin_medians, lat_bin_edges_CPC10, ptemp_bin_edges_CPC10, vmin
     output_path=f"{output_path}\\CPC10/PTempLatitude/MultiFlights.png")
  
 ##--Plot for nucleating particles--##
-plot_curtain(nuc_bin_medians, lat_bin_edges_nuc, ptemp_bin_edges_nuc, vmin=1, vmax=2000,
+plot_curtain(nuc_bin_medians, lat_bin_edges_nuc, ptemp_bin_edges_nuc, vmin=1, vmax=1000,
     title="2.5-10 nm Particle Abundance", cbar_label="2.5-10 nm Particles $(Counts/cm^{3})$",
     output_path=f"{output_path}\\Nucleating/PTempLatitude/MultiFlights.png")
 
@@ -432,6 +545,11 @@ plot_curtain(nuc_bin_medians, lat_bin_edges_nuc, ptemp_bin_edges_nuc, vmin=1, vm
 plot_curtain(grow_bin_medians, lat_bin_edges_grow, ptemp_bin_edges_grow, vmin=0, vmax=1000,
     title="10-89 nm Particle Abundance", cbar_label="10-89 nm Particles $(Counts/cm^{3})$",
     output_path=f"{output_path}\\N_10_89/PTempLatitude/MultiFlights.png")
+
+##--Plot for total particle counts--##
+plot_curtain(total_bin_medians, lat_bin_edges_total, ptemp_bin_edges_total, vmin=0, vmax=2000,
+    title="Total Particle Abundance", cbar_label="Total Particles $(Counts/cm^{3})$",
+    output_path=f"{output_path}\\TotalCount/MultiFlights.png")
 
 
 ########################
