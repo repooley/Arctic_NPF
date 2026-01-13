@@ -12,6 +12,7 @@ import pandas as pd
 import matplotlib.pyplot as plt 
 import matplotlib.ticker as ticker
 from scipy.stats import binned_statistic_2d
+import cmcrameri as cm 
 
 ###################
 ##--User inputs--##
@@ -27,14 +28,12 @@ flights_to_analyze = ["Flight3",
 
 ##--Set binning for PTemp and Latitude--##
 ##--Define number of bins here--##
-num_bins_lat = 6
-num_bins_ptemp = 12
+num_bins_lat = 4
+num_bins_ptemp = 8
 
 ##--Separate bin numbers for the averaged data--##
 num_bins_lat_averaged = 6
 num_bins_ptemp_averaged = 6
-
-PCASP_bins_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\FIREACE1998\data\raw\FIREACE1998_PCASP_bins.csv"
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\FIREACE1998\data\processed"
@@ -63,8 +62,8 @@ def get_all_flights(directory):
 #################
 
 ##--Store processed data here: --##
-particle_dfs = []
-averaged_dfs = []
+temp_dfs = []
+RH_dfs = []
  
 ##--Loop through each flight, pulling and analyzing data--##
 for flight in flights_to_analyze:
@@ -77,6 +76,10 @@ for flight in flights_to_analyze:
     ##--The 1 hz data is always the first file--##
     if files:
         data = pd.read_csv(files[0])
+        
+        ##--Replace nan values--##
+        data.replace(-88.88888, np.nan, inplace=True)
+        
     else:
         print(f"No FIRE-ACE file found for {flight}. Skipping...")
         continue  # Skip to the next flight if FIRE-ACE file is missing
@@ -88,6 +91,7 @@ for flight in flights_to_analyze:
     RH_probe = data['RH'] # percent wrt water
     altitude = data['Altitude'] # in m (agl?)
     latitude = data['Latitude'] # degrees
+    print(min(latitude))
     longitude = data['Longitude'] # degrees
 
     #######################################
@@ -107,64 +111,81 @@ for flight in flights_to_analyze:
     for T, P in zip(temperature, pressure):
         p_t = T*(p_0/P)**k
         potential_temp.append(p_t)
+        
+    temp_df = pd.DataFrame({'temp': temperature, 'ptemp': potential_temp, 
+                            'lat': latitude, 'alt': altitude})
+    RH_df = pd.DataFrame({'RH': RH_probe, 'ptemp': potential_temp, 
+                            'lat': latitude, 'alt': altitude})
+    
+    temp_dfs.append(temp_df)
+    RH_dfs.append(RH_df)
 
 ###########################
 ##--Prepare for Binning--##
 ###########################
 
-##--Creates separate dfs to preserve data--##
-probe_RH_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'Probe_RH': RH_probe})
-temp_df = pd.DataFrame({'PTemp': potential_temp, 'Latitude': latitude, 'Temperature': temperature})#, 'nuc_particles': nuc_particles})
+##--Compute global min/max for all flights (non-averaged) --##
+all_lats = np.concatenate([df["lat"].values for df in temp_dfs])
+all_ptemps = np.concatenate([df["ptemp"].values for df in temp_dfs])
 
-##--Drop NaNs to prevent issues with potential_temp floats--##
-clean_probe_RH_df = probe_RH_df.dropna()
-clean_temp_df = temp_df.dropna()
+lat_min, lat_max = np.nanmin(all_lats), np.nanmax(all_lats)
+ptemp_min, ptemp_max = np.nanmin(all_ptemps), np.nanmax(all_ptemps)
 
-##--Compute global min/max values across all data BEFORE dropping NaNs--##
-lat_min, lat_max = np.nanmin(latitude), np.nanmax(latitude)
-ptemp_min, ptemp_max = np.nanmin(potential_temp), np.nanmax(potential_temp)
-
-##--Generate common bin edges using specified number of bins--##
+##--Common binning edges--##
 common_lat_bin_edges = np.linspace(lat_min, lat_max, num_bins_lat + 1)
 common_ptemp_bin_edges = np.linspace(ptemp_min, ptemp_max, num_bins_ptemp + 1)
 
 
-probe_RH_medians, _, _, _ = binned_statistic_2d(
-    probe_RH_df['Latitude'], probe_RH_df['PTemp'], clean_probe_RH_df['Probe_RH'], 
-    statistic='median', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+##--Binning for temp data--##
+all_latitudes_temp = np.concatenate([df["lat"].values for df in temp_dfs])
+all_ptemps_temp = np.concatenate([df["ptemp"].values for df in temp_dfs])
+all_temp = np.concatenate([df["temp"].values for df in temp_dfs])
 
 temp_bin_medians, _, _, _ = binned_statistic_2d(
-    clean_temp_df['Latitude'], clean_temp_df['PTemp'], clean_temp_df['Temperature'], 
-    statistic='median', bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+    all_latitudes_temp, all_ptemps_temp, all_temp,
+    statistic="median", bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+
+##--Binning for RH data--##
+all_latitudes_RH = np.concatenate([df["lat"].values for df in RH_dfs])
+all_ptemps_RH = np.concatenate([df["ptemp"].values for df in RH_dfs])
+all_RH = np.concatenate([df["RH"].values for df in RH_dfs])
+
+probe_RH_medians, _, _, _ = binned_statistic_2d(
+    all_latitudes_RH, all_ptemps_RH, all_RH,
+    statistic="median", bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+
+cmap = cm.cm.oslo
 
 ################
 ##--PLOTTING--##
 ################
  
 def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label): #, output_path):
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(6, 6))
  
     ##--Makecolor map where 0 values are white--##
-    new_cmap = plt.get_cmap('viridis')
+    new_cmap = cmap
     new_cmap.set_under('w')
  
     ##--Plot the 2D data using pcolormesh--##
-    mesh = ax.pcolormesh(x_edges, y_edges, bin_medians.T, shading="auto", cmap=new_cmap, vmin=vmin, vmax=vmax)
+    mesh = ax.pcolormesh(x_edges, y_edges, bin_medians.T,
+                     shading="flat", cmap=new_cmap, vmin=vmin, vmax=vmax)
  
     ##--Add colorbar--##
-    cb = fig.colorbar(mesh, ax=ax)
+    cb = fig.colorbar(mesh, ax=ax, orientation='horizontal', location='bottom', pad=0.15)
     cb.minorticks_on()
-    cb.ax.tick_params(labelsize=16)
-    cb.set_label(cbar_label, fontsize=16)
+    cb.ax.tick_params(labelsize=18)
+    cb.set_label(cbar_label, fontsize=18)
 
     ##--Set axis labels and title--##
-    ax.set_xlabel("Latitude (°)", fontsize=16)
-    ax.set_ylabel("Potential Temperature \u0398 (K)", fontsize=16)
-    ax.tick_params(axis='both', labelsize=16)
-    ax.set_title(title, fontsize=18)
-    #ax.set_ylim(238, 301)
-    ax.set_xlim(67, 77)
-    ax.xaxis.set_major_locator(ticker.MultipleLocator(2))
+    ax.set_xlabel("Latitude (°)", fontsize=18)
+    ax.set_ylabel("Potential Temperature \u0398 (K)", fontsize=18)
+    ax.tick_params(axis='both', labelsize=18)
+    ax.set_title(title, fontsize=20)
+    ax.set_ylim(238, 316)
+    ax.set_xlim(64, 86)
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(5))
+    ax.yaxis.set_major_locator(ticker.MultipleLocator(10))
  
     ##--Save the plot--##
     #plt.savefig(output_path, dpi=600, bbox_inches="tight")
@@ -172,12 +193,12 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label): 
     plt.show()
  
 ##--Plot for probe RH--##
-plot_curtain(probe_RH_medians, common_lat_bin_edges, common_ptemp_bin_edges, vmin=1, vmax=105,
+plot_curtain(probe_RH_medians, common_lat_bin_edges, common_ptemp_bin_edges, vmin=1, vmax=120,
     title="Probe Relative Humidity", cbar_label="% Relative Humidity")
     #output_path=f"{output_path}\\Nucleating/PTempLatitude/MultiFlights.png")
 
 ##--Plot for temperature--##
-plot_curtain(temp_bin_medians,  common_lat_bin_edges, common_ptemp_bin_edges, vmin=1, vmax=310,
+plot_curtain(temp_bin_medians,  common_lat_bin_edges, common_ptemp_bin_edges, vmin=220, vmax=310,
     title="Absolute Temperature", cbar_label='Temperature (K)')
 
 ########################

@@ -10,6 +10,7 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt 
+from datetime import date
 
 ###################
 ##--User inputs--##
@@ -18,9 +19,10 @@ import matplotlib.pyplot as plt
 ##--Set the base directory to project folder--##
 directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\FIREACE1998\data"
 
-##--Select flight (F01 thru F18)--##
-##--NO 1 hz data for flights 4,5,6 currently--##
-flight = "Flight3"
+##--Flights to analyze - flights 1-18--##
+flights_to_analyze = ["Flight1", "Flight2", "Flight3",  
+                      "Flight7", "Flight8", "Flight9", "Flight10", "Flight11", "Flight12",
+                      "Flight13", "Flight14", "Flight15", "Flight16", "Flight17", "Flight18"]
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\FIRACE1998\data\processed\VerticallyBinnedData"
@@ -38,285 +40,322 @@ def find_files(directory, flight, partial_name):
     search_pattern = os.path.join(flight_dir, f"*{partial_name}*")
     return sorted(glob.glob(search_pattern))
 
-##--'raw' contains a 1hz and 2min datafile, the 1hz one is always first--##
-data = pd.read_csv(find_files(directory, flight, "FIREACE")[0])
-
-##--Pull data variables from file--##
-time = data['Time'] # HHMMSS UTC time
-pressure = data['Pressure'] * 100 # in Pa
-temperature = data['Temperature'] + 273.15 # in K
-RH_probe = data['RH'] # percent wrt water
-altitude = data['Altitude'] # in m (agl?)
-latitude = data['Latitude'] # degrees
-longitude = data['Longitude'] # degrees
-
-##--Based on the supplied data, I strongly believe these two variables were swapped--##
-CO2_data = data['H2O'] # just labeled as 'mv' but there's clear pressure dependence
-H2O_data = data['CO2'] # 'mv'
-
-###################
-##--Conversions--##
-###################
-
-##--Convert to STP!--##
-##--I believe the H2O and CO2 is, somehow, not in STP--##
-P_STP = 101325  # Pa
-T_STP = 273.15  # K
-
-##--Create empty list for CO2--##
-CO2_STP = []
-
-for CO2, T, P in zip(CO2_data, temperature, pressure):
-    if np.isnan(CO2) or np.isnan(T) or np.isnan(P):
-        ##--Append with NaN if any input is NaN--##
-        CO2_STP.append(np.nan)
-    else:
-        ##--Perform conversion if all inputs are valid--##
-        CO2_conversion = CO2 * (P_STP / P) * (T / T_STP)
-        CO2_STP.append(CO2_conversion)
+for flight in flights_to_analyze:
     
-##--Create empty list for H2O--##
-H2O_STP = []
-
-for H2O, T, P in zip(H2O_data, temperature, pressure):
-    if np.isnan(H2O) or np.isnan(T) or np.isnan(P):
-        ##--Append with NaN if any input is NaN--##
-        H2O_STP.append(np.nan)
-    else:
-        ##--Perform conversion if all inputs are valid--##
-        H2O_conversion = H2O * (P_STP / P) * (T / T_STP)
-        H2O_STP.append(H2O_conversion)
-
-
-##--Convert H2O ppm to RH wrt Water--##
-
-temperature_c = temperature - 273.15
-
-##--Lowe and Ficke (1974) 6th deg polynomial approach--##
-##--Sat vap pressure water -50 to 50 C--##
-wa0 = 6.107799961
-wa1 = 4.436518521E-1
-wa2 = 1.428945805E-2
-wa3 = 2.650648471E-4
-wa4 = 3.031240396E-6
-wa5 = 2.034080948E-8
-wa6 = 6.136820929E-11
-
-##--Generate empty lists for humididy outputs--##
-saturation_humidity_w = []
-relative_humidity_w = []
-
-##--Calculate saturation humidity in ppmv and relative humidity--##
-for T, P, H2O in zip(temperature_c, pressure, H2O_data):
-    ##--Only calculate within temp range--##
-    if -50 <= T < 50:
-        ##--saturation vapor pressure using Lowe and Ficke (1974) eqn--##
-        e_sw = wa0 + wa1*T + wa2*(T**2)+ wa3*(T**3)+ wa4*(T**4) + wa5*(T**5) + wa6*(T**6) # in mbar 
-        ##--Convert from mbar to pa--##
-        e_sw_pa = e_sw*100
-        ##--Saturation mixing ratio in ppmv--##
-        w_s_ppmv = (e_sw_pa / P) * 1e6
-        saturation_humidity_w.append(w_s_ppmv)
-        ##--Relative humidity--##
-        RH = (H2O / w_s_ppmv) * 100  # in %
-        relative_humidity_w.append(RH)
-    else:
-        saturation_humidity_w.append(np.nan)  
-        relative_humidity_w.append(np.nan)    
-
-##--With respect to ice--##
-
-##--Lowe and Ficke (1974) 6th deg polynomial approach--##
-##--Sat vap pressure ice -50 to 0 C--##
-ia0 = 6.109177956
-ia1 = 5.034698970E-1
-ia2 = 1.886013408E-2
-ia3 = 4.176223716E-4
-ia4 = 5.824720280E-6
-ia5 = 4.838803174E-8
-ia6 = 1.838826904E-10
-
-##--Generate empty lists for humidity outputs--##
-saturation_humidity_i = []
-relative_humidity_i = []
-
-##--Calculate saturation humidity wrt ice in ppmv and RH--##
-for T, P, H2O in zip(temperature_c, pressure, H2O_data):
-    ##--Only calculate within temp range--##
-    if -50 <= T < 0:
-        ##--Saturation vapor pressure using Lowe and Ficke (1974) eqn--##
-        e_si = ia0 + ia1*T + ia2*(T**2) + ia3*(T**3) + ia4*(T**4) + ia5*(T**5) + ia6*(T**6)  # in mbar
-        ##--Convert from mbar to Pa--##
-        e_si_pa = e_si * 100
-        ##--Saturation mixing ratio in ppbv--##
-        e_si_ppmv = (e_si_pa / P) * 1e6
-        saturation_humidity_i.append(e_si_ppmv)
-        ##--Relative Humidity--##
-        RH_i = (H2O / e_si_ppmv) * 100  # in %
-        relative_humidity_i.append(RH_i)
-    else:
-        saturation_humidity_i.append(np.nan)  
-        relative_humidity_i.append(np.nan)    
-
-#######################################
-##--Calculate potential temperature--##
-#######################################
-
-##--Convert absolute temperature to potential temperature--##
-##--Constants--##
-p_0 = 1E5 # Reference pressure in Pa (1000 hPa)
-k = 0.286 # Poisson constant for dry air
-
-
-##--Generate empty list for potential temperature output--##
-potential_temp = []
-
-##--Calculate potential temperature from ambient temp & pressure--##
-for T, P in zip(temperature, pressure):
-    p_t = T*(p_0/P)**k
-    potential_temp.append(p_t)
+    ##--'raw' contains a 1hz and 2min datafile, the 1hz one is always first--##
+    data = pd.read_csv(find_files(directory, flight, "FIREACE")[0])
     
-###############
-##--BINNING--##
-###############
-
-##--Creates a Pandas dataframe with all variables--##
-df = pd.DataFrame({'Altitude': altitude, 'Temperature': temperature, 
-                   'Potential_temp': potential_temp, 
-                   'CO2_ppmv': CO2_data,
-                   'H2O_ppmv': H2O_data, 'Probe_Humidity': RH_probe,
-                   'Relative_Humidity_w': relative_humidity_w, 
-                   'Saturation_Humidity_w' : saturation_humidity_w, 
-                   'Relative_Humidity_i': relative_humidity_i, 
-                   'Saturation_Humidity_i' : saturation_humidity_i})
-
-##--Assign outliers as NaN--##
-for col in df.columns:
-    ##--Define outliers as in 99 or 1 percentile--##
-    percentile_99 = df[col].quantile(0.99)
-    percentile_01 = df[col].quantile(0.01)
+    ##--Pull data variables from file--##
+    time = data['Time'] # HHMMSS UTC time
+    pressure = data['Pressure'] * 100 # in Pa
+    temperature = data['Temperature'] + 273.15 # in K
+    RH_probe = data['RH'] # percent wrt water
+    altitude = data['Altitude'] # in m (agl?)
+    latitude = data['Latitude'] # degrees
+    longitude = data['Longitude'] # degrees
     
-    ##--Assign NaN--##
-    df.loc[df[col] > percentile_99] = np.nan
-    df.loc[df[col] < percentile_01] = np.nan
-
-##--Define number of bins here--##
-num_bins = 124
-
-##--Compute the minimum and maximum altitude, ignoring NaNs--##
-min_alt = df['Altitude'].min(skipna=True)
-max_alt = df['Altitude'].max(skipna=True)
-
-##--Create bin edges from min_alt to max_alt--##
-bin_edges = np.linspace(min_alt, max_alt, num_bins + 1)
-
-##--Pandas 'cut' splits altitude data into specified number of bins--##
-df['Altitude_bin'] = pd.cut(df['Altitude'], bins=bin_edges)
-
-##--Group variables into each altitude bin--## 
-##--Observed=false shows all bins, even empty ones--##
-binned_df = df.groupby('Altitude_bin', observed=False).agg(
+    ##--Based on the supplied data, I strongly believe these two variables were swapped--##
+    CO2_data = data['H2O'] # just labeled as 'mv' but there's clear pressure dependence
+    H2O_data = data['CO2'] # 'mv'
     
-   ##--Aggregate data by mean, min, and max--##
-    Temperature_avg=('Temperature', 'mean'),
-    Temperature_min=('Temperature', 'min'),
-    Temperature_max=('Temperature', 'max'),
-    Temperature_25th=('Temperature', lambda x: x.quantile(0.25)),
-    Temperature_75th=('Temperature', lambda x: x.quantile(0.75)),
-    Potential_temp_avg=('Potential_temp', 'mean'),
-    Potential_temp_min=('Potential_temp', 'min'),
-    Potential_temp_max=('Potential_temp', 'max'),
-    Potential_temp_25th=('Potential_temp', lambda x: x.quantile(0.25)),
-    Potential_temp_75th=('Potential_temp', lambda x: x.quantile(0.75)),
-    Ptemp_center=('Potential_temp', 'median'), 
-    H2O_conc_avg=('H2O_ppmv', 'mean'),
-    H2O_conc_min=('H2O_ppmv', 'min'),
-    H2O_conc_max=('H2O_ppmv', 'max'),
-    H2O_conc_25th=('H2O_ppmv', lambda x: x.quantile(0.25)),
-    H2O_conc_75th=('H2O_ppmv', lambda x: x.quantile(0.75)),
-    CO2_conc_avg=('CO2_ppmv', 'mean'),
-    CO2_conc_min=('CO2_ppmv', 'min'),
-    CO2_conc_max=('CO2_ppmv', 'max'),
-    CO2_conc_25th=('CO2_ppmv', lambda x: x.quantile(0.25)),
-    CO2_conc_75th=('CO2_ppmv', lambda x: x.quantile(0.75)), 
-    Probe_humidity_avg=('Probe_Humidity', 'mean'),
-    Probe_humidity_min=('Probe_Humidity', 'min'),
-    Probe_humidity_max=('Probe_Humidity', 'max'),
-    Probe_humidity_25th=('Probe_Humidity', lambda x: x.quantile(0.25)),
-    Probe_humidity_75th=('Probe_Humidity', lambda x: x.quantile(0.75)), 
-    Rel_humidity_w_avg=('Relative_Humidity_w', 'mean'),
-    Rel_humidity_w_min=('Relative_Humidity_w', 'min'),
-    Rel_humidity_w_max=('Relative_Humidity_w', 'max'),
-    Rel_humidity_w_25th=('Relative_Humidity_w', lambda x: x.quantile(0.25)),
-    Rel_humidity_w_75th=('Relative_Humidity_w', lambda x: x.quantile(0.75)),
-    Rel_humidity_i_avg=('Relative_Humidity_i', 'mean'),
-    Rel_humidity_i_min=('Relative_Humidity_i', 'min'),
-    Rel_humidity_i_max=('Relative_Humidity_i', 'max'),
-    Rel_humidity_i_25th=('Relative_Humidity_i', lambda x: x.quantile(0.25)),
-    Rel_humidity_i_75th=('Relative_Humidity_i', lambda x: x.quantile(0.75)),
-    Altitude_center=('Altitude', 'mean')
+    ####################################
+    ##--Assign date to flight number--##
+    ####################################
     
-##--Reset the index so Altitude_bin is just a column--##
-).reset_index()
-
-################
-##--PLOTTING--##
-################
-
-##--Creates figure with 7 horizontally stacked subplots sharing a y-axis--##
-fig, axs = plt.subplots(1, 5, figsize=(15, 6), sharey=True)
-
-##--First subplot: Water MR--##
-axs[0].plot(binned_df['H2O_conc_avg'], binned_df['Ptemp_center'], color='#002323', label='Water mr')
-axs[0].fill_betweenx(binned_df['Ptemp_center'], binned_df['H2O_conc_25th'], binned_df['H2O_conc_75th'], color='teal', alpha=0.4)
-axs[0].fill_betweenx(binned_df['Ptemp_center'], binned_df['H2O_conc_min'], binned_df['H2O_conc_max'], color='teal', alpha=0.2)
-axs[0].set_xlabel('ppmv Water')
-axs[0].set_title('Water Mixing Ratio')
-axs[0].set_ylabel('Potential Temperature (K)')
-#axs[0].set_xlim(-45, -16)
-
-##--Second subplot: CO2 MR--##
-axs[1].plot(binned_df['CO2_conc_avg'], binned_df['Ptemp_center'], color='#002323', label='CO2 mr')
-axs[1].fill_betweenx(binned_df['Ptemp_center'], binned_df['CO2_conc_25th'], binned_df['CO2_conc_75th'], color='teal', alpha=0.4)
-axs[1].fill_betweenx(binned_df['Ptemp_center'], binned_df['CO2_conc_min'], binned_df['CO2_conc_max'], color='teal', alpha=0.2)
-axs[1].set_xlabel('ppmv CO2')
-axs[1].set_title('CO2 Mixing Ratio')
-#axs[2].set_xlim(-45, -16)
-
-##--Third subplot: RH wrt water from H2O data--##
-axs[2].plot(binned_df['Rel_humidity_w_avg'], binned_df['Ptemp_center'], color='darkslategray', label='Absolute Temperature')
-axs[2].fill_betweenx(binned_df['Ptemp_center'], binned_df['Rel_humidity_w_25th'], binned_df['Rel_humidity_w_75th'], color='cadetblue', alpha=0.7)
-axs[2].fill_betweenx(binned_df['Ptemp_center'], binned_df['Rel_humidity_w_min'], binned_df['Rel_humidity_w_max'], color='cadetblue', alpha=0.3)
-axs[2].set_xlabel('Relative Humidity (%)')
-axs[2].set_title('RH from MR WRT Water')
-#axs[3].set_xlim(-45, -16)
-
-##--Fourth subplot: RH wrt ice from H2O data--##
-axs[3].plot(binned_df['Rel_humidity_i_avg'], binned_df['Ptemp_center'], color='navy', label='Potential Temperature')
-axs[3].fill_betweenx(binned_df['Ptemp_center'], binned_df['Rel_humidity_i_25th'], binned_df['Rel_humidity_i_75th'], color='lightsteelblue', alpha=1)
-axs[3].fill_betweenx(binned_df['Ptemp_center'], binned_df['Rel_humidity_i_min'], binned_df['Rel_humidity_i_max'], color='lightsteelblue', alpha=0.4)
-axs[3].set_xlabel('Relative Humidity (%)')
-axs[3].set_title('RH from MR WRT Ice')
-
-##--Seventh subplot: RH from probe--##
-axs[4].plot(binned_df['Probe_humidity_avg'], binned_df['Ptemp_center'], color='indigo', label='Probe RH', alpha=1)
-axs[4].fill_betweenx(binned_df['Ptemp_center'], binned_df['Probe_humidity_25th'], binned_df['Probe_humidity_75th'], color='rebeccapurple', alpha=0.4)
-axs[4].fill_betweenx(binned_df['Ptemp_center'], binned_df['Probe_humidity_min'], binned_df['Probe_humidity_max'], color='rebeccapurple', alpha=0.2)
-axs[4].set_xlabel('Relative Humidity (%)')
-axs[4].set_title('RH from Probe') 
-#axs[5].set_xlim(0, 120)
-
-##--Use f-string to embed flight # variable in plot title--##
-plt.suptitle(f"Vertical Meteorological Profiles - {flight.replace('Flight', 'Flight ')}", fontsize=16)
-
-##--Adjusts layout to prevent overlapping--## 
-plt.tight_layout(rect=[0, 0, 1, 0.99])
-
-##--Base output path in directory--##
-#output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\AltitudeBinnedData\Meteorological"
-
-##--Use f-string to save file with flight# appended--##
-#output_path = f"{output_path}\\{flight}"
-#plt.savefig(output_path, dpi=600, bbox_inches='tight') 
-
-plt.show()
+    if flight=="Flight1":
+        flight_date = date(1998, 4, 8)
+    elif flight=="Flight2":
+        flight_date = date(1998, 4, 9)
+    elif flight=="Flight3":
+        flight_date = date(1998, 4, 12)
+    elif flight=="Flight4":
+        flight_date = date(1998, 4, 14)
+    elif flight=="Flight5":
+        flight_date = date(1998, 4, 15)
+    elif flight=="Flight6":
+        flight_date = date(1998, 4, 16)
+    elif flight=="Flight7" or flight=="Flight8": 
+        flight_date = date(1998, 4, 17)
+    elif flight=="Flight9": 
+        flight_date = date(1998, 4, 18)
+    elif flight=="Flight10" or flight=="Flight11": 
+        flight_date = date(1998, 4, 21)
+    elif flight=="Flight12":
+        flight_date = date(1998, 4, 22)
+    elif flight=="Flight13":
+        flight_date = date(1998, 4, 24)
+    elif flight=="Flight14":
+        flight_date = date(1998, 4, 25)
+    elif flight=="Flight15":
+        flight_date = date(1998, 4, 27)
+    elif flight=="Flight16" or flight=="Flight17": 
+        flight_date = date(1998, 4, 28)
+    elif flight=="Flight18": 
+        flight_date = date(1998, 4, 29)
+    
+    ###################
+    ##--Conversions--##
+    ###################
+    
+    ##--Convert to STP!--##
+    ##--I believe the H2O and CO2 is, somehow, not in STP--##
+    P_STP = 101325  # Pa
+    T_STP = 273.15  # K
+    
+    ##--Create empty list for CO2--##
+    CO2_STP = []
+    
+    for CO2, T, P in zip(CO2_data, temperature, pressure):
+        if np.isnan(CO2) or np.isnan(T) or np.isnan(P):
+            ##--Append with NaN if any input is NaN--##
+            CO2_STP.append(np.nan)
+        else:
+            ##--Perform conversion if all inputs are valid--##
+            CO2_conversion = CO2 * (P_STP / P) * (T / T_STP)
+            CO2_STP.append(CO2_conversion)
+        
+    ##--Create empty list for H2O--##
+    H2O_STP = []
+    
+    for H2O, T, P in zip(H2O_data, temperature, pressure):
+        if np.isnan(H2O) or np.isnan(T) or np.isnan(P):
+            ##--Append with NaN if any input is NaN--##
+            H2O_STP.append(np.nan)
+        else:
+            ##--Perform conversion if all inputs are valid--##
+            H2O_conversion = H2O * (P_STP / P) * (T / T_STP)
+            H2O_STP.append(H2O_conversion)
+    
+    
+    ##--Convert H2O ppm to RH wrt Water--##
+    
+    temperature_c = temperature - 273.15
+    
+    ##--Lowe and Ficke (1974) 6th deg polynomial approach--##
+    ##--Sat vap pressure water -50 to 50 C--##
+    wa0 = 6.107799961
+    wa1 = 4.436518521E-1
+    wa2 = 1.428945805E-2
+    wa3 = 2.650648471E-4
+    wa4 = 3.031240396E-6
+    wa5 = 2.034080948E-8
+    wa6 = 6.136820929E-11
+    
+    ##--Generate empty lists for humididy outputs--##
+    saturation_humidity_w = []
+    relative_humidity_w = []
+    
+    ##--Calculate saturation humidity in ppmv and relative humidity--##
+    for T, P, H2O in zip(temperature_c, pressure, H2O_data):
+        ##--Only calculate within temp range--##
+        if -50 <= T < 50:
+            ##--saturation vapor pressure using Lowe and Ficke (1974) eqn--##
+            e_sw = wa0 + wa1*T + wa2*(T**2)+ wa3*(T**3)+ wa4*(T**4) + wa5*(T**5) + wa6*(T**6) # in mbar 
+            ##--Convert from mbar to pa--##
+            e_sw_pa = e_sw*100
+            ##--Saturation mixing ratio in ppmv--##
+            w_s_ppmv = (e_sw_pa / P) * 1e6
+            saturation_humidity_w.append(w_s_ppmv)
+            ##--Relative humidity--##
+            RH = (H2O / w_s_ppmv) * 100  # in %
+            relative_humidity_w.append(RH)
+        else:
+            saturation_humidity_w.append(np.nan)  
+            relative_humidity_w.append(np.nan)    
+    
+    ##--With respect to ice--##
+    
+    ##--Lowe and Ficke (1974) 6th deg polynomial approach--##
+    ##--Sat vap pressure ice -50 to 0 C--##
+    ia0 = 6.109177956
+    ia1 = 5.034698970E-1
+    ia2 = 1.886013408E-2
+    ia3 = 4.176223716E-4
+    ia4 = 5.824720280E-6
+    ia5 = 4.838803174E-8
+    ia6 = 1.838826904E-10
+    
+    ##--Generate empty lists for humidity outputs--##
+    saturation_humidity_i = []
+    relative_humidity_i = []
+    
+    ##--Calculate saturation humidity wrt ice in ppmv and RH--##
+    for T, P, H2O in zip(temperature_c, pressure, H2O_data):
+        ##--Only calculate within temp range--##
+        if -50 <= T < 0:
+            ##--Saturation vapor pressure using Lowe and Ficke (1974) eqn--##
+            e_si = ia0 + ia1*T + ia2*(T**2) + ia3*(T**3) + ia4*(T**4) + ia5*(T**5) + ia6*(T**6)  # in mbar
+            ##--Convert from mbar to Pa--##
+            e_si_pa = e_si * 100
+            ##--Saturation mixing ratio in ppbv--##
+            e_si_ppmv = (e_si_pa / P) * 1e6
+            saturation_humidity_i.append(e_si_ppmv)
+            ##--Relative Humidity--##
+            RH_i = (H2O / e_si_ppmv) * 100  # in %
+            relative_humidity_i.append(RH_i)
+        else:
+            saturation_humidity_i.append(np.nan)  
+            relative_humidity_i.append(np.nan)    
+    
+    #######################################
+    ##--Calculate potential temperature--##
+    #######################################
+    
+    ##--Convert absolute temperature to potential temperature--##
+    ##--Constants--##
+    p_0 = 1E5 # Reference pressure in Pa (1000 hPa)
+    k = 0.286 # Poisson constant for dry air
+    
+    
+    ##--Generate empty list for potential temperature output--##
+    potential_temp = []
+    
+    ##--Calculate potential temperature from ambient temp & pressure--##
+    for T, P in zip(temperature, pressure):
+        p_t = T*(p_0/P)**k
+        potential_temp.append(p_t)
+        
+    ###############
+    ##--BINNING--##
+    ###############
+    
+    ##--Creates a Pandas dataframe with all variables--##
+    df = pd.DataFrame({'Altitude': altitude, 'Temperature': temperature, 
+                       'Potential_temp': potential_temp, 
+                       'CO2_ppmv': CO2_data,
+                       'H2O_ppmv': H2O_data, 'Probe_Humidity': RH_probe,
+                       'Relative_Humidity_w': relative_humidity_w, 
+                       'Saturation_Humidity_w' : saturation_humidity_w, 
+                       'Relative_Humidity_i': relative_humidity_i, 
+                       'Saturation_Humidity_i' : saturation_humidity_i})
+    
+    ##--Assign outliers as NaN--##
+    for col in df.columns:
+        ##--Define outliers as in 99 or 1 percentile--##
+        percentile_99 = df[col].quantile(0.99)
+        percentile_01 = df[col].quantile(0.01)
+        
+        ##--Assign NaN--##
+        df.loc[df[col] > percentile_99] = np.nan
+        df.loc[df[col] < percentile_01] = np.nan
+    
+    ##--Define number of bins here--##
+    num_bins = 124
+    
+    ##--Compute the minimum and maximum altitude, ignoring NaNs--##
+    min_alt = df['Altitude'].min(skipna=True)
+    max_alt = df['Altitude'].max(skipna=True)
+    
+    ##--Create bin edges from min_alt to max_alt--##
+    bin_edges = np.linspace(min_alt, max_alt, num_bins + 1)
+    
+    ##--Pandas 'cut' splits altitude data into specified number of bins--##
+    df['Altitude_bin'] = pd.cut(df['Altitude'], bins=bin_edges)
+    
+    ##--Group variables into each altitude bin--## 
+    ##--Observed=false shows all bins, even empty ones--##
+    binned_df = df.groupby('Altitude_bin', observed=False).agg(
+        
+       ##--Aggregate data by mean, min, and max--##
+        Temperature_avg=('Temperature', 'mean'),
+        Temperature_min=('Temperature', 'min'),
+        Temperature_max=('Temperature', 'max'),
+        Temperature_25th=('Temperature', lambda x: x.quantile(0.25)),
+        Temperature_75th=('Temperature', lambda x: x.quantile(0.75)),
+        Potential_temp_avg=('Potential_temp', 'mean'),
+        Potential_temp_min=('Potential_temp', 'min'),
+        Potential_temp_max=('Potential_temp', 'max'),
+        Potential_temp_25th=('Potential_temp', lambda x: x.quantile(0.25)),
+        Potential_temp_75th=('Potential_temp', lambda x: x.quantile(0.75)),
+        Ptemp_center=('Potential_temp', 'median'), 
+        H2O_conc_avg=('H2O_ppmv', 'mean'),
+        H2O_conc_min=('H2O_ppmv', 'min'),
+        H2O_conc_max=('H2O_ppmv', 'max'),
+        H2O_conc_25th=('H2O_ppmv', lambda x: x.quantile(0.25)),
+        H2O_conc_75th=('H2O_ppmv', lambda x: x.quantile(0.75)),
+        CO2_conc_avg=('CO2_ppmv', 'mean'),
+        CO2_conc_min=('CO2_ppmv', 'min'),
+        CO2_conc_max=('CO2_ppmv', 'max'),
+        CO2_conc_25th=('CO2_ppmv', lambda x: x.quantile(0.25)),
+        CO2_conc_75th=('CO2_ppmv', lambda x: x.quantile(0.75)), 
+        Probe_humidity_avg=('Probe_Humidity', 'mean'),
+        Probe_humidity_min=('Probe_Humidity', 'min'),
+        Probe_humidity_max=('Probe_Humidity', 'max'),
+        Probe_humidity_25th=('Probe_Humidity', lambda x: x.quantile(0.25)),
+        Probe_humidity_75th=('Probe_Humidity', lambda x: x.quantile(0.75)), 
+        Rel_humidity_w_avg=('Relative_Humidity_w', 'mean'),
+        Rel_humidity_w_min=('Relative_Humidity_w', 'min'),
+        Rel_humidity_w_max=('Relative_Humidity_w', 'max'),
+        Rel_humidity_w_25th=('Relative_Humidity_w', lambda x: x.quantile(0.25)),
+        Rel_humidity_w_75th=('Relative_Humidity_w', lambda x: x.quantile(0.75)),
+        Rel_humidity_i_avg=('Relative_Humidity_i', 'mean'),
+        Rel_humidity_i_min=('Relative_Humidity_i', 'min'),
+        Rel_humidity_i_max=('Relative_Humidity_i', 'max'),
+        Rel_humidity_i_25th=('Relative_Humidity_i', lambda x: x.quantile(0.25)),
+        Rel_humidity_i_75th=('Relative_Humidity_i', lambda x: x.quantile(0.75)),
+        Altitude_center=('Altitude', 'mean')
+        
+    ##--Reset the index so Altitude_bin is just a column--##
+    ).reset_index()
+    
+    ################
+    ##--PLOTTING--##
+    ################
+    
+    ##--Creates figure with 7 horizontally stacked subplots sharing a y-axis--##
+    fig, axs = plt.subplots(1, 5, figsize=(15, 6), sharey=True)
+    
+    ##--First subplot: Water MR--##
+    axs[0].plot(binned_df['H2O_conc_avg'], binned_df['Ptemp_center'], color='#002323', label='Water mr')
+    axs[0].fill_betweenx(binned_df['Ptemp_center'], binned_df['H2O_conc_25th'], binned_df['H2O_conc_75th'], color='teal', alpha=0.4)
+    axs[0].fill_betweenx(binned_df['Ptemp_center'], binned_df['H2O_conc_min'], binned_df['H2O_conc_max'], color='teal', alpha=0.2)
+    axs[0].set_xlabel('ppmv Water')
+    axs[0].set_title('Water Mixing Ratio')
+    axs[0].set_ylabel('Potential Temperature (K)')
+    #axs[0].set_xlim(-45, -16)
+    
+    ##--Second subplot: CO2 MR--##
+    axs[1].plot(binned_df['CO2_conc_avg'], binned_df['Ptemp_center'], color='#002323', label='CO2 mr')
+    axs[1].fill_betweenx(binned_df['Ptemp_center'], binned_df['CO2_conc_25th'], binned_df['CO2_conc_75th'], color='teal', alpha=0.4)
+    axs[1].fill_betweenx(binned_df['Ptemp_center'], binned_df['CO2_conc_min'], binned_df['CO2_conc_max'], color='teal', alpha=0.2)
+    axs[1].set_xlabel('ppmv CO2')
+    axs[1].set_title('CO2 Mixing Ratio')
+    #axs[2].set_xlim(-45, -16)
+    
+    ##--Third subplot: RH wrt water from H2O data--##
+    axs[2].plot(binned_df['Rel_humidity_w_avg'], binned_df['Ptemp_center'], color='darkslategray', label='Absolute Temperature')
+    axs[2].fill_betweenx(binned_df['Ptemp_center'], binned_df['Rel_humidity_w_25th'], binned_df['Rel_humidity_w_75th'], color='cadetblue', alpha=0.7)
+    axs[2].fill_betweenx(binned_df['Ptemp_center'], binned_df['Rel_humidity_w_min'], binned_df['Rel_humidity_w_max'], color='cadetblue', alpha=0.3)
+    axs[2].set_xlabel('Relative Humidity (%)')
+    axs[2].set_title('RH from MR WRT Water')
+    #axs[3].set_xlim(-45, -16)
+    
+    ##--Fourth subplot: RH wrt ice from H2O data--##
+    axs[3].plot(binned_df['Rel_humidity_i_avg'], binned_df['Ptemp_center'], color='navy', label='Potential Temperature')
+    axs[3].fill_betweenx(binned_df['Ptemp_center'], binned_df['Rel_humidity_i_25th'], binned_df['Rel_humidity_i_75th'], color='lightsteelblue', alpha=1)
+    axs[3].fill_betweenx(binned_df['Ptemp_center'], binned_df['Rel_humidity_i_min'], binned_df['Rel_humidity_i_max'], color='lightsteelblue', alpha=0.4)
+    axs[3].set_xlabel('Relative Humidity (%)')
+    axs[3].set_title('RH from MR WRT Ice')
+    
+    ##--Seventh subplot: RH from probe--##
+    axs[4].plot(binned_df['Probe_humidity_avg'], binned_df['Ptemp_center'], color='indigo', label='Probe RH', alpha=1)
+    axs[4].fill_betweenx(binned_df['Ptemp_center'], binned_df['Probe_humidity_25th'], binned_df['Probe_humidity_75th'], color='rebeccapurple', alpha=0.4)
+    axs[4].fill_betweenx(binned_df['Ptemp_center'], binned_df['Probe_humidity_min'], binned_df['Probe_humidity_max'], color='rebeccapurple', alpha=0.2)
+    axs[4].set_xlabel('Relative Humidity (%)')
+    axs[4].set_title('RH from Probe') 
+    #axs[5].set_xlim(0, 120)
+    
+    ##--Use f-string to embed flight # variable in plot title--##
+    plt.suptitle(f"Vertical Meteorological Profiles - {flight.replace('Flight', 'Flight ')} ({flight_date})", fontsize=16)
+    
+    ##--Adjusts layout to prevent overlapping--## 
+    plt.tight_layout(rect=[0, 0, 1, 0.99])
+    
+    ##--Base output path in directory--##
+    #output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\AltitudeBinnedData\Meteorological"
+    
+    ##--Use f-string to save file with flight# appended--##
+    #output_path = f"{output_path}\\{flight}"
+    #plt.savefig(output_path, dpi=600, bbox_inches='tight') 
+    
+    plt.show()

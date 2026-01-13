@@ -326,7 +326,7 @@ for flight in flights_to_analyze:
 
 ##--NUCLEATING PARTICLES--##
 
-num_bins = 30
+num_bins = 128
 all_ptemp = pd.concat([df["ptemp"] for df in particle_dfs])
 min_ptemp = all_ptemp.min(skipna=True)
 max_ptemp = all_ptemp.max(skipna=True)
@@ -334,7 +334,7 @@ bin_edges = np.linspace(min_ptemp, max_ptemp, num_bins + 1)
 
 fig, axs = plt.subplots(1, 3, figsize=(9, 6), sharey=True)
 
-cmap = plt.cm.cividis
+cmap = plt.cm.viridis
 n_flights = len(flights_to_analyze)
 colors = [cmap(i / (n_flights - 1)) for i in range(n_flights)]
 
@@ -372,21 +372,18 @@ axs[0].set_xlabel("Counts/cm³", fontsize=14)
 axs[0].set_title("N ≥ 10 nm", fontsize=16)
 axs[0].set_xlim(-50, 2500)
 axs[0].tick_params(axis='both', labelsize=11)
-axs[0].axhline(y=285, color="k", linestyle="--", linewidth=1)
-axs[0].axhline(y=299, color="k", linestyle="--", linewidth=1)
+
 
 axs[1].set_title("N ≥ 2.5 nm", fontsize=16)
 axs[1].set_xlabel("Counts/cm³", fontsize=14)
 axs[1].set_xlim(-50, 3500)
 axs[1].tick_params(axis='both', labelsize=11)
-axs[1].axhline(y=285, color="k", linestyle="--", linewidth=1)
-axs[1].axhline(y=299, color="k", linestyle="--", linewidth=1)
+
 
 axs[2].set_title("$N_{2.5-10}$", fontsize=16)
 axs[2].set_xlabel("Counts/cm³", fontsize=14)
 axs[2].tick_params(axis='both', labelsize=11)
-axs[2].axhline(y=285, color="k", linestyle="--", linewidth=1)
-axs[2].axhline(y=299, color="k", linestyle="--", linewidth=1)
+
 
 axs[2].legend(loc="center left", bbox_to_anchor=(1.02, 0.5), fontsize=12)
 
