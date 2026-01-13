@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Mar 17 11:45:23 2025
+Created on Wed Nov 19 08:19:49 2025
 
 @author: repooley
 """
@@ -11,8 +11,7 @@ import glob
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt 
-import matplotlib.ticker as ticker
-from datetime import datetime, timedelta
+import matplotlib.ticker as mticker
 
 #########################
 ##--Open ICARTT Files--##
@@ -23,7 +22,10 @@ directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data"
 
 ##--Select flight (Flight2 thru Flight10)--##
 ##--NO UHSAS FILES FOR FLIGHT1--##
-flight = "Flight10"
+flight = "Flight2"
+
+##--Above dome?--##
+above_dome = True
 
 ##--Define function that creates datasets from filenames--##
 def find_files(directory, flight, partial_name):
@@ -136,6 +138,31 @@ CPC10_df = pd.DataFrame({'time': CPC10_time, 'conc': CPC10_conc}).set_index('tim
 ##--Make a new df reindexed to aimms_time. Populate with CPC10 conc--##
 CPC10_conc_aligned = CPC10_df.reindex(aimms_time)['conc']
 
+###########################
+##--Calc potential temp--##
+###########################
+
+##--Convert absolute temperature to potential temperature--##
+##--Constants--##
+p_0 = 1E5 # Reference pressure in Pa (1000 hPa)
+k = 0.286 # Poisson constant for dry air
+
+##--Generate empty list for potential temperature output--##
+potential_temp = []
+
+##--Calculate potential temperature from ambient temp & pressure--##
+for T, P in zip(temperature, pressure):
+    p_t = T*(p_0/P)**k
+    potential_temp.append(p_t)
+    
+PTemp_series = pd.Series(potential_temp, index=aimms_time)
+
+##--Boolean mask for 285 K--##
+mask = PTemp_series > 285
+
+##--Mask UHSAS data--##
+UHSAS_bins_aligned_mask = UHSAS_bins_aligned[mask]
+
 ##########################
 ##--Normalize OPC Data--##
 ##########################
@@ -145,14 +172,17 @@ CPC10_conc_aligned = CPC10_df.reindex(aimms_time)['conc']
 ##--Limit forward filling to 5 NaN rows--##
 OPC_bins_filled = OPC_bins_aligned.ffill(limit=5)
 
+##--Get only particle count data (excluding 'Time')--##
+particle_cols = OPC_new_col_names
+
 ##--Calculate dlogDp for each bin in numpy array--##
 dlogDp = np.log(OPC_upper_bound.values) - np.log(OPC_lower_bound.values)
 
-##--Get only particle count data (excluding 'Time')--##
-OPC_particle_counts = OPC_bins_filled.loc[:, OPC_new_col_names]
+##--Normalize--##
+OPC_dNdlogDp = OPC_bins_filled[particle_cols].divide(dlogDp, axis=1)
 
-##--Normalize counts by dividing by dlogDp across all rows--##
-OPC_dNdlogDp = OPC_bins_filled.divide(dlogDp, axis=1)
+##--Restore index--##
+OPC_dNdlogDp.index = OPC_bins_filled.index
 
 ##--Convert to STP!--##
 P_STP = 101325  # Pa
@@ -172,6 +202,8 @@ for OPC, T, P in zip(OPC_dNdlogDp.values, temperature, pressure):
 
 ##--Convert back to DataFrame with same columns and index--##
 OPC_conc_STP = pd.DataFrame(OPC_conc_STP, columns=OPC_dNdlogDp.columns, index=OPC_dNdlogDp.index)
+
+OPC_conc_STP_masked = OPC_conc_STP[mask]
 
 ######################
 ##--Calc N(2.5-10)--##
@@ -214,6 +246,9 @@ nuc_particles = np.where(nuc_particles >= 0, nuc_particles, np.nan)
 ##--Put N(2.5-10) bin center in a df--##
 n_3_10_center = pd.DataFrame([6.25]) # Mean of 2.5 and 10
 
+##--Flatten n_3_10_center and change into a series--##
+n_3_10_center = pd.Series(n_3_10_center.values.flatten())
+
 ##--Create a dataframe for N 2.5-10--##
 n_3_10 = pd.DataFrame({'time': aimms_time, '6': nuc_particles}).set_index('time')
 
@@ -239,8 +274,29 @@ n_10_89 = np.where(n_10_89 >= 0, n_10_89, np.nan)
 ##--Put N(10-85) bin center in a df--##
 n_10_89_center = pd.DataFrame([49.5])
 
+##--Flatten--##
+n_10_89_center = pd.Series(n_10_89_center.values.flatten())
+
 ##--Convert n_10_85 to a df--##
 n_10_89 = pd.DataFrame({'49.5': n_10_89, 'time':aimms_time}).set_index('time')
+
+###################################
+##--Normalize nuc and grow bins--##
+###################################
+
+##--Calculate dlogDp--##
+dlog_3_10 = np.log(10.0) - np.log(2.5)    # for 2.5 - 10 nm
+dlog_10_89 = np.log(89.0) - np.log(10.0)  # for 10 - 89 nm 
+
+##--Create dN/dlogDp--##
+n_3_10_dNdlogDp = n_3_10['6'] / dlog_3_10
+n_10_89_dNdlogDp = n_10_89['49.5'] / dlog_10_89
+
+##--Mask n_3_10 to above the polar dome--##
+n_3_10_masked = n_3_10_dNdlogDp[mask]
+
+##--Mask n_10_89--##
+n_10_89_masked = n_10_89_dNdlogDp[mask]
 
 ################
 ##--Plotting--##
@@ -250,68 +306,126 @@ n_10_89 = pd.DataFrame({'49.5': n_10_89, 'time':aimms_time}).set_index('time')
 bin_centers = pd.concat([n_3_10_center, n_10_89_center, UHSAS_bin_center, OPC_bin_center], axis=0).reset_index(drop=True)
 
 ##--Concatenate bin edges--##
-combined_bin_edges = np.concatenate([
-    [2.5],      # start of first bin
-    [10],       # upper edge of N(2.5-10), also lower of next
-    [89.32],       # upper edge of N(10-89), also lower of next
+combined_bin_edges_optical = np.concatenate([
     UHSAS_upper_bound.values,  # UHSAS bins continue from 85
-    OPC_upper_bound.values     # OPC bins continue from last UHSAS
+   OPC_upper_bound.values     # OPC bins continue from last UHSAS
 ])
 
-##--Convert seconds since midnight to date time--##
-aimms_hhmm = []
+if above_dome: 
 
-for seconds in aimms_time:
-    ##--Choose arbitary start date--##
-    time_obj = (datetime(1900, 1, 1) + timedelta(seconds=seconds)).time()
-    aimms_hhmm.append(time_obj)
+    ##--Create df containing UHSAS and OPC columns--##
+    optical_bins_aligned = pd.concat([UHSAS_bins_aligned_mask, OPC_conc_STP_masked], axis=1)
+else:
+    ##--Create df containing UHSAS and OPC columns--##
+    optical_bins_aligned = pd.concat([UHSAS_bins_aligned, OPC_conc_STP], axis=1)
 
-##--Calculate time edges for each bin, pcmesh doesn't expect time objects!--##
-time_step = aimms_time[1] - aimms_time[0]  
-time_edges = np.append(aimms_time, aimms_time[-1] + time_step)  # length N + 1
-
-##--Create df containing UHSAS and OPC columns--##
-optical_bins_aligned = pd.concat([n_3_10, n_10_89, UHSAS_bins_aligned, OPC_conc_STP], axis=1)
-
-##--Apply rolling average to all other particle data--##
+##--Apply rolling average to particle data--##
 optical_bins_smoothed = optical_bins_aligned.rolling(window=30, min_periods=1, center=True).mean()
 
-##--Numpy array expected by pcolormesh--##
-optical_conc = optical_bins_smoothed.to_numpy().T  
+##--Compute the median, 75th, and 90th percentiles of data--##
+##--Apply smoothing--##
+optical_bins_median = optical_bins_aligned.median(axis=0).rolling(window=30, min_periods=1, center=True).mean()
+optical_bins_75th = optical_bins_aligned.quantile(q=0.75, axis=0).rolling(window=30, min_periods=1, center=True).mean()
+optical_bins_25th = optical_bins_aligned.quantile(q=0.25, axis=0).rolling(window=30, min_periods=1, center=True).mean()
+optical_bins_max = optical_bins_aligned.max(axis=0).rolling(window=30, min_periods=1, center=True).mean()
+optical_bins_min = optical_bins_aligned.min(axis=0).rolling(window=30, min_periods=1, center=True).mean()
 
-##--Use pcolormesh which is more flexible than imshow--## 
-fig, ax1 = plt.subplots(figsize=(12, 8))
-c = ax1.pcolormesh(time_edges, combined_bin_edges, optical_conc, shading='auto', cmap='viridis')
+if above_dome: 
+    n_3_10_median = n_3_10_masked.median()
+    n_3_10_75th = n_3_10_masked.quantile(q=0.75)
+    n_3_10_25th = n_3_10_masked.quantile(q=0.25)
+    n_3_10_max = n_3_10_masked.max()
+    n_3_10_min = n_3_10_masked.min()
+    
+    n_10_89_median = n_10_89_masked.median()
+    n_10_89_75th = n_10_89_masked.quantile(q=0.75)
+    n_10_89_25th = n_10_89_masked.quantile(q=0.25)
+    n_10_89_max = n_10_89_masked.max()
+    n_10_89_min = n_10_89_masked.min()
+else: 
+    n_3_10_median = n_3_10_dNdlogDp.median()
+    n_3_10_75th = n_3_10_dNdlogDp.quantile(q=0.75)
+    n_3_10_25th = n_3_10_dNdlogDp.quantile(q=0.25)
+    n_3_10_max = n_3_10_dNdlogDp.max()
+    n_3_10_min = n_3_10_dNdlogDp.min()
+    
+    n_10_89_median = n_10_89_dNdlogDp.median()
+    n_10_89_75th = n_10_89_dNdlogDp.quantile(q=0.75)
+    n_10_89_25th = n_10_89_dNdlogDp.quantile(q=0.25)
+    n_10_89_max = n_10_89_dNdlogDp.max()
+    n_10_89_min = n_10_89_dNdlogDp.min()
 
-##--Grab ticks--##
-tick_seconds = ax1.get_xticks()
-##--Convert from seconds since midnight to HH:MM using an arbitary date for datetime--##
-tick_labels = [(datetime(1900, 1, 1) + timedelta(seconds=s)).strftime("%H") for s in tick_seconds]
-ax1.set_xticks(tick_seconds)
-ax1.set_xticklabels(tick_labels)
-ax1.set_xlabel("Hour", fontsize=14)
+##--Set up figure--##
+fig, ax = plt.subplots(1, 1, figsize=(12,6))
 
-ax1.set_title(f"Particle Size Distribution - {flight.replace('Flight', 'Flight ')}", fontsize=20, pad=20)
-##--Set axis limits to match data range--##
-ax1.set_xlim(time_edges[0], time_edges[-1])
-#ax1.set_ylim([bin_center.min(), bin_center.max()])
-ax1.set_yscale('log')
-custom_ticks = [10, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
-##--Apply custom ticks--##
-ax1.yaxis.set_major_locator(ticker.FixedLocator(custom_ticks))
+##--Add percentile ranges--##
+ax.fill_between(combined_bin_edges_optical, optical_bins_min, optical_bins_max, 
+                color='cadetblue', alpha=0.4, edgecolor='none')
+ax.fill_between(combined_bin_edges_optical, optical_bins_25th, optical_bins_75th, 
+                color='cadetblue', alpha=1, edgecolor='none')
 
-##--Format y-axis as regular numbers--##
-ax1.yaxis.set_major_formatter(ticker.FormatStrFormatter('%d'))
-ax1.tick_params(axis='y', labelsize=14)
-ax1.tick_params(axis='x', labelsize=14)
+##--y-axis fill between--##
+ax.fill_between(n_3_10_center, n_3_10_min, n_3_10_max, color='cadetblue', 
+                alpha=0.4, label='Full Range', edgecolor='none')
+ax.fill_between(n_3_10_center, n_3_10_25th, n_3_10_75th, color='cadetblue', 
+                alpha=1, label='Interquartile Range')
 
-#ax1.set_xlabel('Time (seconds since midnight UTC)', fontsize=14)
-ax1.set_ylabel('Log of Particle Diameter (nm)', fontsize=14)
 
-##--Add a colorbar below the plot--##
-cb = plt.colorbar(c, ax=ax1, location='bottom', pad=0.13, shrink=0.65)
-cb.set_label(label='Normalized Particle Concentration (dN/dlogDp) [scm⁻³]', fontsize=14)
-cb.ax.tick_params(labelsize=14)
+ax.fill_between(n_10_89_center, n_10_89_min, n_10_89_max, color='cadetblue', alpha=0.4, linewidth=3, edgecolor='none')
+ax.fill_between(n_10_89_center, n_10_89_25th, n_10_89_75th, color='cadetblue', alpha=1, linewidth=3)
 
-plt.tight_layout()
+ax.vlines(x=2.5, ymin=-250, ymax=4000, colors='darkgrey', linewidth=1.5, linestyle='--')
+ax.vlines(x=10, ymin=-250, ymax=4000, colors='darkgrey', linewidth=1.5, linestyle='--')
+ax.vlines(x=89, ymin=-250, ymax=4000, colors='darkgrey', linewidth=1.5, linestyle='--')
+
+##--Fill between on x-axis to give appearance of a full bin--##
+##--Define bin edges--##
+bin_edges = np.array([2.5, 10.0])
+bin_edges2 = np.array([10, 89])
+
+##--Repeat y-values across the bin--##
+nuc_min_fill = np.array([n_3_10_min, n_3_10_min])
+nuc_max_fill = np.array([n_3_10_max, n_3_10_max])
+nuc_25_fill = np.array([n_3_10_25th, n_3_10_25th])
+nuc_75_fill = np.array([n_3_10_75th, n_3_10_75th])
+
+grow_min_fill = np.array([n_10_89_min, n_10_89_min])
+grow_max_fill = np.array([n_10_89_max, n_10_89_max])
+grow_25_fill = np.array([n_10_89_25th, n_10_89_25th])
+grow_75_fill = np.array([n_10_89_75th, n_10_89_75th])
+
+##--Fill full range--##
+ax.fill_between(bin_edges, nuc_min_fill, nuc_max_fill, color='cadetblue', alpha=0.4, linewidth=3, edgecolor='none')
+ax.fill_between(bin_edges2, grow_min_fill, grow_max_fill, color='cadetblue', alpha=0.4, linewidth=3, edgecolor='none')
+
+##--Fill interquartile range--##
+ax.fill_between(bin_edges, nuc_25_fill, nuc_75_fill, color='cadetblue', alpha=1, linewidth=3, edgecolor='none')
+ax.fill_between(bin_edges2, grow_25_fill, grow_75_fill, color='cadetblue', alpha=1, linewidth=3, edgecolor='none')
+
+##--Add medians--##
+ax.plot(combined_bin_edges_optical, optical_bins_median, c='darkslategrey', linewidth=2, label='Median')
+
+##--Fill n_3_10_median to edges--##
+median_fill = np.array([n_3_10_median, n_3_10_median])
+ax.plot(bin_edges, median_fill, c='darkslategrey', linewidth=2)
+
+##--Same for n_10_89--##
+median_fill2 = np.array([n_10_89_median, n_10_89_median])
+ax.plot(bin_edges2, median_fill2, c='darkslategrey', linewidth=2)
+
+##--Format x-axis on a log scale--##
+ax.set_xscale('log')
+ax.xaxis.set_major_formatter(mticker.ScalarFormatter())
+
+##--Format y-axis to leave extra space at the bottom--##
+plt.ylim(-100, 1500)
+
+plt.xticks([3, 10, 89, 1000, 10000], fontsize=16)
+plt.yticks(fontsize=16)
+           
+plt.xlabel('Dp (nm)', fontsize=20)
+plt.ylabel('dN/dlogDp', fontsize=20)
+plt.title("NETCARE Particle Number Size Distribution", fontsize=20)
+plt.legend(fontsize=18)
+
 plt.show()

@@ -18,7 +18,7 @@ import matplotlib.colors as mcolors
 #########################
  
 ##--Set the base directory to project folder--##
-directory = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\raw"
+directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw"
  
 ##--Define a function to find all flight data--##
 def get_all_flights(directory):
@@ -174,7 +174,7 @@ gl.top_labels = True
 gl.bottom_labels = True
 
 ##--Base output path in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\MappedData\Mapped_Flights.png"
+output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\Arctic_NPF\data\processed\MappedData\Mapped_Flights.png"
 
 plt.savefig(output_path, dpi=300, bbox_inches='tight') 
 
