@@ -657,25 +657,28 @@ temp_plot = sns.violinplot(data=temp_sorted, order = ['Low_NPF', 'Low_NoNPF', 'H
                            inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette, ax=ax, cut=0)
 ax.set(xlabel='')
 ax.set_xticks(range(len(group_order)))
+plt.tick_params(labelsize=18)
 ax.set_xticklabels(group_order)
 
 ##--Add secondary x-axis labels for high and low lat regions--##
-fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
-plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
+fig.supxlabel('65-75\u00b0N', fontsize=18, x=0.32, y=0.035)
+plt.text(0.64, 0.035, '>75\u00b0N', transform=fig.transFigure, fontsize=18)
 
-ax.set(ylabel='Temperature (K)')
+#ax.set(ylabel='Temperature (K)')
+plt.ylabel('Temperature (K)', fontsize=18)
 
 if above_dome==True: 
-    ax.set(title='Temperature Above the Polar Dome')
+    plt.title('Temperature Above the Polar Dome', fontsize=18)
 else:
-    ax.set(title='Temperature')
+    plt.title('Temperature', fontsize=18)
 
 ##--Add text labels with N--##
-plt.text(0.17, 0.125, "N={}".format(temp_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-plt.text(0.36, 0.125, "N={}".format(temp_hi_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-plt.text(0.56, 0.125, "N={}".format(temp_lo_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-plt.text(0.75, 0.125, "N={}".format(temp_lo_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
+plt.text(0.17, 0.125, "N={}".format(temp_hi_npf_count), transform=fig.transFigure, fontsize=14, color='dimgrey')
+plt.text(0.36, 0.125, "N={}".format(temp_hi_nonpf_count), transform=fig.transFigure, fontsize=14, color='dimgrey')
+plt.text(0.56, 0.125, "N={}".format(temp_lo_npf_count), transform=fig.transFigure, fontsize=14, color='dimgrey')
+plt.text(0.74, 0.125, "N={}".format(temp_lo_nonpf_count), transform=fig.transFigure, fontsize=14, color='dimgrey')
 
+'''
 ##--Conditions for adding p values--##
 if p_lo_temp >= 0.05:
     plt.text(0.17, 0.855, f"p={p_lo_temp:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
@@ -696,7 +699,7 @@ elif p_hi_temp < 0.0005:
     
 ##--Add r value next to p-value--##
 plt.text(0.72, 0.51, f"r={r_hi_temp:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
-    
+'''    
 plt.savefig(f"{output_path}\\temp/temp_MultiFlights", dpi=600)
 
 plt.show()
@@ -710,25 +713,26 @@ ptemp_plot = sns.violinplot(data = ptemp_sorted, order=['Low_NPF', 'Low_NoNPF', 
 
 ax.set(xlabel='')
 ax.set_xticks(range(len(group_order)))
+plt.tick_params(labelsize=18)
 ax.set_xticklabels(group_order)
 
 ##--Add secondary x-axis labels for high and low lat regions--##
-fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
-plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
+fig.supxlabel('65-75\u00b0N', fontsize=18, x=0.32, y=0.035)
+plt.text(0.64, 0.035, '>75\u00b0N', transform=fig.transFigure, fontsize=18)
 
-ax.set(ylabel='Potential Temperature (K)')
+plt.ylabel('Potential Temperature (K)', fontsize=18)
 
 if above_dome==True:
-    ax.set(title="Potential Temperature Above the Polar Dome")
+    plt.title("Potential Temperature Above the Polar Dome", fontsize=18)
 else: 
-    ax.set(title='Potential Temperature')
+    plt.title('Potential Temperature', fontsize=18)
 
 ##--Add text labels with N--##
-plt.text(0.17, 0.125, "N={}".format(ptemp_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-plt.text(0.36, 0.125, "N={}".format(ptemp_hi_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-plt.text(0.56, 0.125, "N={}".format(ptemp_lo_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-plt.text(0.75, 0.125, "N={}".format(ptemp_lo_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-
+plt.text(0.17, 0.125, "N={}".format(ptemp_hi_npf_count), transform=fig.transFigure, fontsize=14, color='dimgrey')
+plt.text(0.36, 0.125, "N={}".format(ptemp_hi_nonpf_count), transform=fig.transFigure, fontsize=14, color='dimgrey')
+plt.text(0.56, 0.125, "N={}".format(ptemp_lo_npf_count), transform=fig.transFigure, fontsize=14, color='dimgrey')
+plt.text(0.74, 0.125, "N={}".format(ptemp_lo_nonpf_count), transform=fig.transFigure, fontsize=14, color='dimgrey')
+'''
 ##--Conditions for adding p values--##
 if p_lo_ptemp >= 0.05:
     plt.text(0.17, 0.855, f"p={p_lo_ptemp:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
@@ -749,7 +753,7 @@ elif p_hi_ptemp < 0.0005:
     
 ##--Add r value next to p-value--##
 plt.text(0.72, 0.76, f"r={r_hi_ptemp:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
-    
+''' 
 plt.savefig(f"{output_path}\\ptemp/ptemp_MultiFlights", dpi=600)
 
 plt.show()
@@ -762,24 +766,25 @@ alt_plot = sns.violinplot(data = alt_sorted, order=['Low_NPF', 'Low_NoNPF', 'Hig
                                   inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette3, ax=ax, cut=0)
 ax.set(xlabel='')
 ax.set_xticks(range(len(group_order)))
+plt.tick_params(labelsize=18)
 ax.set_xticklabels(group_order)
 
 ##--Add secondary x-axis labels for high and low lat regions--##
-fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
-plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
+fig.supxlabel('65-75\u00b0N', fontsize=18, x=0.32, y=0.035)
+plt.text(0.64, 0.035, '>75\u00b0N', transform=fig.transFigure, fontsize=18)
 
-ax.set(ylabel='Altitude A.M.S.L. (m)')
+plt.ylabel('Altitude A.M.S.L. (m)', fontsize=18)
 
 if above_dome==True:
-    ax.set(title="Altitude Above the Polar Dome")
+    plt.title("Altitude Above the Polar Dome", fontsize=18)
 else: 
-    ax.set(title='Altitude')
+    plt.title('Altitude', fontsize=18)
 ##--Add text labels with N--##
-plt.text(0.17, 0.125, "N={}".format(alt_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-plt.text(0.36, 0.125, "N={}".format(alt_hi_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-plt.text(0.56, 0.125, "N={}".format(alt_lo_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-plt.text(0.75, 0.125, "N={}".format(alt_lo_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-
+plt.text(0.17, 0.125, "N={}".format(alt_hi_npf_count), transform=fig.transFigure, fontsize=14, color='dimgrey')
+plt.text(0.36, 0.125, "N={}".format(alt_hi_nonpf_count), transform=fig.transFigure, fontsize=14, color='dimgrey')
+plt.text(0.56, 0.125, "N={}".format(alt_lo_npf_count), transform=fig.transFigure, fontsize=14, color='dimgrey')
+plt.text(0.74, 0.125, "N={}".format(alt_lo_nonpf_count), transform=fig.transFigure, fontsize=14, color='dimgrey')
+'''
 ##--Conditions for adding p values--##
 if p_lo_alt >= 0.05:
     plt.text(0.17, 0.855, f"p={p_lo_alt:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
@@ -800,7 +805,7 @@ elif p_hi_alt < 0.0005:
     
 ##--Add r value next to p-value--##
 plt.text(0.72, 0.855, f"r={r_hi_alt:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
-    
+'''   
 plt.savefig(f"{output_path}\\altitude/alt_MultiFlights", dpi=600)
 
 plt.show()
@@ -813,25 +818,26 @@ rh_w_plot = sns.violinplot(data = rh_w_sorted, order=['Low_NPF', 'Low_NoNPF', 'H
                                   inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette4, ax=ax, cut=0)
 ax.set(xlabel='')
 ax.set_xticks(range(len(group_order)))
+plt.tick_params(labelsize=18)
 ax.set_xticklabels(group_order)
 
 ##--Add secondary x-axis labels for high and low lat regions--##
-fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
-plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
+fig.supxlabel('65-75\u00b0N', fontsize=18, x=0.32, y=0.035)
+plt.text(0.64, 0.035, '>75\u00b0N', transform=fig.transFigure, fontsize=18)
 
-ax.set(ylabel='Relative Humidity (%)')
+plt.ylabel('Relative Humidity (%)', fontsize=18)
 
 if above_dome==True: 
-    ax.set(title="Relative Humidity w.r.t. Water Above the Polar Dome")
+    plt.title("Relative Humidity w.r.t. Water Above the Polar Dome", fontsize=18)
 else: 
-    ax.set(title="Relative Humidity w.r.t. Water")
+    plt.title("Relative Humidity w.r.t. Water", fontsize=18)
 
 ##--Add text labels with N--##
-plt.text(0.17, 0.125, "N={}".format(rh_w_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-plt.text(0.36, 0.125, "N={}".format(rh_w_hi_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-plt.text(0.56, 0.125, "N={}".format(rh_w_lo_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-plt.text(0.75, 0.125, "N={}".format(rh_w_lo_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-
+plt.text(0.17, 0.125, "N={}".format(rh_w_hi_npf_count), transform=fig.transFigure, fontsize=14, color='dimgrey')
+plt.text(0.36, 0.125, "N={}".format(rh_w_hi_nonpf_count), transform=fig.transFigure, fontsize=14, color='dimgrey')
+plt.text(0.56, 0.125, "N={}".format(rh_w_lo_npf_count), transform=fig.transFigure, fontsize=14, color='dimgrey')
+plt.text(0.74, 0.125, "N={}".format(rh_w_lo_nonpf_count), transform=fig.transFigure, fontsize=14, color='dimgrey')
+'''
 ##--Conditions for adding p values--##
 if p_lo_rh_w >= 0.05:
     plt.text(0.17, 0.855, f"p={p_lo_rh_w:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
@@ -852,7 +858,7 @@ elif p_hi_rh_w < 0.0005:
     
 ##--Add r value next to p-value--##
 plt.text(0.72, 0.855, f"r={r_hi_rh_w:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
-    
+'''    
 plt.savefig(f"{output_path}\\rh_water/rh_w_MultiFlights", dpi=600)
 
 plt.show()
@@ -865,25 +871,26 @@ rh_w_plot = sns.violinplot(data = rh_w_sorted, order=['Low_NPF', 'Low_NoNPF', 'H
                                   inner_kws={'whis_width': 0, 'solid_capstyle':'butt'}, palette=palette5, ax=ax, cut=0)
 ax.set(xlabel='')
 ax.set_xticks(range(len(group_order)))
+plt.tick_params(labelsize=18)
 ax.set_xticklabels(group_order)
 
 ##--Add secondary x-axis labels for high and low lat regions--##
-fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
-plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
+fig.supxlabel('65-75\u00b0N', fontsize=18, x=0.32, y=0.035)
+plt.text(0.64, 0.035, '>75\u00b0N', transform=fig.transFigure, fontsize=18)
 
-ax.set(ylabel='Relative Humidity (%)')
+plt.ylabel('Relative Humidity (%)', fontsize=18)
 
 if above_dome==True: 
-    ax.set(title="Relative Humidity w.r.t. Ice Above the Polar Dome")
+    plt.title("Relative Humidity w.r.t. Ice Above the Polar Dome", fontsize=18)
 else: 
-    ax.set(title='Relative Humidity w.r.t. Ice')
+    plt.title('Relative Humidity w.r.t. Ice', fontsize=18)
 
 ##--Add text labels with N--##
-plt.text(0.17, 0.125, "N={}".format(rh_i_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-plt.text(0.36, 0.125, "N={}".format(rh_i_hi_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-plt.text(0.56, 0.125, "N={}".format(rh_i_lo_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-plt.text(0.75, 0.125, "N={}".format(rh_i_lo_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-
+plt.text(0.17, 0.125, "N={}".format(rh_i_hi_npf_count), transform=fig.transFigure, fontsize=14, color='dimgrey')
+plt.text(0.36, 0.125, "N={}".format(rh_i_hi_nonpf_count), transform=fig.transFigure, fontsize=14, color='dimgrey')
+plt.text(0.56, 0.125, "N={}".format(rh_i_lo_npf_count), transform=fig.transFigure, fontsize=14, color='dimgrey')
+plt.text(0.74, 0.125, "N={}".format(rh_i_lo_nonpf_count), transform=fig.transFigure, fontsize=14, color='dimgrey')
+'''
 ##--Conditions for adding p values--##
 if p_lo_rh_i >= 0.05:
     plt.text(0.17, 0.855, f"p={p_lo_rh_i:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
@@ -904,7 +911,7 @@ elif p_hi_rh_i < 0.0005:
     
 ##--Add r value next to p-value--##
 plt.text(0.72, 0.855, f"r={r_hi_rh_i:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
-    
+'''    
 plt.savefig(f"{output_path}\\rh_ice/rh_i_MultiFlights", dpi=600)
 
 plt.show()

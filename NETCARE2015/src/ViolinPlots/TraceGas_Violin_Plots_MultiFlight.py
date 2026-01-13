@@ -584,28 +584,31 @@ ax.plot((-d, +d), (-d, +d), transform=ax_top.transAxes, color='k', clip_on=False
 d_scaled = d * (1 / 8)
 ax2.plot((-d, +d), (1 - d_scaled, 1 + d_scaled), transform=ax_bottom.transAxes, color='k', clip_on=False) 
 
-fig.supylabel('CO (ppmv)', fontsize=12, x=0.01)
+fig.supylabel('CO (ppmv)', fontsize=14, x=0.01)
 
 ##--Add secondary x-axis labels for high and low lat regions--##
-fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
-plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
+fig.supxlabel('65-75\u00b0N', fontsize=14, x=0.32, y=0.045)
+plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=14)
 
 if above_dome ==True:
-    plt.suptitle('CO', fontsize=12, y=0.92)
+    plt.suptitle('CO', fontsize=14, y=0.92)
 else:
-    plt.suptitle('CO', fontsize=12, y=0.92)
+    plt.suptitle('CO', fontsize=14, y=0.92)
 
 ##--Add x-axis label ticks back in--##
 ax_bottom.set_xticks(range(len(group_order)))
 ax_bottom.set_xticklabels(group_order)
-ax_top.tick_params(axis='x', which='both', labelsize=12, top=False, labeltop=False)
+ax_top.tick_params(axis='x', which='both', labelsize=14, top=False, labeltop=False)
+ax_top.tick_params(axis='y', which='both', labelsize=14, top=False, labeltop=False)
+ax_bottom.tick_params(axis='x', which='both', labelsize=14, top=False, labeltop=False)
+ax_bottom.tick_params(axis='y', which='both', labelsize=14, top=False, labeltop=False)
 
 ##--Add text labels with N--##
 plt.text(0.17, 0.125, "N={}".format(CO_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.36, 0.125, "N={}".format(CO_hi_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.56, 0.125, "N={}".format(CO_lo_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.75, 0.125, "N={}".format(CO_lo_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-
+'''
 ##--Conditions for adding p values--##
 if p_lo_CO >= 0.05:
     plt.text(0.17, 0.855, f"p={p_lo_CO:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
@@ -626,7 +629,7 @@ elif p_hi_CO < 0.0005:
     
 ##--Add r value next to p-value--##
 plt.text(0.72, 0.855, f"r={r_hi_CO:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
-    
+'''   
 plt.savefig(f"{output_path}\\CO/CO_MultiFlights", dpi=600)
 
 plt.show()
@@ -639,24 +642,25 @@ CO2_plot = sns.violinplot(data = CO2_sorted, order=['Low_NPF', 'Low_NoNPF', 'Hig
 
 ax.set_xticks(range(len(group_order)))
 ax.set_xticklabels(group_order)
+plt.tick_params(labelsize=14)
 
 ##--Add secondary x-axis labels for high and low lat regions--##
-fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
-plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
+fig.supxlabel('65-75\u00b0N', fontsize=14, x=0.32, y=0.045)
+plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=14)
 
 ax.set(xlabel='')
-ax.set(ylabel='CO\u2082 (ppmv)')
+plt.ylabel('CO\u2082 (ppmv)', fontsize=14)
 
 if above_dome==True:
-    ax.set(title="CO\u2082 Above the Polar Dome")
+    plt.title("CO\u2082 Above the Polar Dome", fontsize=14)
 else: 
-    ax.set(title="CO\u2082")
+    plt.title("CO\u2082", fontsize=14)
 ##--Add text labels with N--##
 plt.text(0.17, 0.125, "N={}".format(CO2_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.36, 0.125, "N={}".format(CO2_hi_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.56, 0.125, "N={}".format(CO2_lo_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.75, 0.125, "N={}".format(CO2_lo_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-
+'''
 ##--Conditions for adding p values--##
 if p_lo_CO2 >= 0.05:
     plt.text(0.17, 0.855, f"p={p_lo_CO2:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
@@ -677,7 +681,7 @@ elif p_hi_CO2 < 0.0005:
 
 ##--Add r value next to p-value--##
 plt.text(0.72, 0.65, f"r={r_hi_CO2:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
-    
+'''    
 plt.savefig(f"{output_path}\\CO2/CO2_MultiFlights", dpi=600)
 
 plt.show()
@@ -690,25 +694,26 @@ O3_plot = sns.violinplot(data = O3_sorted, order=['Low_NPF', 'Low_NoNPF', 'High_
 
 ax.set_xticks(range(len(group_order)))
 ax.set_xticklabels(group_order)
+plt.tick_params(labelsize=14)
 
 ##--Add secondary x-axis labels for high and low lat regions--##
-fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
-plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
+fig.supxlabel('65-75\u00b0N', fontsize=14, x=0.32, y=0.045)
+plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=14)
 
 ax.set(xlabel='')
-ax.set(ylabel='O\u2083 (ppbv)')
+plt.ylabel('O\u2083 (ppbv)', fontsize=14)
 
 if above_dome==True: 
-    ax.set(title="O\u2083 Above the Polar Dome")
+    plt.title("O\u2083 Above the Polar Dome", fontsize=14)
 else:
-    ax.set(title="O\u2083") 
+    plt.title("O\u2083", fontsize=14) 
 
 ##--Add text labels with N--##
 plt.text(0.17, 0.125, "N={}".format(O3_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.36, 0.125, "N={}".format(O3_hi_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.56, 0.125, "N={}".format(O3_lo_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.75, 0.125, "N={}".format(O3_lo_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-
+'''
 ##--Conditions for adding p values--##
 if p_lo_O3 >= 0.05:
     plt.text(0.17, 0.855, f"p={p_lo_O3:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
@@ -729,7 +734,7 @@ elif p_hi_O3 < 0.0005:
     
 ##--Add r value next to p-value--##
 plt.text(0.72, 0.75, f"r={r_hi_O3:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
-    
+'''  
 plt.savefig(f"{output_path}\\O3/O3_MultiFlights", dpi=600)
 
 plt.show()
@@ -769,29 +774,33 @@ ax.plot((-d, +d), (-d, +d), transform=ax_top.transAxes, color='k', clip_on=False
 d_scaled = d * (1 / 8)
 ax2.plot((-d, +d), (1 - d_scaled, 1 + d_scaled), transform=ax_bottom.transAxes, color='k', clip_on=False) 
 
-fig.supylabel('CO/CO\u2082', fontsize=12, x=0.01)
+fig.supylabel('CO/CO\u2082', fontsize=14, x=-0.05)
 
 if above_dome==True:
-    plt.suptitle('CO/CO\u2082 Above the Polar Dome', fontsize=12, y=0.92)
+    plt.suptitle('CO/CO\u2082 Above the Polar Dome', fontsize=14, y=0.92)
 else: 
-    plt.suptitle('CO/CO\u2082', fontsize=12, y=0.92)
+    plt.suptitle('CO/CO\u2082', fontsize=14, y=0.92)
 
 ##--Add x-axis label ticks back in--##
 ax_bottom.set_xticks(range(len(group_order)))
 ax_bottom.set_xticklabels(group_order)
+ax_top.tick_params(axis='x', which='both', labelsize=14, top=False, labeltop=False)
+ax_top.tick_params(axis='y', which='both', labelsize=14, top=False, labeltop=False)
+ax_bottom.tick_params(axis='x', which='both', labelsize=14, top=False, labeltop=False)
+ax_bottom.tick_params(axis='y', which='both', labelsize=14, top=False, labeltop=False)
 
 ##--Add secondary x-axis labels for high and low lat regions--##
-fig.supxlabel('65-75\u00b0N', fontsize=12, x=0.32, y=0.045)
-plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=12)
+fig.supxlabel('65-75\u00b0N', fontsize=14, x=0.32, y=0.045)
+plt.text(0.64, 0.045, '>75\u00b0N', transform=fig.transFigure, fontsize=14)
 
-ax_top.tick_params(axis='x', which='both', labelsize=12, top=False, labeltop=False)
+ax_top.tick_params(axis='x', which='both', labelsize=14, top=False, labeltop=False)
 
 ##--Add text labels with N--##
 plt.text(0.17, 0.125, "N={}".format(CO_CO2_hi_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.36, 0.125, "N={}".format(CO_CO2_hi_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.56, 0.125, "N={}".format(CO_CO2_lo_npf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
 plt.text(0.75, 0.125, "N={}".format(CO_CO2_lo_nonpf_count), transform=fig.transFigure, fontsize=10, color='dimgrey')
-
+'''
 ##--Conditions for adding p values--##
 if p_lo_CO_CO2 >= 0.05:
     plt.text(0.17, 0.855, f"p={p_lo_CO_CO2:.4f},", transform=fig.transFigure, fontsize=12, color='dimgrey')
@@ -812,7 +821,7 @@ elif p_hi_CO_CO2 < 0.0005:
     
 ##--Add r value next to p-value--##
 plt.text(0.72, 0.855, f"r={r_hi_CO_CO2:.3f}", transform=fig.transFigure, fontsize=12, color='dimgrey')
- 
+''' 
 plt.savefig(f"{output_path}\\CO_CO2/CO_CO2_MultiFlights", dpi=600)
 
 plt.show()
