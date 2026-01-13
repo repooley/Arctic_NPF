@@ -16,17 +16,16 @@ import xarray as xr # to read in .nc files
 import rioxarray as rio # use to downsample geospatial data
 import matplotlib.pyplot as plt 
 import matplotlib.gridspec as gridspec
-import cmcrameri # pretty colors
+import cmcrameri as cm # pretty colors
 from matplotlib.ticker import ScalarFormatter
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.dates import DateFormatter, date2num, num2date
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.colors import LogNorm
-import matplotlib.patches as mpatches
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
-from scipy.spatial import ConvexHull
 import alphashape
+from datetime import date
 
 ###################
 ##--User inputs--##
@@ -39,7 +38,7 @@ directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data"
 hysplit = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\HYSPLIT\data\trajectories\5min_averaged"
  
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight5" 
+flight = "Flight10" 
 
 ##--Filter for above polar dome?--##
 above_dome = True
@@ -97,6 +96,27 @@ netcare_subset = single_flight[single_flight['Time_start'].isin(UTCs)]
 top_lon = topography['longitude']
 top_lat = topography['latitude']
 elevation = topography['elevation']
+
+####################################
+##--Assign date to flight number--##
+####################################
+
+if flight=="Flight1":
+    flight_date = date(2015, 4, 5)
+elif flight=="Flight2":
+    flight_date = date(2015, 4, 7)
+elif flight=="Flight3" or flight=="Flight4":
+    flight_date = date(2015, 4, 8)
+elif flight=="Flight5":
+    flight_date = date(2015, 4, 9)
+elif flight=="Flight6":
+    flight_date = date(2015, 4, 11)
+elif flight=="Flight7": 
+    flight_date = date(2015, 4, 13)
+elif flight=="Flight8" or flight=="Flight9": 
+    flight_date = date(2015, 4, 20)
+elif flight=="Flight10": 
+    flight_date = date(2015, 4, 21)
 
 #############################################
 ##--Calculate Nanophytoplankton abundance--##
@@ -204,7 +224,9 @@ nano_abundance = xr.apply_ufunc(np.vectorize(compute_nano), chlor_reproj,
     dask="parallelized", output_dtypes=[float])
 
 ##--Drop zeroes from chlorophyll data to use LogNorm scale--##
-nano_abundance = np.where(nano_abundance > 0, nano_abundance, np.nan)
+##--Also drop any extreme values--##
+mask = (nano_abundance > 0) & (nano_abundance < 75)
+nano_abundance = np.where(mask, nano_abundance, np.nan)
 
 ###################
 ##--Set up plot--##
@@ -214,7 +236,7 @@ nano_abundance = np.where(nano_abundance > 0, nano_abundance, np.nan)
 if flight == "Flight2":
     map_extent = [-100, 10, 35, 90]
     height_ratios = [2.5, 1, 1, 1]
-    width_ratios = [1, 1, 0.025]
+    width_ratios = [1, 1, 0.05]
     hspace = 0.25
     wspace=0.33
     htitle = 0.95
@@ -250,9 +272,9 @@ elif flight == "Flight7":
     map_extent = [-120, 32, 45, 90]
     height_ratios = [2.5, 1, 1, 1]
     width_ratios = [1, 1, 0.05]
-    hspace = 0.0
-    wspace=0.05
-    htitle=0.85
+    hspace = 0.25
+    wspace=0.33
+    htitle=0.96
 elif flight == "Flight8":
     map_extent = [-180, 120, 28, 90]
     height_ratios = [2, 1, 1, 1]
@@ -268,18 +290,20 @@ elif flight == "Flight9":
     htitle=0.88
 elif flight == "Flight10":
     map_extent = [-180, 60, 28, 90]
-    height_ratios = [2, 1, 1, 1]
+    height_ratios = [2.5, 1, 1, 1]
     width_ratios = [1, 1, 0.05]
-    hspace = -0.1
-    wspace=0.05
-    htitle=0.88
+    hspace = 0.25
+    wspace = 0.33
+    htitle = 0.96
+
+    
 else: 
     map_extent = [-120, 10, 70, 90]
     height_ratios = [2, 1, 1, 1]
     width_ratios = [1, 1, 0.05]
-    hspace = 0.1
-    wspace=0.05
-    htitle=0.91
+    hspace = 0.25
+    wspace=0.33
+    htitle=0.96
     
 ##--Separate the axes from the figure object to apply different projections--##
 fig = plt.figure(figsize=(12, 12))
@@ -314,7 +338,7 @@ cmap.set_under('none') # transparent
 norm = plt.Normalize(vmin=1, vmax=6000)
 
 ##--Get chlorophyll cmap (zeros are ocean colored)--##
-cmap2 = cmcrameri.cm.navia
+cmap2 = cm.cm.oslo_r
 cmap2.set_under('none')
 
 ##--Basic map formatting--##
@@ -325,7 +349,7 @@ for ax_map in [ax_map_sig, ax_map_nonsig]:
  
     ##--Add ocean layer to maps--##
     ax_map.add_feature(cfeature.OCEAN, fc='#F0FFFF', ec='k', lw=0.2, zorder=1)
-'''
+
     ##--Add topographic data to maps--##
     elev_map = ax_map.pcolormesh(top_lon, top_lat, elevation, 
         transform=ccrs.PlateCarree(), # match transform to projection used
@@ -334,8 +358,11 @@ for ax_map in [ax_map_sig, ax_map_nonsig]:
     ##--Add nanophytoplankton data to maps--##
     chlor_map = ax_map.pcolormesh(chlor_lon, chlor_lat, nano_abundance,
           transform=ccrs.PlateCarree(), cmap=cmap2, 
-          norm=LogNorm(vmin=0.01, vmax=100), shading='auto', zorder=1)
-'''
+          norm=LogNorm(vmin=0.01, vmax=100), shading='auto', zorder=1, alpha=0.7)
+
+    if flight == "Flight10":
+        []           
+        
 ##--Right column colorbar slots--##
 ##--Suggestion from GPT 5: split map colorbar slots into two--##
 cax_mapslot = fig.add_subplot(gs[0, 2])
@@ -358,8 +385,8 @@ cax_rain  = fig.add_subplot(gs[3, 2])
 ##--Set labels--##
 ax_map_sig.set_title("$N_{2.5-10}$ Event", fontsize=18)
 ax_map_nonsig.set_title("No Significant $N_{2.5-10}$", fontsize=18)
-ax_RH_sig.set_ylabel("Meters Above Ground Level", fontsize=20)
-fig.suptitle(f"NETCARE {flight.replace('Flight', 'Flight ')} HYSPLIT Back Trajectories", 
+ax_RH_sig.set_ylabel("Meters Above Sea Level", fontsize=20)
+fig.suptitle(f"NETCARE {flight.replace('Flight', 'Flight ')} ({flight_date}) HYSPLIT Back Trajectories", 
              fontsize=24, y=htitle)
 
 ##--Set axes limits--##
@@ -369,7 +396,7 @@ ax_RH_sig.set_ylim(-250, 10000)
 ax_RH_nonsig.set_ylim(-250, 10000)
 ax_rain_sig.set_ylim(-250, 10000)
 ax_rain_nonsig.set_ylim(-250, 10000)
-'''
+
 ##--Map colorbars--## 
 cb1 = fig.colorbar(elev_map, cax=cax_elev, orientation="vertical", shrink=0.5)
 cb1.set_label("Elevation (m)", size=12)
@@ -378,7 +405,7 @@ cb1.ax.tick_params(labelsize=14)
 cb2 = fig.colorbar(chlor_map, cax=cax_chlor, orientation="vertical", shrink=0.5)
 cb2.set_label(r"Nano$_{\rm surf}$ (mg/m$^3$)", size=12)
 cb2.ax.tick_params(labelsize=14)
-'''
+
 ##########################
 ##--Group trajectories--##
 ##########################
@@ -425,72 +452,93 @@ for file, row in zip(sorted(os.listdir(flight_directory)), netcare_subset.itertu
             for traj_num, group in df.groupby('TRAJ'):
                 group = group.sort_values('DateTime')
                 
+                ##--Suggestion from GPT5 - deal with HYSPLIT wrapping around meridian--##
+                # Normalize to -180 to 180 range
+                group['LONG'] = ((group['LONG'] + 180) % 360) - 180
+                
+                lon = group['LONG'].values
+                lat = group['LAT'].values
                 magl = group['ALTITUDE'].values
+                temps = group['AIR_TEMP'].tolist() 
+                RHs = group['RELHUMID'].values
+                rain = group['RAINFALL'].values
                 
                 ##--Calculate meters above sea level from elev and terrain height--##
                 masl = group['ALTITUDE'].values + group['TERR_MSL'].values
                 
-                ##--Last time in trajectory = initialization (measurement) time--##
-                t0 = group['DateTime'].iloc[-1]
                 
                 ##--Compute relative time in days (backward from initialization)--##
-                ##--Divide by length of one day: 86400 seconds--##
+                t0 = group['DateTime'].iloc[-1]
                 time_rel = (group['DateTime'] - t0).dt.total_seconds() / 86400.0
+                time_rel = time_rel.values  # ensure numpy array
+            
+                ##--Detect jumps >180° and break line by inserting NaNs--##
+                jump_indices = np.where(np.abs(np.diff(lon)) > 180)[0]
+                if len(jump_indices) > 0:
+                    for j in jump_indices[::-1]:  # reverse order to avoid index shift
+                        lon = np.insert(lon, j + 1, np.nan)
+                        lat = np.insert(lat, j + 1, np.nan)
+                        magl = np.insert(magl, j + 1, np.nan)
+                        masl = np.insert(masl, j + 1, np.nan)
+                        time_rel = np.insert(time_rel, j + 1, np.nan)
+                        temps = np.insert(temps, j + 1, np.nan)
+                        RHs = np.insert(RHs, j + 1, np.nan)
+                        rain = np.insert(rain, j + 1, np.nan)
         
                 ##--Cut off trajectory within 1m of surface, HYSPLIT is iffy here--##
                 if any(magl < 1):
                     index_end = np.min(np.where(magl < 1))
                 else:
                     index_end = len(group) 
-                    
+                
                 if any(masl < 1):
                     index_end = np.min(np.where(masl < 1))
                 else:
-                    index_end = len(group)
+                    index_end = len(group) 
                     
                ##--Plot original (unperturbed) trajectory--##
                 if traj_num == 1:
                     color = 'k'
                     linewidth = 1.25
-                    alpha = 1
+                    alpha = 0.75
                     zorder = 5
                 else:
                     color = 'none'
-            
-                ax_map.plot(group['LONG'].iloc[:index_end],
-                    group['LAT'].iloc[:index_end],
-                    transform=ccrs.PlateCarree(),
-                    c=color, lw=linewidth, alpha=alpha, zorder=zorder)
                 
-                ax_temp.plot(time_rel.iloc[:index_end],
+                ax_map.plot(lon[:index_end],
+                            lat[:index_end],
+                            transform=ccrs.PlateCarree(),
+                            c=color, lw=linewidth, alpha=alpha, zorder=zorder)
+                
+                ax_temp.plot(time_rel[:index_end],
                     masl[:index_end],
                     c=color, lw=linewidth, alpha=alpha, zorder=zorder)
                 
-                ax_RH.plot(time_rel.iloc[:index_end],
+                ax_RH.plot(time_rel[:index_end],
                     masl[:index_end],
                     c=color, lw=linewidth, alpha=alpha, zorder=zorder)
                 
-                ax_rain.plot(time_rel.iloc[:index_end],
+                ax_rain.plot(time_rel[:index_end],
                     masl[:index_end],
                     c=color, lw=linewidth, alpha=alpha, zorder=zorder)
                 
                 if is_significant:
-                    lats_sig.extend(group['LAT'].values)
-                    lons_sig.extend(group['LONG'].values)
-                    magl_sig.extend(group['ALTITUDE'].values)
-                    time_sig.extend(time_rel.values)  
-                    temp_sig.extend(group['AIR_TEMP'].tolist())
-                    RH_sig.extend(group['RELHUMID'].values)
-                    rain_sig.extend(group['RAINFALL'].values)
+                    lats_sig.extend(lat)
+                    lons_sig.extend(lon)
+                    magl_sig.extend(magl)
+                    time_sig.extend(time_rel) 
+                    temp_sig.extend(temps)
+                    RH_sig.extend(RHs)
+                    rain_sig.extend(rain)
                     masl_sig.extend(masl)
                 else:
-                    lats_nonsig.extend(group['LAT'].values)
-                    lons_nonsig.extend(group['LONG'].values)
-                    magl_nonsig.extend(group['ALTITUDE'].values)
-                    time_nonsig.extend(time_rel.values)  
-                    temp_nonsig.extend(group['AIR_TEMP'].tolist())
-                    RH_nonsig.extend(group['RELHUMID'].values)
-                    rain_nonsig.extend(group['RAINFALL'].values)
+                    lats_nonsig.extend(lat)
+                    lons_nonsig.extend(lon)
+                    magl_nonsig.extend(magl)
+                    time_nonsig.extend(time_rel) 
+                    temp_nonsig.extend(temps)
+                    RH_nonsig.extend(RHs)
+                    rain_nonsig.extend(rain)
                     masl_nonsig.extend(masl)
     else: 
         ##--Determine which axis to use (NPF vs non-NPF)--##
@@ -518,21 +566,47 @@ for file, row in zip(sorted(os.listdir(flight_directory)), netcare_subset.itertu
         for traj_num, group in df.groupby('TRAJ'):
             group = group.sort_values('DateTime')
             
-            altitudes = group['ALTITUDE'].values
+            ##--Suggestion from GPT5 - deal with HYSPLIT wrapping around meridian--##
+            # Normalize to -180 to 180 range
+            group['LONG'] = ((group['LONG'] + 180) % 360) - 180
+            
+            lon = group['LONG'].values
+            lat = group['LAT'].values
+            magl = group['ALTITUDE'].values
+            temps = group['AIR_TEMP'].tolist() 
+            RHs = group['RELHUMID'].values
+            rain = group['RAINFALL'].values
             
             ##--Calculate meters above sea level from elev and terrain height--##
             masl = group['ALTITUDE'].values + group['TERR_MSL'].values
             
-            ##--Last time in trajectory = initialization (measurement) time--##
-            t0 = group['DateTime'].iloc[-1]
             
             ##--Compute relative time in days (backward from initialization)--##
-            ##--Divide by length of one day: 86400 seconds--##
+            t0 = group['DateTime'].iloc[-1]
             time_rel = (group['DateTime'] - t0).dt.total_seconds() / 86400.0
+            time_rel = time_rel.values  # ensure numpy array
+        
+            ##--Detect jumps >180° and break line by inserting NaNs--##
+            jump_indices = np.where(np.abs(np.diff(lon)) > 180)[0]
+            if len(jump_indices) > 0:
+                for j in jump_indices[::-1]:  # reverse order to avoid index shift
+                    lon = np.insert(lon, j + 1, np.nan)
+                    lat = np.insert(lat, j + 1, np.nan)
+                    magl = np.insert(magl, j + 1, np.nan)
+                    time_rel = np.insert(time_rel, j + 1, np.nan)
+                    temps = np.insert(temps, j + 1, np.nan)
+                    RHs = np.insert(RHs, j + 1, np.nan)
+                    rain = np.insert(rain, j + 1, np.nan)
+                    masl = np.insert(masl, j + 1, np.nan)
     
             ##--Cut off trajectory within 1m of surface, HYSPLIT is iffy here--##
-            if any(altitudes < 1):
-                index_end = np.min(np.where(altitudes < 1))
+            if any(magl < 1):
+                index_end = np.min(np.where(magl < 1))
+            else:
+                index_end = len(group) 
+            
+            if any(masl < 1):
+                index_end = np.min(np.where(masl < 1))
             else:
                 index_end = len(group) 
                 
@@ -540,54 +614,56 @@ for file, row in zip(sorted(os.listdir(flight_directory)), netcare_subset.itertu
             if traj_num == 1:
                 color = 'k'
                 linewidth = 1.25
-                alpha = 1
+                alpha = 0.75
                 zorder = 5
             else:
                 color = 'none'
             
-            ax_map.plot(group['LONG'].iloc[:index_end],
-                group['LAT'].iloc[:index_end],
-                transform=ccrs.PlateCarree(),
+            ax_map.plot(lon[:index_end],
+                        lat[:index_end],
+                        transform=ccrs.PlateCarree(),
+                        c=color, lw=linewidth, alpha=alpha, zorder=zorder)
+            
+            ax_temp.plot(time_rel[:index_end],
+                masl.iloc[:index_end],
                 c=color, lw=linewidth, alpha=alpha, zorder=zorder)
             
-            ax_temp.plot(time_rel.iloc[:index_end],
-                masl[:index_end],
+            ax_RH.plot(time_rel[:index_end],
+                masl.iloc[:index_end],
                 c=color, lw=linewidth, alpha=alpha, zorder=zorder)
             
-            ax_RH.plot(time_rel.iloc[:index_end],
-                masl[:index_end],
-                c=color, lw=linewidth, alpha=alpha, zorder=zorder)
-            
-            ax_rain.plot(time_rel.iloc[:index_end],
-                masl[:index_end],
+            ax_rain.plot(time_rel[:index_end],
+                masl.iloc[:index_end],
                 c=color, lw=linewidth, alpha=alpha, zorder=zorder)
             
             if is_significant:
-                lats_sig.extend(group['LAT'].values)
-                lons_sig.extend(group['LONG'].values)
+                lats_sig.extend(lat)
+                lons_sig.extend(lon)
                 magl_sig.extend(magl)
-                time_sig.extend(time_rel.values)  
-                temp_sig.extend(group['AIR_TEMP'].tolist())
-                RH_sig.extend(group['RELHUMID'].values)
-                rain_sig.extend(group['RAINFALL'].values)
+                time_sig.extend(time_rel) 
+                temp_sig.extend(temps)
+                RH_sig.extend(RHs)
+                rain_sig.extend(rain)
                 masl_sig.extend(masl)
             else:
-                lats_nonsig.extend(group['LAT'].values)
-                lons_nonsig.extend(group['LONG'].values)
+                lats_nonsig.extend(lat)
+                lons_nonsig.extend(lon)
                 magl_nonsig.extend(magl)
-                time_nonsig.extend(time_rel.values)  
-                temp_nonsig.extend(group['AIR_TEMP'].tolist())
-                RH_nonsig.extend(group['RELHUMID'].values)
-                rain_nonsig.extend(group['RAINFALL'].values)
+                time_nonsig.extend(time_rel) 
+                temp_nonsig.extend(temps)
+                RH_nonsig.extend(RHs)
+                rain_nonsig.extend(rain)
                 masl_nonsig.extend(masl)
 
 ############################################
 ##--Map: Convex Hull around trajectories--##
 ############################################
+##--First, create a histogram for the trajectories--##
+
 ##--INPUTS--##
 
 ##--The alpha value controls the hull fit--##
-alpha = 0.5
+alpha = 0.2
 
 ##--Set min/max latitudes for binning in degrees--##
 lat_min = 30    
@@ -606,10 +682,20 @@ sin_edges = np.linspace(np.sin(np.deg2rad(lat_min)),
                         num_r + 1)
 lat_edges = np.rad2deg(np.arcsin(sin_edges))
 
+##--Filter to below 500 m.a.s.l--##
+mask_sig = np.array(masl_sig) < 500
+mask_nonsig = np.array(masl_nonsig) < 500
+
+lons_sig_low = np.array(lons_sig)[mask_sig]
+lats_sig_low = np.array(lats_sig)[mask_sig]
+
+lons_nonsig_low = np.array(lons_nonsig)[mask_nonsig]
+lats_nonsig_low = np.array(lats_nonsig)[mask_nonsig]
 
 ##--Histograms in lon/lat space--##
-H_sig, _, _ = np.histogram2d(lons_sig, lats_sig, bins=(lon_edges, lat_edges))
-H_nonsig, _, _ = np.histogram2d(lons_nonsig, lats_nonsig, bins=(lon_edges, lat_edges))
+H_sig, _, _ = np.histogram2d(lons_sig_low, lats_sig_low, bins=(lon_edges, lat_edges))
+H_nonsig, _, _ = np.histogram2d(lons_nonsig_low, lats_nonsig_low, bins=(lon_edges, lat_edges))
+
 
 ##--Compute bin areas on a unit sphere--##
 lon_rads = np.deg2rad(lon_edges)
@@ -687,14 +773,14 @@ if H_sig.size > 0 and H_sig.sum() > 0:
     
         if hull_sig_bins.geom_type == "Polygon":
             x, y = hull_sig_bins.exterior.xy
-            ax_map_sig.fill(x, y, facecolor='None', edgecolor='#9D0759', ls='--', lw=2,
+            ax_map_sig.fill(x, y, facecolor='None', edgecolor='deeppink', ls='-', lw=2,
                             transform=ccrs.PlateCarree(), zorder=5)
     
         elif hull_sig_bins.geom_type == "MultiPolygon":
             for poly in hull_sig_bins.geoms:
                 if not poly.is_empty:
                     x, y = poly.exterior.xy
-                    ax_map_sig.fill(x, y, facecolor='None', edgecolor='#9D0759', ls='--', lw=2,
+                    ax_map_sig.fill(x, y, facecolor='None', edgecolor='deeppink', ls='-', lw=2,
                                     transform=ccrs.PlateCarree(), zorder=5)
     
         else:
@@ -742,14 +828,14 @@ hull_nonsig_bins = alphashape.alphashape(points_nonsig_bins, alpha)
 ##--From Google AI response--##
 if hull_nonsig_bins.geom_type == "Polygon":
     x, y = hull_nonsig_bins.exterior.xy
-    ax_map_nonsig.fill(x, y, facecolor='None', edgecolor='#9D0759', ls='--', lw=2,
+    ax_map_nonsig.fill(x, y, facecolor='None', edgecolor='deeppink', ls='-', lw=2,
                        transform=ccrs.PlateCarree(), zorder=7)
 
 elif hull_nonsig_bins.geom_type == "MultiPolygon":
     for poly in hull_nonsig_bins.geoms:
         if not poly.is_empty:
             x, y = poly.exterior.xy
-            ax_map_nonsig.fill(x, y, facecolor='None', edgecolor='#9D0759', ls='--',
+            ax_map_nonsig.fill(x, y, facecolor='None', edgecolor='deeppink', ls='-',
                        linewidth=2, transform=ccrs.PlateCarree(), zorder=7)
 else:
     print("Alpha shape is not a polygon:", hull_nonsig_bins.geom_type)
@@ -760,46 +846,60 @@ else:
 ########################
 
 ##--These bin numbers apply to ALL curtain plots--##
-num_time_bins = 12
-num_alt_bins = 10
+num_time_bins = 10
+num_alt_bins = 8
 
 ##--Convert altitude lists to arrays--##
 alt_sig_arr = np.array(masl_sig)
 alt_nonsig_arr = np.array(masl_nonsig)
 
-##--Determine overall min/max relative times for binning--##
-# relative time: 0 = measurement time, negative = days before
-if len(time_sig) > 0:
-    all_time_rel = np.concatenate([time_sig, time_nonsig])
-else:
-    all_time_rel = np.array(time_nonsig)
+##--And time--##
+time_sig = np.asarray(time_sig)
+time_nonsig = np.asarray(time_nonsig)
 
-time_min = all_time_rel.min()  # earliest day
+##--Suggestion from GPT 5 model - pad mismatched arrays to align--##
+def pad_to_match(a, b):
+    L = max(len(a), len(b))
+    a = np.pad(a, (0, L - len(a)), constant_values=np.nan)
+    b = np.pad(b, (0, L - len(b)), constant_values=np.nan)
+    return a, b
+
+time_sig, alt_sig_arr = pad_to_match(time_sig, alt_sig_arr)
+time_nonsig, alt_nonsig_arr = pad_to_match(time_nonsig, alt_nonsig_arr)
+
+##--Ensure no NaN values in any array--##
+def clean_valid_pairs(time_arr, val_arr):
+    mask = np.isfinite(time_arr) & np.isfinite(val_arr)
+    return time_arr[mask], val_arr[mask]
+
+time_sig, alt_sig_arr = clean_valid_pairs(time_sig, alt_sig_arr)
+time_nonsig, alt_nonsig_arr = clean_valid_pairs(time_nonsig, alt_nonsig_arr)
+
+##--Determine overall min/max relative times for binning--##
+all_time_rel = np.concatenate([time_sig, time_nonsig])
+time_min = all_time_rel.min()  # earliest day (most negative)
 time_max = 0                   # measurement time = 0 days
 
 ##--Create bin edges in the time dimension--##
 time_bins_rel = np.linspace(time_min, time_max, num_time_bins + 1)
 
-##--Create altitude bin edges--##
-min_alt = min(alt_sig_arr.min() if len(alt_sig_arr) > 0 else alt_nonsig_arr.min(),
-              alt_nonsig_arr.min())
-max_alt = max(alt_sig_arr.max() if len(alt_sig_arr) > 0 else alt_nonsig_arr.max(),
-              alt_nonsig_arr.max())
-alt_bins = np.linspace(min_alt, max_alt, num_alt_bins + 1)
+##--Concatenate altitudes for bin edges--##
+alt_bins = np.linspace(min(alt_sig_arr.min(), alt_nonsig_arr.min()),
+                       max(alt_sig_arr.max(), alt_nonsig_arr.max()),
+                       num_alt_bins + 1)
 
 ##--Count the number of datapoints in each bin--##
 sig_count, _, _ = np.histogram2d(time_sig, alt_sig_arr, bins=(time_bins_rel, alt_bins))
 nonsig_count, _, _ = np.histogram2d(time_nonsig, alt_nonsig_arr, bins=(time_bins_rel, alt_bins))
-
-
 
 ##--Plot formatting--##
 for ax in [ax_temp_sig, ax_temp_nonsig,
            ax_RH_sig, ax_RH_nonsig,
            ax_rain_sig, ax_rain_nonsig]:
     ax.set_xlim(time_min, time_max)  # 0 on right
+    ax.set_yticks(np.arange(0, 10000, 2000))
     ax.tick_params(axis='both', labelsize=16)
-
+    
 ###################
 ##--Temperature--##
 ###################
@@ -808,10 +908,20 @@ for ax in [ax_temp_sig, ax_temp_nonsig,
 temp_sig_arr = np.array(temp_sig)
 temp_nonsig_arr = np.array(temp_nonsig)
 
+##--Define a new function to clean just one variable, not two--##
+##--Time is already cleaned.--##
+def clean_valid_points(val_arr):
+    mask = np.isfinite(val_arr)
+    return val_arr[mask]
+
+##--Use function to clean--##
+temp_sig_arr = clean_valid_points(temp_sig_arr)
+temp_nonsig_arr = clean_valid_points(temp_nonsig_arr)
+
 ##--Sum all temperature values in each histogram bin--##
 temp_sig_sum, _, _ = np.histogram2d(time_sig, alt_sig_arr, 
                         bins=(time_bins_rel, alt_bins), weights=temp_sig_arr)
-temp_nonsig_sum, _, _ = np.histogram2d(time_nonsig, masl_nonsig,
+temp_nonsig_sum, _, _ = np.histogram2d(time_nonsig, alt_nonsig_arr,
                         bins=(time_bins_rel, alt_bins), weights=temp_nonsig_arr)
 
 ##--Compute the average RH per bins with counts--##
@@ -834,10 +944,10 @@ for ax in [ax_temp_sig, ax_temp_nonsig]:
     ax.tick_params(axis='both', labelsize=16) 
 
 ##--Add one colorbar--##
-cbar3 = plt.colorbar(mesh_sig, cax=cax_temp,
-                    orientation='vertical', fraction=0.065, pad=0.0)
-cbar3.set_label('Temperature (K)', size=12)
-cbar3.ax.tick_params(labelsize=14)
+cbar2 = plt.colorbar(mesh_sig, cax=cax_temp,
+                    orientation='vertical', fraction=0.075, pad=0.04)
+cbar2.set_label('Temperature (K)', size=14)
+cbar2.ax.tick_params(labelsize=14)
 
 ##########
 ##--RH--##
@@ -847,10 +957,14 @@ cbar3.ax.tick_params(labelsize=14)
 RH_sig_arr = np.array(RH_sig)
 RH_nonsig_arr = np.array(RH_nonsig)
 
+##--Use function to clean--##
+RH_sig_arr = clean_valid_points(RH_sig_arr)
+RH_nonsig_arr = clean_valid_points(RH_nonsig_arr)
+
 ##--Sum all RH values in each histogram bin--##
 RH_sig_sum, _, _ = np.histogram2d(time_sig, alt_sig_arr, 
                         bins=(time_bins_rel, alt_bins), weights=RH_sig_arr)
-RH_nonsig_sum, _, _ = np.histogram2d(time_nonsig, masl_nonsig,
+RH_nonsig_sum, _, _ = np.histogram2d(time_nonsig, alt_nonsig_arr,
                         bins=(time_bins_rel, alt_bins), weights=RH_nonsig_arr)
 
 ##--Compute the average RH per bins with counts--##
@@ -873,10 +987,10 @@ for ax in [ax_RH_sig, ax_RH_nonsig]:
     ax.tick_params(axis='both', labelsize=16) 
 
 ##--Add one colorbar--##
-cbar4 = plt.colorbar(mesh_RH_sig, cax=cax_RH,
-                     orientation='vertical', fraction=0.065, pad=0.0)
-cbar4.set_label('Relative Humidity (%)', size=12)
-cbar4.ax.tick_params(labelsize=14)
+cbar3 = plt.colorbar(mesh_RH_sig, cax=cax_RH,
+                     orientation='vertical', fraction=0.075, pad=0.04)
+cbar3.set_label('Relative Humidity (%)', size=14)
+cbar3.ax.tick_params(labelsize=14)
 
 ################
 ##--Rainfall--##
@@ -886,10 +1000,14 @@ cbar4.ax.tick_params(labelsize=14)
 rain_sig_arr = np.array(rain_sig)
 rain_nonsig_arr = np.array(rain_nonsig)
 
+##--Use function to clean--##
+rain_sig_arr = clean_valid_points(rain_sig_arr)
+rain_nonsig_arr = clean_valid_points(rain_nonsig_arr)
+
 ##--Sum of rainfall (in mm/hr) per each bin--##
 rain_sig_sum, _, _ = np.histogram2d(time_sig, alt_sig_arr, 
                         bins=(time_bins_rel, alt_bins), weights=rain_sig_arr)
-rain_nonsig_sum, _, _ = np.histogram2d(time_nonsig, masl_nonsig,
+rain_nonsig_sum, _, _ = np.histogram2d(time_nonsig, alt_nonsig_arr,
                         bins=(time_bins_rel, alt_bins), weights=rain_nonsig_arr)
 
 ##--Average rainfall per bin for values greater than 0--##
@@ -906,68 +1024,30 @@ mesh_rain_nonsig = ax_rain_nonsig.pcolormesh(time_bins_rel, alt_bins, rain_nonsi
                                          cmap='Blues', alpha=0.75, shading='auto', 
                                          vmin=0, vmax=2)
 
-##--Add x-axis labels--##
 for ax in [ax_rain_sig, ax_rain_nonsig]: 
     ax.set_xlabel("Days before measurement", fontsize=18)
 
-##############################
-##--Finishing plot touches--##
-##############################
-
-##--Set up function to grey out empty plots--##
-def grey_plots(ax):
-    
-    ##--Add a grey rectangle covering the whole axes--##
-    ax.add_patch(mpatches.Rectangle((0, 0), 1, 1, transform=ax.transAxes,
-                 facecolor='lightgrey', alpha=0.6, zorder=7))
-
-##--Suggestion from GPT 5 model for removing labels when there is no data--##
-for ax, has_data in [(ax_temp_sig, len(time_sig) > 0 and len(masl_sig) > 0),
-                     (ax_temp_nonsig, True),   # nonsig always has data
-                     (ax_RH_sig, len(time_sig) > 0 and len(masl_sig) > 0),
-                     (ax_RH_nonsig, True),
-                     (ax_rain_sig, len(time_sig) > 0 and len(masl_sig) > 0),
-                     (ax_rain_nonsig, True)]:
-
-    if has_data:
-        ##--X-axis is now relative days (numeric), so just rotate labels--##
-        ax.set_xlim(time_min, time_max)  # keep 0 on right
-        ax.tick_params(axis='both', labelsize=16)
-        ax.set_yticks(np.arange(0, 10000, 2000))
-    else:
-        ##--Grey out or blank axes when no data is present--##
-        ax.set_xticks([])
-        ax.set_yticks(np.arange(0, 10000, 2000))
-        ax.tick_params(axis='both', labelsize=16)
-        ax.set_xlabel("")
-        ax.set_ylabel("")
-
-##--Grey out any completely empty sig plots--##
-if len(time_sig) == 0 or len(masl_sig) == 0:
-    grey_plots(ax_map_sig)
-    grey_plots(ax_temp_sig)
-    grey_plots(ax_RH_sig)
-    grey_plots(ax_rain_sig)
-
 ##--Add one colorbar--##
-cbar5 = plt.colorbar(mesh_rain_sig, cax=cax_rain,
-                     orientation='vertical', fraction=0.065, pad=0.0)
-cbar5.set_label('Rainfall (mm/hr)', size=12)
-cbar5.ax.tick_params(labelsize=14)
+cbar4 = plt.colorbar(mesh_rain_sig, cax=cax_rain,
+                     orientation='vertical', fraction=0.075, pad=0.04)
+cbar4.set_label('Rainfall (mm/hr)', size=14)
+cbar4.ax.tick_params(labelsize=14)
 
 ##--Add text labels to each set of plots--##
-ax_map_sig.text(0.50, 0.91, 'Nanophytoplankton', horizontalalignment='center', 
+'''ax_map_sig.text(0.50, 0.91, 'Nanophytoplankton', horizontalalignment='center', 
          verticalalignment='center', transform=ax_map_sig.transAxes, fontsize=18,
          bbox=dict(boxstyle="round, pad=0.5", fc="white", ec='none', lw=1, alpha=0.75,
-                   zorder=8))
-ax_temp_sig.text(0.78, 0.9, 'Temperature', horizontalalignment='center', 
+                   zorder=10))
+'''
+ax_temp_sig.text(0.78, 1.1, 'Temperature', horizontalalignment='center', 
          verticalalignment='center', transform=ax_temp_sig.transAxes, fontsize=18,
-         zorder=8)
-ax_RH_sig.text(0.70, 0.9, 'Relative Humidity', horizontalalignment='center', 
+         zorder=10)
+ax_RH_sig.text(0.70, 1.1, 'Relative Humidity', horizontalalignment='center', 
          verticalalignment='center', transform=ax_RH_sig.transAxes, fontsize=18,
-         zorder=8)
-ax_rain_sig.text(0.87, 0.9, 'Rainfall', horizontalalignment='center', 
+         zorder=10)
+ax_rain_sig.text(0.87, 1.1, 'Rainfall', horizontalalignment='center', 
          verticalalignment='center', transform=ax_rain_sig.transAxes, fontsize=18,
-         zorder=8)
+         zorder=10)
+
 
 plt.show()

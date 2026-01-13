@@ -19,19 +19,20 @@ import cartopy.feature as cfeature
 import alphashape
 from scipy.spatial import ConvexHull
 from matplotlib.colors import LogNorm
+from datetime import date
 
 ###################
 ##--User inputs--##
 ################### 
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight10" 
+flight = "Flight2" 
 
 ##--Filter to above the polar dome?--##
 above_dome = True
 
 ##--Forward trajectory?--##
 ##--Flights 2 and 10 only!--##
-forward = False
+forward = True
 
 ##--Set the base directory to project folder--##
 if forward==True:    
@@ -67,6 +68,27 @@ UTCs = list(range(start_utc, end_utc +1, 300))
 
 ##--Subset Netcare to times in UTCs--##
 netcare_subset = single_flight[single_flight['Time_start'].isin(UTCs)]
+
+####################################
+##--Assign date to flight number--##
+####################################
+
+if flight=="Flight1":
+    flight_date = date(2015, 4, 5)
+elif flight=="Flight2":
+    flight_date = date(2015, 4, 7)
+elif flight=="Flight3" or flight=="Flight4":
+    flight_date = date(2015, 4, 8)
+elif flight=="Flight5":
+    flight_date = date(2015, 4, 9)
+elif flight=="Flight6":
+    flight_date = date(2015, 4, 11)
+elif flight=="Flight7": 
+    flight_date = date(2015, 4, 13)
+elif flight=="Flight8" or flight=="Flight9": 
+    flight_date = date(2015, 4, 20)
+elif flight=="Flight10": 
+    flight_date = date(2015, 4, 21)
 
 ###################
 ##--Set up plot--##
@@ -159,10 +181,10 @@ ax_time_sig.set_ylabel("Meters Above Sea Level", fontsize=12)
 #ax_time_nonsig.set_ylabel("Meters Above Ground Level", fontsize=12)
 
 if forward==True: 
-    fig.suptitle(f"NETCARE {flight.replace('Flight', 'Flight ')} HYSPLIT Forward Trajectories", 
+    fig.suptitle(f"NETCARE {flight.replace('Flight', 'Flight ')} ({flight_date}) HYSPLIT Forward Trajectories", 
                  fontsize=16, y=htitle)
 else: 
-    fig.suptitle(f"NETCARE {flight.replace('Flight', 'Flight ')} HYSPLIT Back Trajectories", 
+    fig.suptitle(f"NETCARE {flight.replace('Flight', 'Flight ')} ({flight_date}) HYSPLIT Back Trajectories", 
                  fontsize=16, y=htitle)
 
 ##--Set axes limits--##
@@ -469,8 +491,7 @@ if H_sig.size > 0 and H_sig.sum() > 0:
     
     ##--Plot lat/lon density--##
     bin_colors = ax_map_sig.pcolormesh(lon_grid, lat_grid, H_sig_masked, cmap='plasma', 
-       norm=LogNorm(vmin=np.nanmin(H_sig_masked[H_sig_masked > 0]), 
-                    vmax=np.nanmax(H_sig_masked)),
+       norm=LogNorm(vmin=0.001, vmax=2),
         alpha=0.25, edgecolors='none', transform=ccrs.PlateCarree(), zorder=4)
   
     ##--Flatten the histograms--##
@@ -535,8 +556,7 @@ H_nonsig_percent = 100 * H_nonsig / H_nonsig.sum()
 H_nonsig_masked = ma.masked_where(H_nonsig_percent == 0, H_nonsig_percent)
 
 bin_colors = ax_map_nonsig.pcolormesh(lon_grid, lat_grid, H_nonsig_masked, cmap='plasma', 
-    norm=LogNorm(vmin=np.nanmin(H_nonsig_masked[H_nonsig_masked > 0]), 
-                 vmax=np.nanmax(H_nonsig_masked)), alpha=0.25, edgecolors='none', 
+    norm=LogNorm(vmin=0.001, vmax=2), alpha=0.25, edgecolors='none', 
     transform=ccrs.PlateCarree(), zorder=4)
 
 flat_nonsig = H_nonsig_percent.flatten()

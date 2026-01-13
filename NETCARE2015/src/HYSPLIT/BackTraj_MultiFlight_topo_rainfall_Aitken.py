@@ -596,7 +596,7 @@ for flight in flights_to_analyze:
                     masl_sig.extend(masl)
             
 ############################################
-##--Map: Convex Hull around trajectories--##
+##--Map: Alpha Shape around trajectories--##
 ############################################
 
 ##--First, create a histogram for the trajectories--##

@@ -23,6 +23,7 @@ import matplotlib.patches as mpatches
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import alphashape
+from datetime import date
 
 ###################
 ##--User inputs--##
@@ -35,10 +36,10 @@ directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data"
 hysplit = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\HYSPLIT\data\trajectories\5min_averaged"
  
 ##--Select flight (Flight1 thru Flight10)--##
-flight = "Flight2" 
+flight = "Flight10" 
 
 ##--Filter for above polar dome?--##
-above_dome = False
+above_dome = True
 
 ##--Base output path for figures in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\HYSPLIT"
@@ -93,6 +94,27 @@ netcare_subset = single_flight[single_flight['Time_start'].isin(UTCs)]
 top_lon = topography['longitude']
 top_lat = topography['latitude']
 elevation = topography['elevation']
+
+####################################
+##--Assign date to flight number--##
+####################################
+
+if flight=="Flight1":
+    flight_date = date(2015, 4, 5)
+elif flight=="Flight2":
+    flight_date = date(2015, 4, 7)
+elif flight=="Flight3" or flight=="Flight4":
+    flight_date = date(2015, 4, 8)
+elif flight=="Flight5":
+    flight_date = date(2015, 4, 9)
+elif flight=="Flight6":
+    flight_date = date(2015, 4, 11)
+elif flight=="Flight7": 
+    flight_date = date(2015, 4, 13)
+elif flight=="Flight8" or flight=="Flight9": 
+    flight_date = date(2015, 4, 20)
+elif flight=="Flight10": 
+    flight_date = date(2015, 4, 21)
 
 #############################################
 ##--Calculate Nanophytoplankton abundance--##
@@ -314,7 +336,7 @@ for ax_map in [ax_map_sig, ax_map_nonsig]:
  
     ##--Add ocean layer to maps--##
     ax_map.add_feature(cfeature.OCEAN, fc='#F0FFFF', ec='k', lw=0.2, zorder=1)
-'''
+
     ##--Add topographic data to maps--##
     elev_map = ax_map.pcolormesh(top_lon, top_lat, elevation, 
         transform=ccrs.PlateCarree(), # match transform to projection used
@@ -324,7 +346,7 @@ for ax_map in [ax_map_sig, ax_map_nonsig]:
     chlor_map = ax_map.pcolormesh(chlor_lon, chlor_lat, nano_abundance,
           transform=ccrs.PlateCarree(), cmap=cmap2, 
           norm=LogNorm(vmin=0.01, vmax=100), shading='auto', zorder=1)
-'''
+
 ##--Right column colorbar slots--##
 ##--Suggestion from GPT 5: split map colorbar slots into two--##
 cax_mapslot = fig.add_subplot(gs[0, 2])
@@ -348,7 +370,7 @@ cax_rain  = fig.add_subplot(gs[3, 2])
 ax_map_sig.set_title("$N_{10-89}$ Event", fontsize=18)
 ax_map_nonsig.set_title("No Significant $N_{10-89}$", fontsize=18)
 ax_RH_sig.set_ylabel("Meters Above Sea Level", fontsize=20)
-fig.suptitle(f"NETCARE {flight.replace('Flight', 'Flight ')} HYSPLIT Back Trajectories", 
+fig.suptitle(f"NETCARE {flight.replace('Flight', 'Flight ')} ({flight_date}) HYSPLIT Back Trajectories", 
              fontsize=24, y=htitle)
 
 ##--Set axes limits--##
@@ -358,7 +380,7 @@ ax_RH_sig.set_ylim(-250, 10000)
 ax_RH_nonsig.set_ylim(-250, 10000)
 ax_rain_sig.set_ylim(-250, 10000)
 ax_rain_nonsig.set_ylim(-250, 10000)
-'''
+
 ##--Map colorbars--## 
 cb1 = fig.colorbar(elev_map, cax=cax_elev, orientation="vertical", shrink=0.5)
 cb1.set_label("Elevation (m)", size=12)
@@ -367,7 +389,7 @@ cb1.ax.tick_params(labelsize=14)
 cb2 = fig.colorbar(chlor_map, cax=cax_chlor, orientation="vertical", shrink=0.5)
 cb2.set_label(r"Nano$_{\rm surf}$ (mg/m$^3$)", size=12)
 cb2.ax.tick_params(labelsize=14)
-'''
+
 ##########################
 ##--Group trajectories--##
 ##########################
@@ -1089,10 +1111,11 @@ cbar5.set_label('Rainfall (mm/hr)', size=12)
 cbar5.ax.tick_params(labelsize=14)
 
 ##--Add text labels to each set of plots--##
-ax_map_sig.text(0.50, 0.08, 'Nanophytoplankton', horizontalalignment='center', 
+'''ax_map_sig.text(0.50, 0.08, 'Nanophytoplankton', horizontalalignment='center', 
          verticalalignment='center', transform=ax_map_sig.transAxes, fontsize=18,
          bbox=dict(boxstyle="round, pad=0.5", fc="white", ec='none', lw=1, alpha=0.75,
                    zorder=10))
+'''
 ax_temp_sig.text(0.78, 1.1, 'Temperature', horizontalalignment='center', 
          verticalalignment='center', transform=ax_temp_sig.transAxes, fontsize=18,
          zorder=10)
