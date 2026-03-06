@@ -93,6 +93,9 @@ for flight in flights_to_analyze:
     CPC10 = icartt.Dataset(find_files(directory, flight, 'CPC3772')[0])
     CPC3 = icartt.Dataset(find_files(directory, flight, 'CPC3776')[0])
     
+    ##--OPC data--##
+    OPC = icartt.Dataset(find_files(directory, flight, 'OPC')[0])
+    
     #%%
     #################
     ##--Pull data--##
@@ -129,6 +132,29 @@ for flight in flights_to_analyze:
     
     ##--Rename the UHSAS_bins df columns to bin average values--##
     UHSAS_bins.columns = UHSAS_new_col_names
+    
+    ##--OPC Data--##
+    OPC_time = OPC.data['Time_UTC'] # seconds since midnight
+    
+    ##--Bin data are in a CSV file--##
+    OPC_bin_info = pd.read_csv(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_OPC_bins.csv")
+    
+    ##--Select bins greater than 500 nm (Channel 7 and greater)--##
+    OPC_bin_center = OPC_bin_info['bin_avg'].iloc[6:31]
+    OPC_lower_bound = OPC_bin_info['lower_bound'].iloc[6:31]
+    OPC_upper_bound = OPC_bin_info['upper_bound'].iloc[6:31]
+    
+    ##--Make list of columns to pull, each named Channel_x--##
+    OPC_bin_num = [f'Channel_{i}' for i in range(7, 32)]
+    
+    ##--Put column names and content in a dictionary and then convert to a Pandas df--##
+    OPC_bins = pd.DataFrame({col: OPC.data[col] for col in OPC_bin_num})
+    
+    ##--Create new column names by rounding the bin center values to the nearest integer--##
+    OPC_new_col_names = OPC_bin_center.round().astype(int).tolist()
+    
+    ##--Rename the OPC_bins df columns to bin average values--##
+    OPC_bins.columns = OPC_new_col_names
     
     #%%
     ##################
@@ -208,7 +234,22 @@ for flight in flights_to_analyze:
     ##--Align UHSAS_bins time to AIMMS time--##
     UHSAS_bins_aligned = UHSAS_bins.set_index('Time').reindex(aimms_time)
     
+    ##--Add time, total_num to OPC_bins df--##
+    OPC_bins.insert(0, 'Time', OPC_time)
+    
+    ##--Align OPC_bins time to AIMMS time--##
+    OPC_bins_aligned = OPC_bins.set_index('Time').reindex(aimms_time)
+    
+    ##--OPC samples every six seconds. Most rows are NaN--##
+    ##--Forward-fill NaN values to propagate last valid reading--##
+    ##--Limit forward filling to 5 NaN rows--##
+    OPC_bins_filled = OPC_bins_aligned.ffill(limit=5)
+    
+    ##--Get only particle count data (excluding 'Time')--##
+    OPC_particle_counts = OPC_bins_filled.loc[:, OPC_new_col_names]
+    
     #%%
+
     ###############################
     ##--De-Normalize UHSAS Data--##
     ###############################
@@ -221,6 +262,7 @@ for flight in flights_to_analyze:
     
     ##--De-Normalize counts by multiplying by dlogDp across all rows--##
     UHSAS_denorm_counts = UHSAS_particle_counts.multiply(UHSAS_dlogDp, axis=1)
+
     
     #%%
     #######################################
@@ -241,7 +283,7 @@ for flight in flights_to_analyze:
     
     #%%
     ######################
-    ##--Calc N(2.5-10)--##
+    ##--Convert to STP--##
     ######################
     
     ##--Convert to STP!--##
@@ -272,10 +314,29 @@ for flight in flights_to_analyze:
             ##--Perform conversion if all inputs are valid--##
             CPC10_conversion = CPC10 * (P_STP / P) * (T / T_STP)
             CPC10_conc_STP.append(CPC10_conversion)
+            
+    ##--Create empty list for OPC particles--##
+    OPC_conc_STP = []
+    
+    for OPC, T, P in zip(OPC_particle_counts.values, temperature, pressure):
+        if np.isnan(T) or np.isnan(P):
+            ##--Append with NaN if any input is NaN--##
+            OPC_conc_STP.append([np.nan]*len(OPC))
+        else:
+            ##--Perform conversion if all inputs are valid--##
+            corrected_OPC = OPC * (P_STP / P) * (T / T_STP)
+            OPC_conc_STP.append(corrected_OPC)
+    
+    ##--Convert back to DataFrame with same columns and index--##
+    OPC_conc_STP = pd.DataFrame(OPC_conc_STP, columns=OPC_particle_counts.columns, index=OPC_particle_counts.index)
     
     ##--Creates a Pandas dataframe for particle data--##
     df = pd.DataFrame({'PTemp': potential_temp, 'BC_mass': BC_mass_aligned, 
                        'CPC3_conc':CPC3_conc_STP, 'CPC10_conc': CPC10_conc_STP})
+    
+    ######################
+    ##--Calc N(2.5-10)--##
+    ######################
     
     ##--Calculate N3-10 particles--##
     nuc_particles = (df['CPC3_conc'] - df['CPC10_conc'])
@@ -297,11 +358,16 @@ for flight in flights_to_analyze:
     ##--Create df with UHSAS total counts and index to AIMMS time--##
     UHSAS_total_aligned = pd.DataFrame({'Time': aimms_time, 'Total_count': UHSAS_total}).set_index('Time')
     
+    ##--Compute OPC total using denormalized (STP) data--##
+    OPC_total = OPC_conc_STP.sum(axis=1)
+    
+    OPC_total_aligned = pd.DataFrame({'Time': aimms_time, 'Total_count': OPC_total}).set_index('Time')
+    
     ##--Create df with CPC10 counts and set index to time--##
     CPC10_counts = pd.DataFrame({'Time':aimms_time, 'Counts':CPC10_conc_STP}).set_index('Time')
     
     ##--Calculate particles below UHSAS lower cutoff--##
-    n_10_89 = (CPC10_counts['Counts'] - UHSAS_total_aligned['Total_count'])
+    n_10_89 = (CPC10_counts['Counts'] - (UHSAS_total_aligned['Total_count'] + OPC_total_aligned['Total_count']))
     
     ##--Change calculated particle counts less than zero to NaN--##
     n_10_89 = np.where(n_10_89 >= 0, n_10_89, np.nan)
@@ -335,6 +401,11 @@ for flight in flights_to_analyze:
     ##--Similar result as using sqrt of squares but erring on side of caution--##
     UHSAS_total_error = UHSAS_total_sqrt.sum(axis=1)
     
+    ##--Repeat for OPC data--##
+    OPC_total_sqrt = np.sqrt(OPC_conc_STP)
+    
+    OPC_total_error = OPC_total_sqrt.sum(axis=1)
+    
     # %%
     #############################
     ##--Propagate uncertainty--##
@@ -356,8 +427,8 @@ for flight in flights_to_analyze:
     ##--nuc_error_3sigma still has a time index, reset to integer to align--##
     df['nuc_error_3sigma'] = nuc_error_3sigma
     
-    ##--Calculate error in difference between CPC10 and UHSAS--##
-    aitken_error_3sigma = (((greater10nm_error)**2 + (UHSAS_total_error)**2)**(0.5))*3
+    ##--Calculate error in difference between CPC10 and UHSAS + OPC--##
+    aitken_error_3sigma = (((greater10nm_error)**2 + (UHSAS_total_error)**2 + (OPC_total_error)**2)**(0.5))*3
     
     ##--Add uncertainty for 10-85 nm bin to big df--##
     df['aitken_error_3sigma'] = aitken_error_3sigma

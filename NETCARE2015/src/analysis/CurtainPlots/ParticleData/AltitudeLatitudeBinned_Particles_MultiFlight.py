@@ -328,7 +328,7 @@ plot_curtain(nuc_bin_medians, lat_bin_edges_nuc, alt_bin_edges_nuc, vmin=0, vmax
     output_path=f"{output_path}\\Nucleating/AltitudeLatitude/MultiFlights.png")
 
 ##--Plot for N(10-89)--##
-plot_curtain(nuc_bin_medians, lat_bin_edges_nuc, alt_bin_edges_nuc, vmin=0, vmax=1100,
+plot_curtain(grow_bin_medians, lat_bin_edges_grow, alt_bin_edges_grow, vmin=0, vmax=1100,
     title="10-89 nm Particle Abundance", cbar_label="10-89 nm Particles $(Counts/cm^{3})$",
     output_path=f"{output_path}\\N_10_89/AltitudeLatitude/MultiFlights.png")
 

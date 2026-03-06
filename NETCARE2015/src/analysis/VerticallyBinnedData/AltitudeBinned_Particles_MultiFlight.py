@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Sep 16 16:03:43 2025
+Created on Thu Jan 22 13:50:10 2026
 
 @author: repooley
 """
@@ -107,6 +107,13 @@ for flight in flights_to_analyze:
         print(f"No UHSAS file found for {flight}. Skipping...")
         continue
     
+    ##--OPC data--##
+    OPC_files = find_files(flight_dir, "OPC")
+    if OPC_files:
+        OPC = icartt.Dataset(OPC_files[0])
+    else: 
+        print(f"Missing OPC data for {flight}. Skipping...")
+    
     #########################
     ##--Pull & align data--##
     #########################
@@ -169,6 +176,35 @@ for flight in flights_to_analyze:
 
     ##--Align UHSAS_bins time to AIMMS time--##
     UHSAS_bins_aligned = UHSAS_bin_names.set_index('Time').reindex(aimms_time)
+    
+    ##--OPC Data--##
+    OPC_time = OPC.data['Time_UTC'] # seconds since midnight
+    
+    ##--Bin data are in a CSV file--##
+    OPC_bin_info = pd.read_csv(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_OPC_bins.csv")
+    
+    ##--Select bins greater than 500 nm (Channel 7 and greater)--##
+    OPC_bin_center = OPC_bin_info['bin_avg'].iloc[6:31]
+    OPC_lower_bound = OPC_bin_info['lower_bound'].iloc[6:31]
+    OPC_upper_bound = OPC_bin_info['upper_bound'].iloc[6:31]
+    
+    ##--Make list of columns to pull, each named Channel_x--##
+    OPC_bin_num = [f'Channel_{i}' for i in range(7, 32)]
+    
+    ##--Put column names and content in a dictionary and then convert to a Pandas df--##
+    OPC_bins = pd.DataFrame({col: OPC.data[col] for col in OPC_bin_num})
+    
+    ##--Create new column names by rounding the bin center values to the nearest integer--##
+    OPC_new_col_names = OPC_bin_center.round().astype(int).tolist()
+    
+    ##--Rename the OPC_bins df columns to bin average values--##
+    OPC_bins.columns = OPC_new_col_names
+    
+    ##--Add time, total_num to OPC_bins df--##
+    OPC_bins.insert(0, 'Time', OPC_time)
+    
+    ##--Align OPC_bins time to AIMMS time--##
+    OPC_bins_aligned = OPC_bins.set_index('Time').reindex(aimms_time)
 
     ###############################
     ##--De-Normalize UHSAS Data--##
@@ -183,21 +219,41 @@ for flight in flights_to_analyze:
     ##--De-Normalize counts by multiplying by dlogDp across all rows--##
     UHSAS_denorm_counts = UHSAS_particle_counts.multiply(UHSAS_dlogDp, axis=1)
     
-    #######################################
-    ##--Calculate potential temperature--##
-    #######################################
-
-    ##--Constants--##
-    p_0 = 1E5 # Reference pressure in Pa (1000 hPa)
-    k = 0.286 # Poisson constant for dry air
-
-    ##--Generate empty list for potential temperature output--##
-    potential_temp = []
-
-    ##--Calculate potential temperature from ambient temp & pressure--##
-    for T, P in zip(temperature, pressure):
-        p_t = T*(p_0/P)**k
-        potential_temp.append(p_t)
+    ############################
+    ##--Standardize OPC data--##
+    ############################
+    
+    ##--Use the de-normalized values for calculating NPF--##
+    
+    ##--OPC samples every six seconds. Most rows are NaN--##
+    ##--Forward-fill NaN values to propagate last valid reading--##
+    ##--Limit forward filling to 5 NaN rows--##
+    OPC_bins_filled = OPC_bins_aligned.ffill(limit=5)
+    
+    ##--Calculate dlogDp for each bin in numpy array--##
+    dlogDp = np.log(OPC_upper_bound.values) - np.log(OPC_lower_bound.values)
+    
+    ##--Get only particle count data (excluding 'Time')--##
+    OPC_particle_counts = OPC_bins_filled.loc[:, OPC_new_col_names]
+    
+    ##--Convert to STP!--##
+    P_STP = 101325  # Pa
+    T_STP = 273.15  # K
+    
+    ##--DENORM OPC--##
+    OPC_conc_STP = []
+    
+    for OPC, T, P in zip(OPC_particle_counts.values, temperature, pressure):
+        if np.isnan(T) or np.isnan(P):
+            ##--Append with NaN if any input is NaN--##
+            OPC_conc_STP.append([np.nan]*len(OPC))
+        else:
+            ##--Perform conversion if all inputs are valid--##
+            corrected_OPC = OPC * (P_STP / P) * (T / T_STP)
+            OPC_conc_STP.append(corrected_OPC)
+            
+    ##--Convert back to DataFrame with same columns and index--##
+    OPC_conc_STP = pd.DataFrame(OPC_conc_STP, columns=OPC_particle_counts.columns, index=OPC_particle_counts.index)
 
     ######################
     ##--Calc N(2.5-10)--##
@@ -232,7 +288,7 @@ for flight in flights_to_analyze:
             CPC10_conc_STP.append(CPC10_conversion)
 
     ##--Creates a Pandas dataframe for particle data--##
-    df = pd.DataFrame({'PTemp': potential_temp, 
+    df = pd.DataFrame({'Altitude': altitude, 
                        'CPC3_conc':CPC3_conc_STP, 'CPC10_conc': CPC10_conc_STP})
 
     ##--Calculate N3-10 particles--##
@@ -253,12 +309,17 @@ for flight in flights_to_analyze:
 
     ##--Create df with UHSAS total counts and index to AIMMS time--##
     UHSAS_total_aligned = pd.DataFrame({'Time': aimms_time, 'Total_count': UHSAS_total}).set_index('Time')
+    
+    ##--Same for OPC--##
+    OPC_total = OPC_conc_STP.sum(axis=1)
+    
+    OPC_total_aligned = pd.DataFrame({'Time': aimms_time, 'Total_count': OPC_total}).set_index('Time')
 
     ##--Create df with CPC10 counts and set index to time--##
     CPC10_counts = pd.DataFrame({'Time':aimms_time, 'Counts':CPC10_conc_STP}).set_index('Time')
 
     ##--Calculate particles below UHSAS lower cutoff--##
-    n_10_89 = (CPC10_counts['Counts'] - UHSAS_total_aligned['Total_count'])
+    n_10_89 = (CPC10_counts['Counts'] - (UHSAS_total_aligned['Total_count'] + OPC_total_aligned['Total_count']))
 
     ##--Change calculated particle counts less than zero to NaN--##
     n_10_89 = np.where(n_10_89 >= 0, n_10_89, np.nan)
@@ -289,6 +350,11 @@ for flight in flights_to_analyze:
     ##--Use simple sum of UHSAS uncertainties per bin for conservative estimate--##
     ##--Similar result as using sqrt of squares but erring on side of caution--##
     UHSAS_total_error = UHSAS_total_sqrt.sum(axis=1)
+    
+    ##--Repeat for OPC data--##
+    OPC_total_sqrt = np.sqrt(OPC_conc_STP)
+    
+    OPC_total_error = OPC_total_sqrt.sum(axis=1)
 
     # %%
     #############################
@@ -311,9 +377,9 @@ for flight in flights_to_analyze:
     ##--nuc_error_3sigma still has a time index, reset to integer to align--##
     df['nuc_error_3sigma'] = nuc_error_3sigma
 
-    ##--Calculate error in difference between CPC10 and UHSAS--##
-    aitken_error_3sigma = (((greater10nm_error)**2 + (UHSAS_total_error)**2)**(0.5))*3
-
+    ##--Calculate error in difference between CPC10 and UHSAS + OPC--##
+    aitken_error_3sigma = (((greater10nm_error)**2 + (UHSAS_total_error)**2 + (OPC_total_error)**2)**(0.5))*3
+        
     ##--Add uncertainty for 10-85 nm bin to big df--##
     df['aitken_error_3sigma'] = aitken_error_3sigma
     
@@ -323,7 +389,7 @@ for flight in flights_to_analyze:
 
     ##--Convert everything to a single DataFrame--##
     df = pd.DataFrame({
-        'Ptemp': potential_temp,
+        'Altitude': altitude,
         'Latitude': latitude,
         'CPC3_conc': CPC3_conc_STP,
         'CPC10_conc': CPC10_conc_STP,
@@ -335,7 +401,7 @@ for flight in flights_to_analyze:
     
     ##--Drop nans--##
     df = df.dropna(subset=[
-        'Ptemp', 'Latitude',
+        'Altitude', 'Latitude',
         'CPC3_conc', 'CPC10_conc',
         'nuc_particles', 'grow_particles'
     ]).reset_index(drop=True)
@@ -351,29 +417,6 @@ for flight in flights_to_analyze:
 nuc_uncertainties = []
 grow_uncertainties = []
 num_bins = 60
-
-for df in unified_dfs:
-
-    ##--Bin edges--##
-    bin_edges = np.linspace(df['Ptemp'].min(), df['Ptemp'].max(), num_bins + 1)
-
-    ##--Cut into Ptemp bins--##
-    df['PTemp_bin'] = pd.cut(df['Ptemp'], bins=bin_edges)
-
-    ##--Compute bin medians, including uncertainty--##
-    binned_df = df.groupby('PTemp_bin', observed=False).agg(
-        PTemp_center=('Ptemp', 'median'),
-        CPC10_conc_center=('CPC10_conc', 'median'),
-        CPC3_conc_center=('CPC3_conc', 'median'),
-        nuc_particles_center=('nuc_particles', 'median'),
-        nuc_error_median=('nuc_error', 'median'),
-        grow_particles_center=('grow_particles', 'median'),
-        grow_error_median=('grow_error', 'median')
-    ).reset_index()
-
-    ##--Store flight-level mean-median uncertainties--##
-    nuc_uncertainties.append(binned_df['nuc_error_median'].mean())
-    grow_uncertainties.append(binned_df['grow_error_median'].mean())
 
 #%%
 
@@ -398,64 +441,51 @@ for i, (flight, df) in enumerate(zip(flights_to_analyze, unified_dfs)):
     flight_date = flight_dates[flight]  
 
     ##--Bin edges--##
-    min_ptemp = df["Ptemp"].min()
-    max_ptemp = df["Ptemp"].max()
+    min_ptemp = df["Altitude"].min()
+    max_ptemp = df["Altitude"].max()
     bin_edges = np.linspace(min_ptemp, max_ptemp, num_bins + 1)
     
     ##--Potential temperature bins--##
-    df["PTemp_bin"] = pd.cut(df["Ptemp"], bins=bin_edges)
+    df["Altitude_bin"] = pd.cut(df["Altitude"], bins=bin_edges)
     
     ##--Bin medians--##
-    binned_df = df.groupby("PTemp_bin", observed=False).agg(
-        PTemp_center=("Ptemp", "median"),
+    binned_df = df.groupby("Altitude_bin", observed=False).agg(
+        Alt_center=("Altitude", "median"),
         CPC10_conc_center=("CPC10_conc", "median"),
         CPC3_conc_center=("CPC3_conc", "median"),
         nuc_particles_center=("nuc_particles", "median"),
         grow_particles_center=("grow_particles", "median")
     ).reset_index()
     
-    axs[0].plot(binned_df["CPC3_conc_center"], binned_df["PTemp_center"],
-                color=colors[i], label=f'Flight {i+1} ({flight_date})')
+    axs[0].plot(binned_df["CPC3_conc_center"], binned_df["Alt_center"],
+                color=colors[i], label=f'{flight} ({flight_date})')
     
-    axs[1].plot(binned_df["CPC10_conc_center"], binned_df["PTemp_center"],
-                color=colors[i], label=f'Flight {i+1} ({flight_date})')
+    axs[1].plot(binned_df["CPC10_conc_center"], binned_df["Alt_center"],
+                color=colors[i], label=f'{flight} ({flight_date})')
     
-    axs[2].plot(binned_df["nuc_particles_center"], binned_df["PTemp_center"],
-                color=colors[i], label=f'Flight {i+1} ({flight_date})')
+    axs[2].plot(binned_df["nuc_particles_center"], binned_df["Alt_center"],
+                color=colors[i], label=f'{flight} ({flight_date})')
     
-    axs[3].plot(binned_df["grow_particles_center"], binned_df["PTemp_center"],
-                color=colors[i], label=f'Flight {i+1} ({flight_date})')
+    axs[3].plot(binned_df["grow_particles_center"], binned_df["Alt_center"],
+                color=colors[i], label=f'{flight} ({flight_date})')
 
 ##--Subplot 1--##
-axs[0].set_ylabel("Potential Temperature (K)", fontsize=16)
+axs[0].set_ylabel("Altitude (m)", fontsize=16)
 axs[0].set_xlabel("Counts/cm³", fontsize=14)
 axs[0].set_title("N ≥ 10 nm", fontsize=16)
 axs[0].set_xlim(-50, 2000)
 axs[0].tick_params(axis='both', labelsize=12)
-axs[0].axhline(y=285, color="k", linestyle="--", linewidth=1)
-axs[0].axhline(y=299, color="k", linestyle="--", linewidth=1)
-
-##=-Polar dome labels--##
-x_text = axs[0].get_xlim()[0] + 1050
-axs[0].text(x_text, 282, "Polar Dome", fontsize=11, color="k",
-            verticalalignment="center", horizontalalignment="left")
-axs[0].text(x_text, 288, "Marginal Dome", fontsize=11, color="k",
-            verticalalignment="center", horizontalalignment="left")
 
 ##--Subplot 2--##
 axs[1].set_title("N ≥ 2.5 nm", fontsize=16)
 axs[1].set_xlabel("Counts/cm³", fontsize=14)
 axs[1].set_xlim(-50, 3400)
 axs[1].tick_params(axis='both', labelsize=12)
-axs[1].axhline(y=285, color="k", linestyle="--", linewidth=1)
-axs[1].axhline(y=299, color="k", linestyle="--", linewidth=1)
 
 ##--Subplot 3--##
 axs[2].set_title("$N_{2.5-10}$", fontsize=16)
 axs[2].set_xlabel("Counts/cm³", fontsize=14)
 axs[2].tick_params(axis='both', labelsize=12)
-axs[2].axhline(y=285, color="k", linestyle="--", linewidth=1)
-axs[2].axhline(y=299, color="k", linestyle="--", linewidth=1)
 
 ##--Add mean uncertainty--##
 global_uncertainty_line = np.mean(nuc_uncertainties)
@@ -465,12 +495,9 @@ axs[2].axvline(global_uncertainty_line, color='crimson', linestyle='dashed', lin
 axs[3].set_title("$N_{10-89}$", fontsize=16)
 axs[3].set_xlabel("Counts/cm³", fontsize=14)
 axs[3].tick_params(axis='both', labelsize=12)
-axs[3].axhline(y=285, color="k", linestyle="--", linewidth=1)
-axs[3].axhline(y=299, color="k", linestyle="--", linewidth=1)
 
 global_uncertainty_line2 = np.mean(grow_uncertainties)
 axs[3].axvline(global_uncertainty_line2, color='crimson', linestyle='dashed', linewidth=1, label='3$\sigma$ Uncertainty')
-
 
 axs[3].legend(loc="lower right", fontsize=10)
 

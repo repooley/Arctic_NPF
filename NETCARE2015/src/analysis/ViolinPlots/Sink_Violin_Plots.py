@@ -213,6 +213,8 @@ for flight in flights_to_analyze:
     ##--De-Normalize UHSAS Data--##
     ###############################
     
+    ##--For total count calculation--##
+    
     ##--Calculate dlogDp for UHSAS bins--##
     UHSAS_dlogDp = np.log(UHSAS_upper_bound.values) - np.log(UHSAS_lower_bound.values)
     
@@ -226,25 +228,59 @@ for flight in flights_to_analyze:
     P_STP = 101325  # Pa
     T_STP = 273.15  # K
     
-    ##--Create empty list for OPC particles--##
-    UHSAS_abs_counts = []
+    ##--Reset index of UHSAS_abs_counts to align with time--##
+    min_length = min(len(UHSAS_time), len(UHSAS_denorm_counts))
+    UHSAS_time = UHSAS_time[:min_length]
+    UHSAS_denorm_counts = UHSAS_denorm_counts.iloc[:min_length]
     
-    for UHSAS, T, P in zip(UHSAS_denorm_counts.values, temperature, pressure):
+    ##########################
+    ##--Normalize OPC Data--##
+    ##########################
+    
+    ##--Use the de-normalized values for calculating NPF--##
+
+    ##--Calculate dlogDp for each bin in numpy array--##
+    dlogDp = np.log(OPC_upper_bound.values) - np.log(OPC_lower_bound.values)
+    
+    ##--Get only particle count data (excluding 'Time')--##
+    OPC_particle_counts = OPC_bins_filled.loc[:, OPC_new_col_names]
+    
+    ##--Normalize counts by dividing by dlogDp across all rows--##
+    OPC_dNdlogDp = OPC_bins_filled.divide(dlogDp, axis=1)
+    
+    ##--Convert to STP!--##
+    P_STP = 101325  # Pa
+    T_STP = 273.15  # K
+    
+    ##--Create empty list for OPC particles--##
+    OPC_conc_STP_norm = []
+    
+    for OPC, T, P in zip(OPC_dNdlogDp.values, temperature, pressure):
         if np.isnan(T) or np.isnan(P):
             ##--Append with NaN if any input is NaN--##
-            UHSAS_abs_counts.append([np.nan]*len(UHSAS))
+            OPC_conc_STP_norm.append([np.nan]*len(OPC))
         else:
             ##--Perform conversion if all inputs are valid--##
-            corrected_UHSAS = UHSAS / (P_STP / P) / (T / T_STP)
-            UHSAS_abs_counts.append(corrected_UHSAS)
+            corrected_OPC = OPC * (P_STP / P) * (T / T_STP)
+            OPC_conc_STP_norm.append(corrected_OPC)
     
     ##--Convert back to DataFrame with same columns and index--##
-    UHSAS_abs_counts = pd.DataFrame(UHSAS_abs_counts, columns=UHSAS_denorm_counts.columns, index=UHSAS_denorm_counts.index)
+    OPC_conc_STP_norm = pd.DataFrame(OPC_conc_STP_norm, columns=OPC_dNdlogDp.columns, index=OPC_dNdlogDp.index)
     
-    ##--Reset index of UHSAS_abs_counts to align with time--##
-    min_length = min(len(UHSAS_time), len(UHSAS_abs_counts))
-    UHSAS_time = UHSAS_time[:min_length]
-    UHSAS_abs_counts = UHSAS_abs_counts.iloc[:min_length]
+    ##--Repeat for DENORM OPC--##
+    OPC_conc_STP_denorm = []
+    
+    for OPC, T, P in zip(OPC_particle_counts.values, temperature, pressure):
+        if np.isnan(T) or np.isnan(P):
+            ##--Append with NaN if any input is NaN--##
+            OPC_conc_STP_denorm.append([np.nan]*len(OPC))
+        else:
+            ##--Perform conversion if all inputs are valid--##
+            corrected_OPC = OPC * (P_STP / P) * (T / T_STP)
+            OPC_conc_STP_denorm.append(corrected_OPC)
+            
+    ##--Convert back to DataFrame with same columns and index--##
+    OPC_conc_STP_denorm = pd.DataFrame(OPC_conc_STP_denorm, columns=OPC_particle_counts.columns, index=OPC_particle_counts.index)
     
     ######################
     ##--Calc N(2.5-10)--##
@@ -295,16 +331,21 @@ for flight in flights_to_analyze:
     #####################
     
     ##--Create df with UHSAS total counts--##
-    UHSAS_total = pd.DataFrame({'Time': UHSAS_time, 'Total_count': UHSAS_abs_counts.sum(axis=1)})
+    UHSAS_total = pd.DataFrame({'Time': UHSAS_time, 'Total_count': UHSAS_denorm_counts.sum(axis=1)})
     
     ##--Reindex UHSAS_total df to AIMMS time--##
     UHSAS_total_aligned = UHSAS_total.set_index('Time').reindex(aimms_time)
     
+    ##--Same for OPC--##
+    OPC_total = OPC_conc_STP_denorm.sum(axis=1)
+    
+    OPC_total_aligned = pd.DataFrame({'Time': aimms_time, 'Total_count': OPC_total}).set_index('Time')
+    
     ##--Create df with CPC10 counts and set index to time--##
     CPC10_counts = pd.DataFrame({'Time':aimms_time, 'Counts':CPC10_conc_aligned}).set_index('Time')
     
-    ##--Calculate particles below UHSAS lower cutoff--##
-    n_10_89 = (CPC10_counts['Counts'] - UHSAS_total_aligned['Total_count'])
+    ###--Calculate particles below UHSAS lower cutoff--##
+    n_10_89 = (CPC10_counts['Counts'] - (UHSAS_total_aligned['Total_count'] + OPC_total_aligned['Total_count']))
     
     ##--Change calculated particle counts less than zero to NaN--##
     n_10_89 = np.where(n_10_89 >= 0, n_10_89, np.nan)
@@ -356,7 +397,7 @@ for flight in flights_to_analyze:
     bin_centers = pd.concat([n_10_89_center, UHSAS_bin_center, OPC_bin_center], axis=0).reset_index(drop=True)
     
     ##--Place all binned data in a single df--##
-    all_bins_aligned = pd.concat([n_10_89, UHSAS_bins_aligned, OPC_bins_filled], axis=1)
+    all_bins_aligned = pd.concat([n_10_89, UHSAS_bins_aligned, OPC_conc_STP_norm], axis=1)
     total_particle_count = all_bins_aligned.sum(axis=1, numeric_only=True) 
     
     ##--Create a dictionary to store each column as a separate dataframe, col names are keys--##

@@ -200,7 +200,7 @@ for j in range(i + 1, n_rows * n_cols):
 fig.legend(handles, labels, loc='lower center', ncol=3, frameon=False, fontsize=12)
 
 ##--Header--##
-fig.suptitle("Measured vs. HYSPLIT Initialization Conditions Across Flights",
+fig.suptitle("Measured vs. HYSPLIT Initialization Conditions Across NETCARE Flights",
              fontsize=20, y=0.96)
 
 ##--Ensure layout can fit suptitle and legend--##

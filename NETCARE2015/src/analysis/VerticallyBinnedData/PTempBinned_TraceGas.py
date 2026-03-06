@@ -95,7 +95,7 @@ for flight in flights_to_analyze:
     pressure = aimms.data['BP'] # in Pa
     
     ##--Black carbon--##
-    BC_mass = SP2.data['BC_mass_concSTP'] # in STP
+    BC_mass = SP2.data['BC_mass_concSTP'] * 1000 # ng/m^3 in STP
     
     ##--Trace Gas Data--##
     CO_conc = CO.data['CO_ppbv']
@@ -247,7 +247,7 @@ for flight in flights_to_analyze:
     CO_5th = np.percentile(CO_noNaN, 5)
     
     ##--Calculate BC/(delta)CO--##
-    BC_CO = (BC_mass_aligned / CO_noNaN) # (ug/m^3)/ppb
+    BC_CO = (BC_mass_aligned / CO_noNaN) # (ng/m^3)/ppb
     
     ########################
     ##--Calculate CO/CO2--##
@@ -404,9 +404,9 @@ for flight in flights_to_analyze:
                          binned_df['BC_CO_max'], color='seagreen', alpha=0.2)
     axs[4].fill_betweenx(binned_df['PTemp_center'], binned_df['BC_CO_25th'], 
                          binned_df['BC_CO_75th'], color='seagreen', alpha=0.3)
-    axs[4].set_xlabel('Enhancement ((µg/m\u00b3)/ppmv)')
-    axs[4].set_title('rBC/CO')
-    axs[4].set_xlim(-0.01, 0.01)
+    axs[4].set_xlabel('Enhancement ((ng/m\u00b3)/Δppmv)')
+    axs[4].set_title('rBC/ΔCO')
+    #axs[4].set_xlim(-0.01, 0.01)
     
     axs[4].axhline(y=285, color='k', linestyle='--', linewidth=1)
     axs[4].axhline(y=299, color='k', linestyle='--', linewidth=1)

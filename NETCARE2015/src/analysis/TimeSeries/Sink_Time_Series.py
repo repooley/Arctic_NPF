@@ -5,9 +5,6 @@ Created on Mon Apr  7 16:15:02 2025
 @author: repooley
 """
 
-##--Sink calculations are currently too LOW by 1-2 orders of magnitude--##
-##--Sinks currently populating with NaNs--##
-
 import icartt
 import os
 import glob
@@ -15,7 +12,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt 
 import matplotlib.ticker as ticker
-from datetime import date
+from datetime import datetime, timedelta, date
+from matplotlib.ticker import MultipleLocator
 
 #########################
 ##--Open ICARTT Files--##
@@ -49,6 +47,7 @@ def find_files(directory, flight, partial_name):
     return sorted(glob.glob(search_pattern))
 
 for flight in flights_to_analyze: 
+    
     ##--Meterological data from AIMMS monitoring system--##
     aimms = icartt.Dataset(find_files(directory, flight, "AIMMS_POLAR6")[0])
     
@@ -94,6 +93,13 @@ for flight in flights_to_analyze:
     pressure = aimms.data['BP'] # in pa
     aimms_time =aimms.data['TimeWave'] # seconds since midnight
     
+    print(
+    flight,
+    id(aimms_time),
+    len(aimms_time),
+    aimms_time.dtype if hasattr(aimms_time, "dtype") else type(aimms_time)
+    )
+    
     ##--USHAS Data--##
     UHSAS_time = UHSAS.data['time'] # seconds since midnight
     
@@ -126,7 +132,7 @@ for flight in flights_to_analyze:
     ##--Convert total num to a df--##
     UHSAS_total_num = pd.DataFrame({'Time' : UHSAS_time_ri, 'Total_count': UHSAS_total_num})
     UHSAS_total_aligned = UHSAS_total_num.set_index('Time').reindex(aimms_time)
-    
+        
     ##--OPC Data--##
     OPC_time = OPC.data['Time_UTC'] # seconds since midnight
     
@@ -400,7 +406,7 @@ for flight in flights_to_analyze:
     ##--NORMALIZED--##
     
     ##--Place all binned data in a single df--##
-    all_bins_aligned_STP = pd.concat([n_3_10_STP, n_10_89_STP, UHSAS_bins, OPC_conc_STP], axis=1)
+    all_bins_aligned_STP = pd.concat([n_3_10_STP, n_10_89_STP, UHSAS_bins_aligned, OPC_conc_STP], axis=1)
     total_particle_count_STP = all_bins_aligned_STP.sum(axis=1, numeric_only=True) 
     
     
@@ -439,7 +445,8 @@ for flight in flights_to_analyze:
     pressure_series = pd.Series(pressure, index=aimms_time)
     
     ##--Loop through dfs in diameter_dfs and calculate needed variables for each bin--##
-    cs_sum = pd.Series(0, index=aimms_time)  # Temporary storage for summing CS contributions
+    ##--Store in series initialized at zero--##
+    condensation_sink = pd.Series(0, index=aimms_time)  
     
     for diameter, df in diameter_dfs.items():
         
@@ -473,14 +480,12 @@ for flight in flights_to_analyze:
         ##--Per-bin contribution to condensation sink (before final multiplication)--##
         df['CS_contribution'] = (df['Fuchs_correction'] * mean_diameter * df['Particle_concentration'])
         
-        ##--Sum the contributions across bins--##
-        cs_sum += df['CS_contribution']  # Accumulate per bin
-    
-    condensation_sink = pd.DataFrame(index=aimms_time, columns=['Condensation_Sink'])
-    condensation_sink['Condensation_Sink'] = 0 # initialize to zero instead of NaN for proper summing index later  
-    
-    ##--Final multiplication by 2 * π * diffusion coefficient--##
-    condensation_sink['Condensation_Sink'] = 2 * 3.14159 * df['Diffusion_coefficient'] * cs_sum
+        ##--Multiply each bin’s CS contribution by its diffusion coefficient--##
+        ##--Fill NaN values in CS_contribution with zeros to prevent NaN result--##
+        condensation_sink += (2 * np.pi * df['Diffusion_coefficient'] * df['CS_contribution']).fillna(0)
+     
+    ##--Populate series--##
+    condensation_sink = pd.DataFrame({'Condensation_Sink': condensation_sink}) 
     
     #####################################
     ##--Coagulation sink calculations--##
@@ -560,7 +565,8 @@ for flight in flights_to_analyze:
     
     
     ##--Loop through dfs in diameter_dfs and calculate needed variables for each bin--##
-    coag_sum = pd.Series(0, index=aimms_time)  # Temporary storage for summing CS contributions
+    ##--Store in series starting at zero--##
+    coagulation_sink = pd.Series(0, index=aimms_time)  
     
     for diameter, df in diameter_dfs.items():
         
@@ -568,7 +574,7 @@ for flight in flights_to_analyze:
         mean_diameter = (float(diameter)) * 1E-9 # in m
         
         ##--Particle volume per diameter bin--##
-        volume = (4/3) * np.pi * (nuc_diam / 2) ** 3 #m^3
+        volume = (4/3) * np.pi * (mean_diameter / 2) ** 3 #m^3
         
         ##--Particle mass, assuming a density of 1--##
         mass = volume # kg
@@ -614,11 +620,10 @@ for flight in flights_to_analyze:
         df['Coagulation'] = df['Coagulation_kernel'] * df['Particle_concentration'] # s^-1
         
         ##--Sum the coagulation kernels across bins--##
-        coag_sum += df['Coagulation']  # Accumulate per bin
+        coagulation_sink += (df['Coagulation']).fillna(0)  
     
-    ##--Create dataframe and populate with coag_sum series--##    
-    coagulation_sink = pd.DataFrame(index=aimms_time, columns=['Coagulation'])
-    coagulation_sink['Coagulation'] = coag_sum
+    ##--Populate series--##
+    coagulation_sink = pd.DataFrame({'Coagulation': coagulation_sink})
     
     ################
     ##--Plotting--##
@@ -642,8 +647,16 @@ for flight in flights_to_analyze:
     cb.ax.tick_params(labelsize=14)
     
     # Optional adjustments
+    
+    ax1.xaxis.set_major_locator(MultipleLocator(3600))  # every hour
+    tick_seconds = ax1.get_xticks()
+    ##--Convert from seconds since midnight to HH:MM using an arbitary date for datetime--##
+    tick_labels = [(datetime(1900, 1, 1) + timedelta(seconds=s)).strftime("%H") for s in tick_seconds]
+    ax1.set_xticks(tick_seconds)
+    ax1.set_xticklabels(tick_labels)
+    ax1.set_xlabel("UTC Hour", fontsize=14)
+    
     ax1.set_title(f"Optical Data Time Series - {flight.replace('Flight', 'Flight ')} ({flight_date})", fontsize=20, pad=20)
-    ax1.set_xlim([aimms_time.min(), aimms_time.max()])
     #ax1.set_ylim([bin_center.min(), bin_center.max()])
     ax1.set_yscale('log')
     custom_ticks = [10, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]

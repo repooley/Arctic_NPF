@@ -13,6 +13,7 @@ import pandas as pd
 import matplotlib.pyplot as plt 
 import matplotlib.ticker as ticker
 from datetime import datetime, timedelta, date
+from matplotlib.ticker import MultipleLocator
 
 #########################
 ##--Open ICARTT Files--##
@@ -158,9 +159,26 @@ for flight in flights_to_analyze:
     ##--Make a new df reindexed to aimms_time. Populate with CPC10 conc--##
     CPC10_conc_aligned = CPC10_df.reindex(aimms_time)['conc']
     
+    ###############################
+    ##--De-Normalize UHSAS Data--##
+    ###############################
+    
+    ##--These values are used for calculating NPF--##
+    
+    ##--Calculate dlogDp for UHSAS bins--##
+    UHSAS_dlogDp = np.log(UHSAS_upper_bound.values) - np.log(UHSAS_lower_bound.values)
+    
+    ##--Get only particle count data (excluding 'Time')--##
+    UHSAS_particle_counts = UHSAS_bins_aligned.loc[:, UHSAS_new_col_names]  # Adjust column names as needed
+    
+    ##--De-Normalize counts by multiplying by dlogDp across all rows--##
+    UHSAS_denorm_counts = UHSAS_particle_counts.multiply(UHSAS_dlogDp, axis=1)
+    
     ##########################
     ##--Normalize OPC Data--##
     ##########################
+    
+    ##--Use the de-normalized values for calculating NPF--##
     
     ##--OPC samples every six seconds. Most rows are NaN--##
     ##--Forward-fill NaN values to propagate last valid reading--##
@@ -181,19 +199,34 @@ for flight in flights_to_analyze:
     T_STP = 273.15  # K
     
     ##--Create empty list for OPC particles--##
-    OPC_conc_STP = []
+    OPC_conc_STP_norm = []
     
     for OPC, T, P in zip(OPC_dNdlogDp.values, temperature, pressure):
         if np.isnan(T) or np.isnan(P):
             ##--Append with NaN if any input is NaN--##
-            OPC_conc_STP.append([np.nan]*len(OPC))
+            OPC_conc_STP_norm.append([np.nan]*len(OPC))
         else:
             ##--Perform conversion if all inputs are valid--##
             corrected_OPC = OPC * (P_STP / P) * (T / T_STP)
-            OPC_conc_STP.append(corrected_OPC)
+            OPC_conc_STP_norm.append(corrected_OPC)
     
     ##--Convert back to DataFrame with same columns and index--##
-    OPC_conc_STP = pd.DataFrame(OPC_conc_STP, columns=OPC_dNdlogDp.columns, index=OPC_dNdlogDp.index)
+    OPC_conc_STP_norm = pd.DataFrame(OPC_conc_STP_norm, columns=OPC_dNdlogDp.columns, index=OPC_dNdlogDp.index)
+    
+    ##--Repeat for DENORM OPC--##
+    OPC_conc_STP_denorm = []
+    
+    for OPC, T, P in zip(OPC_particle_counts.values, temperature, pressure):
+        if np.isnan(T) or np.isnan(P):
+            ##--Append with NaN if any input is NaN--##
+            OPC_conc_STP_denorm.append([np.nan]*len(OPC))
+        else:
+            ##--Perform conversion if all inputs are valid--##
+            corrected_OPC = OPC * (P_STP / P) * (T / T_STP)
+            OPC_conc_STP_denorm.append(corrected_OPC)
+            
+    ##--Convert back to DataFrame with same columns and index--##
+    OPC_conc_STP_denorm = pd.DataFrame(OPC_conc_STP_denorm, columns=OPC_particle_counts.columns, index=OPC_particle_counts.index)
     
     ######################
     ##--Calc N(2.5-10)--##
@@ -243,17 +276,22 @@ for flight in flights_to_analyze:
     ##--Calc N(10-89)--##
     #####################
     
-    ##--Create df with UHSAS total counts--##
-    UHSAS_total = pd.DataFrame({'Time': UHSAS_time, 'Total_count': UHSAS_total_num})
+    ##--Re-compute UHSAS total count using denormalized data--##
+    UHSAS_total = UHSAS_denorm_counts.sum(axis=1)
     
-    ##--Reindex UHSAS_total df to AIMMS time--##
-    UHSAS_total_aligned = UHSAS_total.set_index('Time').reindex(aimms_time)
+    ##--Create df with UHSAS total counts and index to AIMMS time--##
+    UHSAS_total_aligned = pd.DataFrame({'Time': aimms_time, 'Total_count': UHSAS_total}).set_index('Time')
+    
+    ##--Same for OPC--##
+    OPC_total = OPC_conc_STP_denorm.sum(axis=1)
+    
+    OPC_total_aligned = pd.DataFrame({'Time': aimms_time, 'Total_count': OPC_total}).set_index('Time')
     
     ##--Create df with CPC10 counts and set index to time--##
     CPC10_counts = pd.DataFrame({'Time':aimms_time, 'Counts':CPC10_conc_STP}).set_index('Time')
     
     ##--Calculate particles below UHSAS lower cutoff--##
-    n_10_89 = (CPC10_counts['Counts'] - UHSAS_total_aligned['Total_count'])
+    n_10_89 = (CPC10_counts['Counts'] - (UHSAS_total_aligned['Total_count'] + OPC_total_aligned['Total_count']))
     
     ##--Change calculated particle counts less than zero to NaN--##
     n_10_89 = np.where(n_10_89 >= 0, n_10_89, np.nan)
@@ -293,7 +331,7 @@ for flight in flights_to_analyze:
     time_edges = np.append(aimms_time, aimms_time[-1] + time_step)  # length N + 1
     
     ##--Create df containing UHSAS and OPC columns--##
-    optical_bins_aligned = pd.concat([n_3_10, n_10_89, UHSAS_bins_aligned, OPC_conc_STP], axis=1)
+    optical_bins_aligned = pd.concat([n_3_10, n_10_89, UHSAS_bins_aligned, OPC_conc_STP_norm], axis=1)
     
     ##--Apply rolling average to all other particle data--##
     optical_bins_smoothed = optical_bins_aligned.rolling(window=30, min_periods=1, center=True).mean()
@@ -306,12 +344,13 @@ for flight in flights_to_analyze:
     c = ax1.pcolormesh(time_edges, combined_bin_edges, optical_conc, shading='auto', cmap='viridis')
     
     ##--Grab ticks--##
+    ax1.xaxis.set_major_locator(MultipleLocator(3600))  # every hour
     tick_seconds = ax1.get_xticks()
     ##--Convert from seconds since midnight to HH:MM using an arbitary date for datetime--##
     tick_labels = [(datetime(1900, 1, 1) + timedelta(seconds=s)).strftime("%H") for s in tick_seconds]
     ax1.set_xticks(tick_seconds)
     ax1.set_xticklabels(tick_labels)
-    ax1.set_xlabel("Hour", fontsize=14)
+    ax1.set_xlabel("UTC Hour", fontsize=14)
     
     ax1.set_title(f"Particle Size Distribution - {flight.replace('Flight', 'Flight ')} ({flight_date})", fontsize=20, pad=20)
     ##--Set axis limits to match data range--##

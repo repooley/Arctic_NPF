@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed May  7 09:42:11 2025
+Created on Fri Apr  4 09:48:34 2025
 
 @author: repooley
 """
@@ -29,9 +29,6 @@ flights_to_analyze = ["Flight2", "Flight3", "Flight4", "Flight5", "Flight6",
 num_bins_lat = 4
 num_bins_ptemp = 8
 
-##--Base output path for figures in directory--##
-output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\CondensationSink"
-
 ##--Bin data are in a CSV file--##
 UHSAS_bins = pd.read_csv(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_UHSAS_bins.csv")
 
@@ -44,6 +41,12 @@ UHSAS_bin_num = [f'bin_{i}' for i in range(14, 75)]
 UHSAS_bin_center = UHSAS_bins['bin_avg'].iloc[14:75]
 UHSAS_lower_bound = UHSAS_bins['lower_bound'].iloc[14:75]
 UHSAS_upper_bound = UHSAS_bins['upper_bound'].iloc[14:75]
+
+##--Bin data are in a CSV file--##
+OPC_bin_info = pd.read_csv(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_OPC_bins.csv")
+
+##--Base output path for figures in directory--##
+output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\CoagulationSink"
 
 #########################
 ##--Open ICARTT Files--##
@@ -127,9 +130,6 @@ for flight in flights_to_analyze:
     ##--OPC Data--##
     OPC_time = OPC.data['Time_UTC'] # seconds since midnight
     
-    ##--Bin data are in a CSV file--##
-    OPC_bin_info = pd.read_csv(r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\NETCARE2015_OPC_bins.csv")
-    
     ##--Select bins greater than 500 nm (Channel 7 and greater)--##
     OPC_bin_center = OPC_bin_info['bin_avg'].iloc[6:31]
     OPC_lower_bound = OPC_bin_info['lower_bound'].iloc[6:31]
@@ -180,6 +180,8 @@ for flight in flights_to_analyze:
     ##--De-Normalize UHSAS Data--##
     ###############################
     
+    ##--For total count calculation--##
+    
     ##--Calculate dlogDp for UHSAS bins--##
     UHSAS_dlogDp = np.log(UHSAS_upper_bound.values) - np.log(UHSAS_lower_bound.values)
     
@@ -193,25 +195,59 @@ for flight in flights_to_analyze:
     P_STP = 101325  # Pa
     T_STP = 273.15  # K
     
-    ##--Create empty list for OPC particles--##
-    UHSAS_abs_counts = []
+    ##--Reset index of UHSAS_abs_counts to align with time--##
+    min_length = min(len(UHSAS_time), len(UHSAS_denorm_counts))
+    UHSAS_time = UHSAS_time[:min_length]
+    UHSAS_denorm_counts = UHSAS_denorm_counts.iloc[:min_length]
     
-    for UHSAS, T, P in zip(UHSAS_denorm_counts.values, temperature, pressure):
+    ##########################
+    ##--Normalize OPC Data--##
+    ##########################
+    
+    ##--Use the de-normalized values for calculating NPF--##
+
+    ##--Calculate dlogDp for each bin in numpy array--##
+    dlogDp = np.log(OPC_upper_bound.values) - np.log(OPC_lower_bound.values)
+    
+    ##--Get only particle count data (excluding 'Time')--##
+    OPC_particle_counts = OPC_bins_filled.loc[:, OPC_new_col_names]
+    
+    ##--Normalize counts by dividing by dlogDp across all rows--##
+    OPC_dNdlogDp = OPC_bins_filled.divide(dlogDp, axis=1)
+    
+    ##--Convert to STP!--##
+    P_STP = 101325  # Pa
+    T_STP = 273.15  # K
+    
+    ##--Create empty list for OPC particles--##
+    OPC_conc_STP_norm = []
+    
+    for OPC, T, P in zip(OPC_dNdlogDp.values, temperature, pressure):
         if np.isnan(T) or np.isnan(P):
             ##--Append with NaN if any input is NaN--##
-            UHSAS_abs_counts.append([np.nan]*len(UHSAS))
+            OPC_conc_STP_norm.append([np.nan]*len(OPC))
         else:
             ##--Perform conversion if all inputs are valid--##
-            corrected_UHSAS = UHSAS / (P_STP / P) / (T / T_STP)
-            UHSAS_abs_counts.append(corrected_UHSAS)
+            corrected_OPC = OPC * (P_STP / P) * (T / T_STP)
+            OPC_conc_STP_norm.append(corrected_OPC)
     
     ##--Convert back to DataFrame with same columns and index--##
-    UHSAS_abs_counts = pd.DataFrame(UHSAS_abs_counts, columns=UHSAS_denorm_counts.columns, index=UHSAS_denorm_counts.index)
+    OPC_conc_STP_norm = pd.DataFrame(OPC_conc_STP_norm, columns=OPC_dNdlogDp.columns, index=OPC_dNdlogDp.index)
     
-    ##--Reset index of UHSAS_abs_counts to align with time--##
-    min_length = min(len(UHSAS_time), len(UHSAS_abs_counts))
-    UHSAS_time = UHSAS_time[:min_length]
-    UHSAS_abs_counts = UHSAS_abs_counts.iloc[:min_length]
+    ##--Repeat for DENORM OPC--##
+    OPC_conc_STP_denorm = []
+    
+    for OPC, T, P in zip(OPC_particle_counts.values, temperature, pressure):
+        if np.isnan(T) or np.isnan(P):
+            ##--Append with NaN if any input is NaN--##
+            OPC_conc_STP_denorm.append([np.nan]*len(OPC))
+        else:
+            ##--Perform conversion if all inputs are valid--##
+            corrected_OPC = OPC * (P_STP / P) * (T / T_STP)
+            OPC_conc_STP_denorm.append(corrected_OPC)
+            
+    ##--Convert back to DataFrame with same columns and index--##
+    OPC_conc_STP_denorm = pd.DataFrame(OPC_conc_STP_denorm, columns=OPC_particle_counts.columns, index=OPC_particle_counts.index)
     
     ######################
     ##--Calc N(2.5-10)--##
@@ -237,16 +273,21 @@ for flight in flights_to_analyze:
     #####################
     
     ##--Create df with UHSAS total counts--##
-    UHSAS_total = pd.DataFrame({'Time': UHSAS_time, 'Total_count': UHSAS_abs_counts.sum(axis=1)})
+    UHSAS_total = pd.DataFrame({'Time': UHSAS_time, 'Total_count': UHSAS_denorm_counts.sum(axis=1)})
     
     ##--Reindex UHSAS_total df to AIMMS time--##
     UHSAS_total_aligned = UHSAS_total.set_index('Time').reindex(aimms_time)
+    
+    ##--Same for OPC--##
+    OPC_total = OPC_conc_STP_denorm.sum(axis=1)
+    
+    OPC_total_aligned = pd.DataFrame({'Time': aimms_time, 'Total_count': OPC_total}).set_index('Time')
     
     ##--Create df with CPC10 counts and set index to time--##
     CPC10_counts = pd.DataFrame({'Time':aimms_time, 'Counts':CPC10_conc_aligned}).set_index('Time')
     
     ##--Calculate particles below UHSAS lower cutoff--##
-    n_10_89 = (CPC10_counts['Counts'] - UHSAS_total_aligned['Total_count'])
+    n_10_89 = (CPC10_counts['Counts'] - (UHSAS_total_aligned['Total_count'] + OPC_total_aligned['Total_count']))
     
     ##--Change calculated particle counts less than zero to NaN--##
     n_10_89 = np.where(n_10_89 >= 0, n_10_89, np.nan)
@@ -281,7 +322,7 @@ for flight in flights_to_analyze:
     bin_centers = pd.concat([n_10_89_center, UHSAS_bin_center, OPC_bin_center], axis=0).reset_index(drop=True)
     
     ##--Place all binned data in a single df--##
-    all_bins_aligned = pd.concat([n_10_89, UHSAS_bins_aligned, OPC_bins_filled], axis=1)
+    all_bins_aligned = pd.concat([n_10_89, UHSAS_bins_aligned, OPC_conc_STP_norm], axis=1)
     total_particle_count = all_bins_aligned.sum(axis=1, numeric_only=True) 
     
     ##--Create a dictionary to store each column as a separate dataframe, col names are keys--##
@@ -307,22 +348,22 @@ for flight in flights_to_analyze:
     ##--Diameter average air molecule--##
     Dair = 3.61E-10 # in m
     
-    ##--For sulfuric acid--##
+    ##--For N(2.5-10)--##
     
-    ##--Median sulfuric acid diameter--##
-    s_diam = 6.25E-9 # m
+    ##--Median particle diameter--##
+    nuc_diam = 6.25E-9 # m
     
-    ##--Vol sulfuric acid molecule--##
-    s_vol = (4/3) * np.pi * (s_diam / 2) ** 3 #m^3
+    ##--Vol spherical particle--##
+    nuc_vol = (4/3) * np.pi * (nuc_diam / 2) ** 3 #m^3
     
-    ##--Mass sulfuric acid--##
-    s_mass = 98.079 # g/mol
+    ##--Mass particle assuming density of 1--##
+    nuc_mass = nuc_vol #kg
     
     ##--Reduced mass ratio--##
-    z_s = s_mass/Mair
+    z_nuc = nuc_mass/Mair
     
-    ##--Collision cross section sulfuric acid + air--##
-    sigma_s = (Dair + s_diam) / 2
+    ##--Collision cross section nuc particle + air--##
+    sigma_nuc = (Dair + nuc_diam) / 2
     
     ##--Variables--##
     
@@ -332,34 +373,34 @@ for flight in flights_to_analyze:
     ##--Concentration air molecules--##
     Nair = (6.022E23 * pressure) / (R * temperature) # num/m^3
     
-    ##--For Sulfuric Acid--##
+    ##--For N(2.5-10)--##
     
-    ##--Mean sulfuric speed--##
-    s_speed = ((8 * k * temperature_series) / (np.pi * s_mass))**(1/2)
+    ##--Mean particle speed--##
+    nuc_speed = ((8 * k * temperature_series) / (np.pi * nuc_mass))**(1/2)
     
-    ##--Collision cross section, assumes collision with equal size molecule--##
-    s_collision_cross = np.pi * (s_diam )**2 # m^2
+    ##--Collision cross section, assumes collision with equal size particle--##
+    nuc_collision_cross = np.pi * (nuc_diam )**2 # m^2
     
     ##--Estimate of mean free path against air for use in slip correction--##
-    s_mfp_estimate = 1/(np.pi * (1 + z_s)**(1/2) * Nair * sigma_s**2) # m
+    nuc_mfp_estimate = 1/(np.pi * (1 + z_nuc)**(1/2) * Nair * sigma_nuc**2) # m
     
     ##--Knudsen number--##
-    s_knudsen = s_mfp_estimate / (s_diam/2) # unitless 
+    nuc_knudsen = nuc_mfp_estimate / (nuc_diam/2) # unitless 
     
     ##--Cunningham slip correction--##
-    s_slip = 1 + 2 * s_knudsen * (2.514 + 0.800 * np.exp(-0.550 / s_knudsen))
+    nuc_slip = 1 + 2 * nuc_knudsen * (2.514 + 0.800 * np.exp(-0.550 / nuc_knudsen))
     
     ##--Dynamic viscosity--##
     dynam_viscosity = (C * temperature_series ** (3/2)) / (temperature_series + S)
     
     ##--Diffusivity--##
-    s_diffusivity = (k * temperature_series * s_slip / (3 * np.pi * dynam_viscosity * s_diam)) # m^2/s
+    nuc_diffusivity = (k * temperature_series * nuc_slip / (3 * np.pi * dynam_viscosity * nuc_diam)) # m^2/s
     
     ##--Mean free path--##
-    s_mfp = ((8 * s_diffusivity) / (np.pi * s_speed)) # m 
+    nuc_mfp = ((8 * nuc_diffusivity) / (np.pi * nuc_speed)) # m 
     
     ##--Calculate g coefficient--##
-    s_g = (2**(1/2) / (3 * s_diam * s_mfp)) * ((s_diam + s_mfp)**3 - (s_diam**2 + s_mfp**2)**(3/2)) - s_diam
+    nuc_g = (2**(1/2) / (3 * nuc_diam * nuc_mfp)) * ((nuc_diam + nuc_mfp)**3 - (nuc_diam**2 + nuc_mfp**2)**(3/2)) - nuc_diam
     
     
     ##--Loop through dfs in diameter_dfs and calculate needed variables for each bin--##
@@ -399,7 +440,7 @@ for flight in flights_to_analyze:
         slip = 1 + 2 * df['Knudsen_number'] * (2.514 + 0.800 * np.exp(-0.550 / df['Knudsen_number'])) # unitless
         
         ##--Particle diffusivity--##
-        diffusivity = (k * temperature_series * s_slip / (3 * np.pi * dynam_viscosity * mean_diameter)) # m^2/s
+        diffusivity = (k * temperature_series * nuc_slip / (3 * np.pi * dynam_viscosity * mean_diameter)) # m^2/s
         
         ##--Calculate mean free path of H2SO4 from molecular diameter--##
         df['mean_free_path'] = ((8 * diffusivity) / (np.pi * speed)) # m
@@ -409,10 +450,10 @@ for flight in flights_to_analyze:
                                           - (mean_diameter**2 + df['mean_free_path']**2)**(3/2)) - mean_diameter)
         
         ##--Compute the coagulation kernel per bin--##
-        df['Coagulation_kernel'] = (2 * np.pi * (s_diffusivity + diffusivity) * (s_diam + mean_diameter) * 
-                              ((s_diam + mean_diameter) / (s_diam + mean_diameter + 2*(s_g**2 + g**2)**(1/2))
-                               + (8 * (s_diffusivity + diffusivity)) / ((s_speed**2 + speed**2)**(1/2) * 
-                                                                          (s_diam + mean_diameter)))**-1)
+        df['Coagulation_kernel'] = (2 * np.pi * (nuc_diffusivity + diffusivity) * (nuc_diam + mean_diameter) * 
+                              ((nuc_diam + mean_diameter) / (nuc_diam + mean_diameter + 2*(nuc_g**2 + g**2)**(1/2))
+                               + (8 * (nuc_diffusivity + diffusivity)) / ((nuc_speed**2 + speed**2)**(1/2) * 
+                                                                          (nuc_diam + mean_diameter)))**-1)
         
         ##--Calculate coagulation by multiplying kernel by particle concentration per bin--##
         df['Coagulation'] = df['Coagulation_kernel'] * df['Particle_concentration'] # s^-1
@@ -476,7 +517,7 @@ for flight in flights_to_analyze:
     
     ##--Use pcolormesh for the plot, set minimum value for viridis colors as 1--##
     Coagulation_plot = ax1.pcolormesh(common_lat_bin_edges, common_ptemp_bin_edges, Coagulation_bin_medians.T,  # Transpose to align correctly
-        shading='auto', cmap=new_cmap, vmin=0, vmax=0.005)
+        shading='auto', cmap=new_cmap, vmin=0, vmax=0.0012)
     
     ##--Add dashed horizontal lines for the polar dome boundaries--##
     ax1.axhline(y=285, color='k', linestyle='--', linewidth=1)
@@ -486,19 +527,19 @@ for flight in flights_to_analyze:
     cb = fig1.colorbar(Coagulation_plot, ax=ax1)
     cb.minorticks_on()
     cb.ax.tick_params(labelsize=16)
-    cb.set_label('Condensation Sink (s-1)', fontsize=16)
+    cb.set_label('N(2.5-10) Coagulation Sink (s-1)', fontsize=16)
     
     ##--Set axis labels--##
     ax1.set_xlabel('Latitude (°)', fontsize=16)
     ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=16)
     ax1.tick_params(axis='both', labelsize=16)
-    ax1.set_title(f"Williamson Method Condensation Sink - {flight.replace('Flight', 'Flight ')} ({flight_date})", fontsize=18)
+    ax1.set_title(f"N(2.5-10) Coagulation Sink - {flight.replace('Flight', 'Flight ')} ({flight_date})", fontsize=18)
     #ax1.set_ylim(245, 301)
     #ax1.set_xlim(79.5, 83.7)
     
     ##--Use f-string to save file with flight# appended--##
-    Condensation_output_path = f"{output_path}\\{flight}_Williamson"
-    plt.savefig(Condensation_output_path, dpi=600, bbox_inches='tight') 
+    Coagulation_output_path = f"{output_path}\\{flight}"
+    plt.savefig(Coagulation_output_path, dpi=600, bbox_inches='tight') 
     
     plt.tight_layout()
     plt.show()
@@ -506,8 +547,6 @@ for flight in flights_to_analyze:
     ########################
     ##--Diagnostic Plots--##
     ########################
-    
-    ##--Remove hashtags below to comment out this section--##
     
     ##--Counts per bin for CPC3 data--##
     Coagulation_bin_counts, _, _, _ = binned_statistic_2d(Coagulation_clean_df['Latitude'], 
@@ -539,14 +578,13 @@ for flight in flights_to_analyze:
     ax1.set_xlabel('Latitude (°)', fontsize=16)
     ax1.set_ylabel('Potential Temperature \u0398 (K)', fontsize=16)
     ax1.tick_params(axis='both', labelsize=16)
-    ax1.set_title(f"Condensation Sink Counts per Bin - {flight.replace('Flight', 'Flight ')} ({flight_date})", fontsize=18)
+    ax1.set_title(f"Coagulation Sink Counts per Bin - {flight.replace('Flight', 'Flight ')} ({flight_date})", fontsize=18)
     #ax1.set_ylim(238, 301)
     #ax1.set_xlim(79.5, 83.7)
     
     ##--Use f-string to save file with flight# appended--##
-    Condensation_diag_output_path = f"{output_path}\\{flight}_diagnostic_Williamson"
-    plt.savefig(Condensation_diag_output_path, dpi=600, bbox_inches='tight') 
+    CS10_diag_output_path = f"{output_path}\\{flight}_diagnostic"
+    plt.savefig(CS10_diag_output_path, dpi=600, bbox_inches='tight') 
     
     plt.tight_layout()
     plt.show()
-    #'''
