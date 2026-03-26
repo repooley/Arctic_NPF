@@ -231,6 +231,7 @@ def load_flight(directory, flight):
         "UHSAS_lower_bounds": UHSAS_lower_bounds,
         "UHSAS_new_col_names": UHSAS_new_col_names,
         "OPC": OPC_bins_aligned,
+        "OPC_bin_center": OPC_bin_center,
         "OPC_upper_bounds": OPC_upper_bounds,
         "OPC_lower_bounds": OPC_lower_bounds,
         "OPC_new_col_names": OPC_new_col_names,

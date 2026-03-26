@@ -27,9 +27,29 @@ root = script_path.parents[3]
 ##--Path to raw NETCARE data--##
 directory = root / "NETCARE2015" / "data" / "raw"
 
+####################################
+##--Pull particle bin info files--##
+####################################
+
 ##--Pull R1 data for the two CPC instruments - zeroes not yet filtered out--##
 CPC3_R1 = icartt.Dataset(directory / "CPC_R1" / "CPC3776_Polar6_20150408_R1_L2.ict")
 CPC10_R1 = icartt.Dataset(directory / "CPC_R1" / "CPC3772_Polar6_20150408_R1_L2.ict")
+
+##--UHSAS bin data are in a CSV file--##
+UHSAS_bins = pd.read_csv(directory / "NETCARE2015_UHSAS_bins.csv")
+
+##--Make list of columns to pull, each named bin_x--##
+##--Bins 1-13 not trustworthy. Bins 76-99 overlap with OPC, discard--##
+##--Trim to use bins 14-76 (500>85 nm)--##
+UHSAS_bin_num = [f'bin_{i}' for i in range(14, 75)]
+
+##--Information for bins 14 thru 99--##
+UHSAS_bin_center = UHSAS_bins['bin_avg'].iloc[14:75]
+UHSAS_lower_bound = UHSAS_bins['lower_bound'].iloc[14:75]
+UHSAS_upper_bound = UHSAS_bins['upper_bound'].iloc[14:75]
+
+##--OPC bin data are in a CSV file--##
+OPC_bin_info = pd.read_csv(directory / "NETCARE2015_OPC_bins.csv")
 
 def calc_particle_bins(data):
 
@@ -56,6 +76,7 @@ def calc_particle_bins(data):
     UHSAS_cols = data["UHSAS_new_col_names"]
     UHSAS_upper_bounds = data["UHSAS_upper_bounds"]
     UHSAS_lower_bounds = data["UHSAS_lower_bounds"]
+    UHSAS_bin_center = data["UHSAS_bin_center"]
     
     ##--Calculate dlogDp for UHSAS bins--##
     UHSAS_dlogDp = np.log(UHSAS_upper_bounds.values) - np.log(UHSAS_lower_bounds.values)
@@ -73,7 +94,7 @@ def calc_particle_bins(data):
     ##--Pull OPC bin info--##
     OPC_cols = data["OPC_new_col_names"]
     OPC_upper_bounds = data["OPC_upper_bounds"]
-    OPC_lower_bounds= data["OPC_lower_bounds"]
+    OPC_bin_center = data["OPC_bin_center"]
     
     ##--Use the de-normalized values for calculating NPF--##
     
@@ -176,6 +197,47 @@ def calc_particle_bins(data):
     ##--Add 10-89 nm particles to the dataframe--##
     df['n_10_89'] = n_10_89
     
+    ##--Specify n_10_89 bin center as variable--##
+    n_10_89_center = 49.5
+    
+    ##--Convert the bin center to a series--##
+    n_10_89_center = pd.Series(n_10_89_center)
+    
+    ###########################
+    ##--Wrangle binned data--##
+    ###########################
+    
+    ##--Concatenate bin edges--##
+    combined_bin_edges = np.concatenate([
+        [2.5],      # start of first bin
+        [10],       # upper edge of N(2.5-10), also lower of next
+        [89.32],       # upper edge of N(10-89), also lower of next
+        UHSAS_upper_bound.values,  # UHSAS bins continue from 85
+        OPC_upper_bounds.values     # OPC bins continue from last UHSAS
+    ])
+    
+    ##--Concatenate bin centers and reindex--##
+    bin_centers = pd.concat([n_10_89_center, UHSAS_bin_center, OPC_bin_center], axis=0).reset_index(drop=True)
+    
+    ##--Pull aligned UHSAS bin data--##
+    UHSAS_aligned = data["UHSAS"]
+    
+    ##--Convert to a df--##
+    UHSAS_aligned = pd.DataFrame(UHSAS_aligned)
+    
+    ##--Convert n_10_89 to a df--##
+    n_10_89_df = pd.DataFrame(n_10_89)
+    
+    ##--Place all binned data in a single df--##
+    all_bins_aligned = pd.concat([n_10_89_df, UHSAS_aligned, OPC_conc_STP], axis=1)
+    total_particle_count = all_bins_aligned.sum(axis=1, numeric_only=True) 
+    
+    ##--Add total count to df--##
+    df["total_count"] = total_particle_count
+    
+    ##--Create a dictionary to store each column as a separate dataframe, col names are keys--##
+    diameter_dfs = {col: pd.DataFrame({col: all_bins_aligned[col]}) for col in all_bins_aligned.columns}
+    
     #############################
     ##--Calculate Uncertainty--##        
     #############################
@@ -236,4 +298,4 @@ def calc_particle_bins(data):
     ##--Add uncertainty for 10-85 nm bin to big df--##
     df['aitken_error_3sigma'] = aitken_error_3sigma
     
-    return {'df': df}
+    return {'df': df, 'diameter_dfs': diameter_dfs}
