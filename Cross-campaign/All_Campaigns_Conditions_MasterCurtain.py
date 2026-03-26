@@ -13,8 +13,10 @@ import pandas as pd
 from scipy.stats import binned_statistic_2d
 import matplotlib.pyplot as plt 
 import cmcrameri as cm
+import matplotlib.patches as patches
 from matplotlib.colors import ListedColormap
 import matplotlib.colors as mcolors
+from pathlib import Path
 
 ###################
 ##--User inputs--##
@@ -49,6 +51,8 @@ num_bins_ptemp = 12
 
 ##--Base output path for figures in directory--##
 #output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\CondensationSink"
+
+##--Pull in function for drawing boxes
 
 ##################
 ##--Open Files--##
@@ -367,6 +371,12 @@ campaigns = [
 T_cmap = cm.cm.managua_r
 RH_cmap = cm.cm.devon_r
 rBC_cmap = cm.cm.grayC_r
+
+##--Set a norm for the T_camp at 268 K--##
+##--This paper found 268 K as critical cutoff for temp effects on sulfate nuc--##
+##--https://acp.copernicus.org/articles/19/8915/2019/--##
+##--Selected two slope because sides are uneven--##
+T_norm = mcolors.TwoSlopeNorm(vcenter=268, vmin=200, vmax=300)
  
 fig, axes = plt.subplots(
     nrows=3,
@@ -377,6 +387,12 @@ fig, axes = plt.subplots(
     constrained_layout=True
 )
 
+##--Load in significant boxes from the Particles version of this script--##
+##--Saved in 'data' folder within this directory, pull dir and then folder--##
+root = Path(__file__).resolve().parent
+data_dir = root / "data"
+
+##--Iterate through campaigns for plotting--##
 for row, (name, df) in enumerate(campaigns):
 
     T_stat = compute_2d_median(df, "temperature",
@@ -387,16 +403,13 @@ for row, (name, df) in enumerate(campaigns):
 
     rBC_stat = compute_2d_median(df, "rBC",
                                  global_lat_edges, global_ptemp_edges)
-
-    m1 = axes[row,0].pcolormesh(
-        global_lat_edges,
+    
+    m1 = axes[row,0].pcolormesh(global_lat_edges,
         global_ptemp_edges,
         T_stat.T,
         shading="auto",
         cmap=T_cmap,
-        vmin=200,
-        vmax=300
-    )
+        norm=T_norm)
     
     m2 = axes[row,1].pcolormesh(
         global_lat_edges,
@@ -420,6 +433,51 @@ for row, (name, df) in enumerate(campaigns):
     )
 
     axes[row,0].set_ylabel("\u0398 (K)", fontsize=22)
+    
+    ##--Pull significant bin bounds--##
+    ##--Pickle needs to be true to pull in data type--##
+    cells = np.load(data_dir / f"highlight_cells_{name}.npy", allow_pickle=True)
+    ##--Saved as the indices for the boxes, pull row and col--##
+    rows_idx, cols_idx = cells
+    
+    ## -- Add boxes for sig nucleating counts > threshold -- ##
+    ax1 = axes[row, 0]
+    ax2 = axes[row, 1]
+    ax3 = axes[row, 2] 
+    
+    # Exclude the bottom-right subplot from box drawing
+    if row == 2:
+        axes_to_draw = [ax1, ax2]   # keep axis visible but don't draw boxes
+    else:
+        axes_to_draw = [ax1, ax2, ax3]
+    
+    ##--Plot the grid boxes--##
+    for j, i in zip(rows_idx, cols_idx):
+
+        x0 = global_lat_edges[j]
+        x1 = global_lat_edges[j+1]
+        y0 = global_ptemp_edges[i]
+        y1 = global_ptemp_edges[i+1]
+    
+        width = x1 - x0
+        height = y1 - y0
+    
+        ##--Pull in axes rules from above for box drawing--##
+        for ax in axes_to_draw:
+            rect = patches.Rectangle(
+                (x0, y0),
+                width,
+                height,
+                fill=False,
+                edgecolor='deeppink',
+                linewidth=2.5,
+                zorder=10
+            )
+            ax.add_patch(rect)
+            
+##--Add grey rectangle on empty subplot--##
+axes[2,2].set_facecolor('lightgrey')
+        
 
 axes[0,0].set_title("Absolute Temperature", fontsize=26)
 axes[0,1].set_title("Relative Humidity", fontsize=26)
