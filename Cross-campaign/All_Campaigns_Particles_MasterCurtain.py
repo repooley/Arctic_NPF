@@ -35,7 +35,6 @@ root = script_path.parents[1]
 ##--Paths to raw data--##
 ATom_directory = root / "ATom2018" / "data" / "raw"
 NETCARE_directory = root / "NETCARE2015" / "data" / "raw"
-PAMARCMiP_directory = root / "PAMARCMiP2012" / "data" / "raw"
 FIREACE_directory = root / "FIREACE1998" / "data" / "raw"
 
 ##--Path to utils folder containing NETCARE alignment + calc scripts--##
@@ -92,11 +91,6 @@ ATom_to_analyze = ["Flight2", "Flight10", "Flight11", "Flight12"]
 ##--Flight 1 no UHSAS data, Flight 4 bad CPC data--##
 NETCARE_to_analyze = ["Flight2", "Flight3", "Flight5", "Flight6", 
                       'Flight7', 'Flight8', 'Flight9', 'Flight10']
-
-##--PAMARCMiP: Flights 1-9--##
-##--Flight 5 bad data--##
-PAMARCMiP_to_analyze = ["Flight1", "Flight2", "Flight3", "Flight6", 
-                      "Flight7", "Flight8", "Flight9"]
 
 ##--FIRE-ACE: Flights 1-18--##
 ##--Flights 1, 2, 4, 5, & 6 missing 1hz or 2min averaged data--##
@@ -311,169 +305,6 @@ for flight in NETCARE_to_analyze:
     ##--Place conditions in a separate df--##
     NETCARE_conditions_dfs.append(pd.DataFrame({'temperature': NETCARE_temperature, 
                 'pressure': NETCARE_pressure, 'latitude': NETCARE_latitude}, index=NETCARE_time))
-
-'''    
-##--Store processed data here: --##
-PAMARCMiP_nucleating_dfs = [] # will be EMPTY - no data
-PAMARCMiP_aitken_dfs = []
-PAMARCMiP_diameter_dfs = []
-PAMARCMiP_conditions_dfs = []
- 
-##--Loop through each flight, pulling and analyzing data--##
-for flight in PAMARCMiP_to_analyze:
-    ##--Follow which flight is processing--##
-    print(f"Processing {flight}...")
-    
-    ##--Pull file--##
-    PAMARCMiP_data = pd.read_csv(find_files(PAMARCMiP_directory, flight, ".csv")[0])
-    
-    #################
-    ##--Pull data--##
-    #################
-    
-    ##--Data--##
-    PAMARCMiP_altitude =  PAMARCMiP_data['Altitude'] # in m
-    PAMARCMiP_latitude =  PAMARCMiP_data['Latitude'] # in degrees
-    PAMARCMiP_temperature =  PAMARCMiP_data['Temp'] + 273.15 # in K
-    PAMARCMiP_pressure =  PAMARCMiP_data['Pressure'] # in pa
-    PAMARCMiP_time =  PAMARCMiP_data['Time'] # seconds since midnight
-    
-    ##--The first datapoint in 'latitude' column is erraneous (47.12 N)--##
-    ##--Constrain latitude to the Arctic region--##
-    PAMARCMiP_latitude =  PAMARCMiP_latitude.where( PAMARCMiP_latitude >= 66.5, np.nan)
-    
-    ##--USHAS Data--##
-    PAMARCMiP_UHSAS_total_num =  PAMARCMiP_data['UH-TotConc'] # particles/cm^3
-    
-    ##--10 nm CPC data--##
-    PAMARCMiP_CPC10_conc = PAMARCMiP_data['CPC10'] # count/cm^3
-    
-    ##--Put column names and content in a dictionary and then convert to a Pandas df--##
-    UHSAS_bins = pd.DataFrame({col: PAMARCMiP_data[col] for col in UHSAS_bin_num})
-    
-    ##--Create new column names by rounding the bin center values to the nearest integer--##
-    UHSAS_new_col_names = UHSAS_bin_center.round().astype(int).tolist()
-    
-    ##--Rename the UHSAS_bins df columns to bin average values--##
-    UHSAS_bins.columns = UHSAS_new_col_names
-    
-    ##--REMOVE OUTLIERS above 99th percentile--##
-    p = 0.99
-    
-    ##--Compute threshold for each UHSAS column--##
-    PAMARCMiP_UHSAS_thresh = UHSAS_bins.quantile(p)
-    
-    ##--keep only rows where each bin is below its threshold--##
-    PAMARCMiP_UHSAS_bins_filtered = UHSAS_bins[UHSAS_bins.le(
-        PAMARCMiP_UHSAS_thresh, axis=1)]
-    
-    PAMARCMiP_CPC10_thresh = PAMARCMiP_CPC10_conc.quantile(p)
-    PAMARCMiP_CPC10_filtered = PAMARCMiP_CPC10_conc[PAMARCMiP_CPC10_conc 
-        <= PAMARCMiP_CPC10_thresh]
-    
-    ###############################
-    ##--De-Normalize UHSAS Data--##
-    ###############################
-    
-    ##--For total count calculation--##
-    
-    ##--Calculate dlogDp for UHSAS bins--##
-    UHSAS_dlogDp = np.log(UHSAS_upper_bound.values) - np.log(UHSAS_lower_bound.values)
-    
-    ##--Get only particle count data (excluding 'Time')--##
-    UHSAS_particle_counts = UHSAS_bins.loc[:, UHSAS_new_col_names]  
-    
-    ##--De-Normalize counts by multiplying by dlogDp across all rows--##
-    UHSAS_denorm_counts = UHSAS_particle_counts.multiply(UHSAS_dlogDp, axis=1)
-
-    #####################
-    ##--Calc N(10-60)--##
-    #####################
-    
-    ##--Create df with UHSAS total counts--##
-    PAMARCMiP_UHSAS_total = pd.DataFrame({'Time': PAMARCMiP_time, 
-                                'Total_count': PAMARCMiP_UHSAS_total_num})
-    
-    ##--Create df with CPC10 counts and set index to time--##
-    PAMARCMiP_CPC10_counts = pd.DataFrame({'Time':PAMARCMiP_time, 
-                                 'Counts':PAMARCMiP_CPC10_filtered})
-    
-    ##--Calculate particles below UHSAS lower cutoff--##
-    PAMARCMiP_n_10_60 = (PAMARCMiP_CPC10_counts['Counts'] - 
-               PAMARCMiP_UHSAS_total['Total_count'])
-    
-    ##--Change calculated particle counts less than zero to NaN--##
-    PAMARCMiP_n_10_60 = np.where(PAMARCMiP_n_10_60 >= 0, PAMARCMiP_n_10_60, np.nan)
-    
-    ##--Put N(10-60) bin center in a df--##
-    PAMARCMiP_n_10_60_center = pd.DataFrame([35])
-    
-    ##--Flatten--##
-    PAMARCMiP_n_10_60_center = pd.Series(PAMARCMiP_n_10_60_center.values.flatten())
-    
-    ##--Convert n_10_60 to a df--##
-    PAMARCMiP_n_10_60_df = pd.DataFrame({'35': PAMARCMiP_n_10_60, 
-                                         'time':PAMARCMiP_time})
-    
-    ##--Calculate potential temperature--##
-    PAMARCMiP_ptemp = calc_ptemp(PAMARCMiP_temperature, PAMARCMiP_pressure)
-              
-    ##--Append Nucleating and Aitken lists with dataframes--##
-    PAMARCMiP_nucleating_df = pd.DataFrame({'nucleating': np.full(len(PAMARCMiP_time), 
-                                                        np.nan),
-                              'latitude': PAMARCMiP_latitude, 
-                              'PTemp': PAMARCMiP_ptemp, 
-                              'time': PAMARCMiP_time}).set_index(PAMARCMiP_time)
-    
-    ##--Append list outside of loop with nucleating dfs--##
-    PAMARCMiP_nucleating_dfs.append(PAMARCMiP_nucleating_df)
-    
-    ##--Convert aitken mode data to dataframe--##
-    PAMARCMiP_aitken_df = pd.DataFrame({'aitken': PAMARCMiP_n_10_60_df['35'],
-                              'latitude': PAMARCMiP_latitude, 
-                              'PTemp': PAMARCMiP_ptemp, 
-                              'time': PAMARCMiP_time}).set_index(PAMARCMiP_time)
-    
-    ##--Append list of dataframes with PAMARCMiP aitken data--##
-    PAMARCMiP_aitken_dfs.append(PAMARCMiP_aitken_df)
-    
-    ###########################
-    ##--Wrangle binned data--##
-    ###########################
-    
-    ##--Concatenate bin edges--##
-    PAMARCMiP_combined_bin_edges = np.concatenate([
-        [10],       # lower edge of N(10-60)
-        [60],       # upper edge of N(10-60), also lower of next
-        UHSAS_upper_bound.values,  # UHSAS bins continue from 60
-    ])
-    
-    ##--Concatenate bin centers and reindex--##
-    PAMARCMiP_bin_centers = pd.concat([PAMARCMiP_n_10_60_center, UHSAS_bin_center], 
-                            axis=0).reset_index(drop=True)
-    
-    ##--Place all binned data in a single df--##
-    PAMARCMiP_all_bins_aligned = pd.concat([PAMARCMiP_n_10_60_df['35'], 
-                                            PAMARCMiP_UHSAS_bins_filtered], axis=1)
-    
-    ##--Sum across all particle counts to get total--##
-    PAMARCMiP_total_particle_count = PAMARCMiP_all_bins_aligned.sum(axis=1, 
-                                                        numeric_only=True) 
-    
-    ##--Create a dictionary to store each column as a separate dataframe, col names are keys--##
-    PAMARCMiP_diameter_df = {col: pd.DataFrame({col: 
-        PAMARCMiP_all_bins_aligned[col]}) for col in 
-        PAMARCMiP_all_bins_aligned.columns}
-    
-    ##--Append list of diameter dataframes for PAMARCMiP--##
-    PAMARCMiP_diameter_dfs.append(PAMARCMiP_diameter_df)
-    
-    ##--Append list of conditions--##
-    ##--Place conditions in a separate df--##
-    PAMARCMiP_conditions_dfs.append(pd.DataFrame({'temperature': PAMARCMiP_temperature, 
-                            'pressure': PAMARCMiP_pressure, 
-                            'latitude': PAMARCMiP_latitude}))
-'''
     
 FIREACE_nucleating_dfs = []
 FIREACE_aitken_dfs = []
