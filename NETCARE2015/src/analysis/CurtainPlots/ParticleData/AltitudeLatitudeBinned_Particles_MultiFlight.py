@@ -285,7 +285,7 @@ grow_bin_medians, _, _, _ = binned_statistic_2d(all_latitudes_grow, all_altitude
 ##--PLOTTING--##
 ################
  
-def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, output_path):
+def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label):
     fig, ax = plt.subplots(figsize=(8, 6))
  
     ##--Make special color map where 0 values are white--##
@@ -308,29 +308,25 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label, o
     #ax.set_xlim(79.5, 83.7)
  
     ##--Save the plot--##
-    plt.savefig(output_path, dpi=600, bbox_inches="tight")
+    #plt.savefig(output_path, dpi=600, bbox_inches="tight")
     plt.tight_layout()
     plt.show()
  
 ##--Plot for CPC3--##
 plot_curtain(CPC3_bin_medians, lat_bin_edges_CPC3, alt_bin_edges_CPC3, vmin=0, vmax=2250,
-    title="Particles >2.5 nm Abundance", cbar_label="Particles >2.5 nm $(Counts/cm^{3})$",
-    output_path=f"{output_path}\\CPC3/AltitudeLatitude/MultiFlights.png")
+    title="Particles >2.5 nm Abundance", cbar_label="Particles >2.5 nm $(Counts/cm^{3})$")
 
 ##--Plot for CPC10--##
 plot_curtain(CPC10_bin_medians, lat_bin_edges_CPC10, alt_bin_edges_CPC10, vmin=0, vmax=2000,
-    title="Particles >10 nm Abundance", cbar_label="Particles >10 nm $(Counts/cm^{3})$",
-    output_path=f"{output_path}\\CPC10/AltitudeLatitude/MultiFlights.png")
+    title="Particles >10 nm Abundance", cbar_label="Particles >10 nm $(Counts/cm^{3})$")
  
 ##--Plot for nucleating particles--##
 plot_curtain(nuc_bin_medians, lat_bin_edges_nuc, alt_bin_edges_nuc, vmin=0, vmax=1100,
-    title="2.5-10 nm Particle Abundance", cbar_label="2.5-10 nm Particles $(Counts/cm^{3})$",
-    output_path=f"{output_path}\\Nucleating/AltitudeLatitude/MultiFlights.png")
+    title="2.5-10 nm Particle Abundance", cbar_label="2.5-10 nm Particles $(Counts/cm^{3})$")
 
 ##--Plot for N(10-89)--##
 plot_curtain(grow_bin_medians, lat_bin_edges_grow, alt_bin_edges_grow, vmin=0, vmax=1100,
-    title="10-89 nm Particle Abundance", cbar_label="10-89 nm Particles $(Counts/cm^{3})$",
-    output_path=f"{output_path}\\N_10_89/AltitudeLatitude/MultiFlights.png")
+    title="10-89 nm Particle Abundance", cbar_label="10-89 nm Particles $(Counts/cm^{3})$")
 
 ########################
 ##--Diagnostic Plots--##
@@ -357,7 +353,7 @@ grow_bin_counts, _, _, _ = binned_statistic_2d(all_latitudes_grow, all_altitudes
 
 ##--Plotting--##
 
-def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label, output_path):
+def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label):
     fig, ax = plt.subplots(figsize=(8, 6))
  
     ##--Set NaN values to white--##
@@ -380,28 +376,24 @@ def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label, ou
     #ax.set_xlim(79.5, 83.7)
  
     ##--Save the plot--##
-    plt.savefig(output_path, dpi=600, bbox_inches="tight")
+    #plt.savefig(output_path, dpi=600, bbox_inches="tight")
     plt.tight_layout()
     plt.show()
  
 ##--Plot for CPC3 counts--##
 plot_curtain(CPC3_bin_counts, lat_bin_edges_CPC3, alt_bin_edges_CPC3, vmin=1, vmax=6000, 
-    title="Particles >2.5 nm Data Point Counts", cbar_label="Number of Data Points",
-    output_path=f"{output_path}\\CPC3/AltitudeLatitude/MultiFlights_diagnostic.png")
+    title="Particles >2.5 nm Data Point Counts", cbar_label="Number of Data Points")
  
 ##--Plot for CPC10 counts--##
 plot_curtain(CPC10_bin_counts, lat_bin_edges_CPC10, alt_bin_edges_CPC10, vmin=1, vmax=7500,  
-    title="Particles >10 nm Data Point Counts", cbar_label="Number of Data Points",
-    output_path=f"{output_path}\\CPC10/AltitudeLatitude/MultiFlights_diagnostic.png")
+    title="Particles >10 nm Data Point Counts", cbar_label="Number of Data Points")
  
 ##--Plot for N3-10 counts--##
 plot_curtain(nuc_bin_counts, lat_bin_edges_nuc, alt_bin_edges_nuc, vmin=1, vmax=3500,  
-    title="2.5-10 nm Data Point Counts", cbar_label="Number of Data Points",
-    output_path=f"{output_path}\\Nucleating/AltitudeLatitude/MultiFlights_diagnostic.png")
+    title="2.5-10 nm Data Point Counts", cbar_label="Number of Data Points")
 
 ##--Plot for N10-89 counts--##
 plot_curtain(grow_bin_counts, lat_bin_edges_grow, alt_bin_edges_grow, vmin=1, vmax=3500,  
-    title="10-89 nm Data Point Counts", cbar_label="Number of Data Points",
-    output_path=f"{output_path}\\N_10_89/AltitudeLatitude/MultiFlights_diagnostic.png")
+    title="10-89 nm Data Point Counts", cbar_label="Number of Data Points")
 
 #'''

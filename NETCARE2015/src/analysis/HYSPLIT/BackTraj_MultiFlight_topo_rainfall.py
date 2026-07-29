@@ -38,14 +38,15 @@ hysplit = r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\raw\HYSPLIT\da
 ##--Choose which flights to analyze here!--##
 ##--FLIGHT1 HAS NO USHAS FILE--##
 
-high_lat = ["Flight2", "Flight3", "Flight4", "Flight5", "Flight6", "Flight7"]
+high_lat = ["Flight2", "Flight3", "Flight4", "Flight5", "Flight6", "Flight7", 
+            "Flight8", "Flight9", "Flight10"]
 low_lat = ["Flight8", "Flight9", "Flight10"]
 
 flights_to_analyze = high_lat
 
 ##--Decide whether to analyze above the polar dome--##
 
-above_dome = True
+above_dome = False
 
 ##--Base output path for figures in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\NETCARE2015\data\processed\ViolinPlots\Meteorological"
@@ -291,7 +292,7 @@ cmap2.set_under('none')
 for ax_map in [ax_map_sig, ax_map_nonsig]:
     ##--Set map bounds--##
     if flights_to_analyze == high_lat:
-        ax_map.set_extent([-140, 140, 40, 85], crs=ccrs.PlateCarree())
+        ax_map.set_extent([-180, 180, 30, 85], crs=ccrs.PlateCarree())
     elif flights_to_analyze == low_lat: 
         ax_map.set_extent([-180, 180, 20, 89], crs=ccrs.PlateCarree())
     
@@ -366,7 +367,7 @@ for flight in flights_to_analyze:
             ##--Condition: initialized traj must be above the marginal polar dome--##
             ##--Marginal dome boundary is 285 K--##
             if row.ptemp > 285:
-        
+                
                 ##--Determine which axis to use (NPF vs non-NPF)--##
                 is_significant = pd.notna(row.nuc_significant)
                 ax_map = ax_map_sig if is_significant else ax_map_nonsig
@@ -449,17 +450,19 @@ for flight in flights_to_analyze:
                                 transform=ccrs.PlateCarree(),
                                 c=color, lw=linewidth, alpha=alpha, zorder=zorder)
                     
-                    ax_temp.plot(time_rel[:index_end],
-                        group['ALTITUDE'].iloc[:index_end],
-                        c=color, lw=linewidth, alpha=alpha, zorder=zorder)
+                    if is_significant:
                     
-                    ax_RH.plot(time_rel[:index_end],
-                        group['ALTITUDE'].iloc[:index_end],
-                        c=color, lw=linewidth, alpha=alpha, zorder=zorder)
-                    
-                    ax_rain.plot(time_rel[:index_end],
-                        group['ALTITUDE'].iloc[:index_end],
-                        c=color, lw=linewidth, alpha=alpha, zorder=zorder)
+                        ax_temp_sig.plot(time_rel[:index_end],
+                            group['ALTITUDE'].iloc[:index_end],
+                            c=color, lw=0.75, alpha=alpha, zorder=zorder)
+                        
+                        ax_RH_sig.plot(time_rel[:index_end],
+                            group['ALTITUDE'].iloc[:index_end],
+                            c=color, lw=0.75, alpha=alpha, zorder=zorder)
+                        
+                        ax_rain_sig.plot(time_rel[:index_end],
+                            group['ALTITUDE'].iloc[:index_end],
+                            c=color, lw=0.75, alpha=alpha, zorder=zorder)
                     
                     if is_significant:
                         lats_sig.extend(lat)
@@ -480,8 +483,9 @@ for flight in flights_to_analyze:
                         rain_nonsig.extend(rain)
                         masl_nonsig.extend(masl)
         else: 
+            ##--Further filter significant times to those above 75th--##
             ##--Determine which axis to use (NPF vs non-NPF)--##
-            is_significant = pd.notna(row.nuc_significant)
+            is_significant = pd.notna(row.nuc_significant) and (row.nuc_significant > 630)
             ax_map = ax_map_sig if is_significant else ax_map_nonsig
             ax_temp = ax_temp_sig if is_significant else ax_temp_nonsig
             ax_RH = ax_RH_sig if is_significant else ax_RH_nonsig
@@ -515,6 +519,9 @@ for flight in flights_to_analyze:
                 temps = group['AIR_TEMP'].tolist() 
                 RHs = group['RELHUMID'].values
                 rain = group['RAINFALL'].values
+                
+                ##--Calculate meters above sea level from elev and terrain height--##
+                masl = group['ALTITUDE'].values + group['TERR_MSL'].values
                 
                 ##--Compute relative time in days (backward from initialization)--##
                 t0 = group['DateTime'].iloc[-1]
@@ -559,18 +566,19 @@ for flight in flights_to_analyze:
                             transform=ccrs.PlateCarree(),
                             c=color, lw=linewidth, alpha=alpha, zorder=zorder)
                 
-                ax_temp.plot(time_rel[:index_end],
-                    group['ALTITUDE'].iloc[:index_end],
-                    c=color, lw=linewidth, alpha=alpha, zorder=zorder)
+                if is_significant:
                 
-                ax_RH.plot(time_rel[:index_end],
-                    group['ALTITUDE'].iloc[:index_end],
-                    c=color, lw=linewidth, alpha=alpha, zorder=zorder)
-                
-                ax_rain.plot(time_rel[:index_end],
-                    group['ALTITUDE'].iloc[:index_end],
-                    c=color, lw=linewidth, alpha=alpha, zorder=zorder)
-                
+                    ax_temp_sig.plot(time_rel[:index_end],
+                        group['ALTITUDE'].iloc[:index_end],
+                        c=color, lw=0.75, alpha=alpha, zorder=zorder)
+                    
+                    ax_RH_sig.plot(time_rel[:index_end],
+                        group['ALTITUDE'].iloc[:index_end],
+                        c=color, lw=0.75, alpha=alpha, zorder=zorder)
+                    
+                    ax_rain_sig.plot(time_rel[:index_end],
+                        group['ALTITUDE'].iloc[:index_end],
+                        c=color, lw=0.75, alpha=alpha, zorder=zorder)
                 if is_significant:
                     lats_sig.extend(lat)
                     lons_sig.extend(lon)
@@ -588,7 +596,7 @@ for flight in flights_to_analyze:
                     temp_nonsig.extend(temps)
                     RH_nonsig.extend(RHs)
                     rain_nonsig.extend(rain)
-                    masl_sig.extend(masl)
+                    masl_nonsig.extend(masl)
             
 ############################################
 ##--Map: Convex Hull around trajectories--##
@@ -618,7 +626,7 @@ sin_edges = np.linspace(np.sin(np.deg2rad(lat_min)),
                         num_r + 1)
 lat_edges = np.rad2deg(np.arcsin(sin_edges))
 
-##--Filter to below 500 m.a.g.l--##
+##--Filter to below 500 m.a.s.l--##
 mask_sig = np.array(masl_sig) < 500
 mask_nonsig = np.array(masl_nonsig) < 500
 
@@ -968,10 +976,10 @@ cbar4.set_label('Rainfall (mm/hr)', size=14)
 cbar4.ax.tick_params(labelsize=14)
 
 ##--Add text labels to each set of plots--##
-ax_map_sig.text(0.50, 0.91, 'Nanophytoplankton', horizontalalignment='center', 
-         verticalalignment='center', transform=ax_map_sig.transAxes, fontsize=18,
-         bbox=dict(boxstyle="round, pad=0.5", fc="white", ec='none', lw=1, alpha=0.75,
-                   zorder=10))
+#ax_map_sig.text(0.50, 0.91, 'Nanophytoplankton', horizontalalignment='center', 
+#         verticalalignment='center', transform=ax_map_sig.transAxes, fontsize=18,
+#         bbox=dict(boxstyle="round, pad=0.5", fc="white", ec='none', lw=1, alpha=0.75,
+#                   zorder=10))
 ax_temp_sig.text(0.78, 1.1, 'Temperature', horizontalalignment='center', 
          verticalalignment='center', transform=ax_temp_sig.transAxes, fontsize=18,
          zorder=10)

@@ -50,6 +50,7 @@ O3_dfs = []
 CO_dfs = []
 CO2_dfs = []
 CO_CO2_dfs = []
+aircraft_speeds = []
  
 ##--Loop through each flight, pulling and analyzing data--##
 for flight in flights_to_analyze:
@@ -108,6 +109,9 @@ for flight in flights_to_analyze:
     aimms_time =aimms.data['TimeWave'] # in seconds since midnight
     temperature = aimms.data['Temp']
     pressure = aimms.data['BP'] #in pa
+    aircraft_speed = aimms.data['TAS'] #m/s
+    
+    aircraft_speeds.append(aircraft_speed)
 
     ##--O3 data--##
     ##--Put O3 data in list to make concatenation easier--##
@@ -199,6 +203,14 @@ for flight in flights_to_analyze:
 ###########################
 ##--Prepare for Binning--##
 ###########################
+
+##--Calc aircraft speed--##
+TAS = np.concatenate(aircraft_speeds)
+
+##--Drop nans--##
+TAS = TAS[~np.isnan(TAS)]
+
+print(np.median(TAS))
  
 ##--Binning for O3 data--##
 all_latitudes_O3 = np.concatenate([df["Latitude"].values for df in O3_dfs])
@@ -307,13 +319,13 @@ plot_curtain(CO_bin_medians, lat_bin_edges_CO, ptemp_bin_edges_CO, vmin=110, vma
     title="CO Mixing Ratio", cbar_label="CO ppbv",
     output_path=r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude\CO_MultiFlights.png")
 
-##--Plot for RH wrt Ice--##
+##--Plot for CO2--##
 plot_curtain(CO2_bin_medians, lat_bin_edges_CO2, ptemp_bin_edges_CO2, vmin=400, vmax=410,
     title="CO\u2082 Mixing Ratio", cbar_label="CO\u2082 ppmv",
     output_path=r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude\CO2_MultiFlights.png")
 
-##--Plot for RH wrt Ice--##
-plot_curtain(CO_CO2_bin_medians, lat_bin_edges_CO_CO2, ptemp_bin_edges_CO_CO2, vmin=0, vmax=1,
+##--Plot for CO/CO2--##
+plot_curtain(CO_CO2_bin_medians, lat_bin_edges_CO_CO2, ptemp_bin_edges_CO_CO2, vmin=0.25, vmax=0.5,
     title="CO/CO\u2082 Mixing Ratio", cbar_label="CO/CO\u2082 ppmv",
     output_path=r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude\CO_CO2_MultiFlights.png")
 
@@ -388,7 +400,7 @@ plot_curtain(O3_bin_counts, lat_bin_edges_O3, ptemp_bin_edges_O3, vmin=1, vmax=5
     title="O\u2083 Data Point Counts", cbar_label="Number of Data Points",
     output_path=r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude\O3_MultiFlights_diagnostic.png")
  
-##--Plot for CPC10 counts--##
+##--Plot for CO counts--##
 plot_curtain(CO_bin_counts, lat_bin_edges_CO, ptemp_bin_edges_CO, vmin=1, vmax=6000,  
     title="CO Data Point Counts", cbar_label="Number of Data Points",
     output_path=r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\TraceGas\PTempLatitude\CO_MultiFlights_diagnostic.png")
@@ -397,5 +409,8 @@ plot_curtain(CO_bin_counts, lat_bin_edges_CO, ptemp_bin_edges_CO, vmin=1, vmax=6
 plot_curtain(CO2_bin_counts, lat_bin_edges_CO2, ptemp_bin_edges_CO2, vmin=1, vmax=6000,  
     title="CO\u2082 Data Point Counts", cbar_label="Number of Data Points",
     output_path=r"C:\Users\repooley\REP_PhD\Arctic_NPF\NETCARE2015\data\processed\CurtainPlots\Nucleating\PTempLatitude\CO2_MultiFlights_diagnostic.png")
+
+##--Plot for CO/CO2 ratio--##
+
 
 #'''
