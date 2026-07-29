@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Sep 29 13:30:20 2025
+Created on Thu Jan 22 15:33:09 2026
 
 @author: repooley
 """
@@ -12,6 +12,7 @@ import pandas as pd
 import matplotlib.pyplot as plt 
 import matplotlib.ticker as ticker
 from scipy.stats import binned_statistic_2d
+import cmcrameri as cm
 
 ###################
 ##--User inputs--##
@@ -28,11 +29,11 @@ flights_to_analyze = ["Flight3",
 ##--Set binning for PTemp and Latitude--##
 ##--Define number of bins here--##
 num_bins_lat = 4
-num_bins_ptemp = 8
+num_bins_alt = 8
 
 ##--Separate bin numbers for the averaged data--##
 num_bins_lat_averaged = 6
-num_bins_ptemp_averaged = 6
+num_bins_alt_averaged = 6
 
 PCASP_bins_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\FIREACE1998\data\raw\FIREACE1998_PCASP_bins.csv"
 
@@ -87,7 +88,7 @@ for flight in flights_to_analyze:
     temperature = data['Temperature'] + 273.15 # in K
     RH = data['RH'] # percent wrt water
     altitude = data['Altitude'] # in m (agl?)
-    latitude = data['Latitude'] # degrees
+    latitude = data['Latitude'] # degrees, there are some stray negative values...
     longitude = data['Longitude'] # degrees
 
     ##--Particle data, 3 and 10 nm cutoffs, respectively--##
@@ -160,7 +161,7 @@ for flight in flights_to_analyze:
             CPC10_conc_STP.append(CPC10_conversion)
 
     ##--Creates a Pandas dataframe for particle data--##
-    df = pd.DataFrame({'Altitude': altitude, 'Latitude': latitude, 
+    df = pd.DataFrame({'Altitude': altitude, 'Latitude': latitude, 'Longitude':longitude, 
                        'CPC3_conc':CPC3_conc_STP, 'CPC10_conc': CPC10_conc_STP})
 
     ##--Calculate N3-10 particles--##
@@ -288,41 +289,13 @@ for flight in flights_to_analyze:
     df_averaged['Total_particles_STP'] = (df_averaged['n_3_10_STP'].fillna(0) + 
     df_averaged['n_10_130'].fillna(0) + df_averaged['Total_count'].fillna(0))
     
-    #######################################
-    ##--Calculate potential temperature--##
-    #######################################
-
-    ##--Constants--##
-    p_0 = 1E5 # Reference pressure in Pa (1000 hPa)
-    k = 0.286 # Poisson constant for dry air
-
-    ##--Generate empty list for potential temperature output--##
-    potential_temp = []
-    potential_temp_averaged = []
-
-    ##--Calculate potential temperature from ambient temp & pressure--##
-    for T, P in zip(temperature, pressure):
-        p_t = T*(p_0/P)**k
-        potential_temp.append(p_t)
+    ##--Drop rows where Latitude is NaN--##
+    df = df.dropna(subset=['Latitude'])
+    df_averaged = df_averaged.dropna(subset=['Latitude'])
     
-    ##--Separate calculation for the averaged data--##
-    for T, P in zip(averaged_data['Temperature']+273.15, averaged_data['Pressure']*100):
-        p_t = T*(p_0/P)**k
-        potential_temp_averaged.append(p_t)
-
-    df['ptemp'] = potential_temp
-    
-    df_averaged['PTemp'] = potential_temp_averaged
-    
-    ##--Drop rows where Latitude or ptemp are NaN--##
-    df = df.dropna(subset=['Latitude', 'ptemp'])
-    df_averaged = df_averaged.dropna(subset=['Latitude', 'PTemp'])
-    
-    ##--Drop rows where Latitude or ptemp are negative--##
-    df = df[(df['Latitude'] >= 0) & (df['ptemp'] >= 0)]
-    df_averaged = df_averaged[(df_averaged['Latitude'] >= 0) & (df_averaged['PTemp'] >= 0)]
-    
-    print(df.describe())
+    ##--Drop rows where Latitude is negative--##
+    df = df[(df['Latitude'] >= 0)]
+    df_averaged = df_averaged[(df_averaged['Latitude'] >= 0)]
     
     particle_dfs.append(df)
     
@@ -334,69 +307,68 @@ for flight in flights_to_analyze:
 
 ##--Compute global min/max for all flights (non-averaged) --##
 all_lats = np.concatenate([df["Latitude"].values for df in particle_dfs])
-all_ptemps = np.concatenate([df["ptemp"].values for df in particle_dfs])
+all_alts = np.concatenate([df["Altitude"].values for df in particle_dfs])
 
-##--Set campaign-universal lat min and max--##
 lat_min, lat_max = np.nanmin(all_lats), np.nanmax(all_lats)
-ptemp_min, ptemp_max = np.nanmin(all_ptemps), np.nanmax(all_ptemps)
+alt_min, alt_max = np.nanmin(all_alts), np.nanmax(all_alts)
 
 ##--Common binning edges--##
 common_lat_bin_edges = np.linspace(lat_min, lat_max, num_bins_lat + 1)
-common_ptemp_bin_edges = np.linspace(ptemp_min, ptemp_max, num_bins_ptemp + 1)
+common_alt_bin_edges = np.linspace(alt_min, alt_max, num_bins_alt + 1)
 
 ##--Binning for CPC3 data--##
 all_latitudes_CPC3 = np.concatenate([df["Latitude"].values for df in particle_dfs])
-all_ptemps_CPC3 = np.concatenate([df["ptemp"].values for df in particle_dfs])
+all_alts_CPC3 = np.concatenate([df["Altitude"].values for df in particle_dfs])
 all_CPC3_concs = np.concatenate([df["CPC3_conc"].values for df in particle_dfs])
 
 CPC3_bin_medians, _, _, _ = binned_statistic_2d(
-    all_latitudes_CPC3, all_ptemps_CPC3, all_CPC3_concs,
-    statistic="median", bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+    all_latitudes_CPC3, all_alts_CPC3, all_CPC3_concs,
+    statistic="median", bins=[common_lat_bin_edges, common_alt_bin_edges])
 
 ##--Binning for CPC10 data--##
 all_latitudes_CPC10 = np.concatenate([df["Latitude"].values for df in particle_dfs])
-all_ptemps_CPC10 = np.concatenate([df["ptemp"].values for df in particle_dfs])
+all_alts_CPC10 = np.concatenate([df["Altitude"].values for df in particle_dfs])
 all_CPC10_concs = np.concatenate([df["CPC10_conc"].values for df in particle_dfs])
 
 CPC10_bin_medians, _, _, _ = binned_statistic_2d(
-    all_latitudes_CPC10, all_ptemps_CPC10, all_CPC10_concs,
-    statistic="median", bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+    all_latitudes_CPC10, all_alts_CPC10, all_CPC10_concs,
+    statistic="median", bins=[common_lat_bin_edges, common_alt_bin_edges])
 
 ##--Binning for nucleating particle data (non-averaged) --##
 all_latitudes_nuc = np.concatenate([df["Latitude"].values for df in particle_dfs])
-all_ptemps_nuc = np.concatenate([df["ptemp"].values for df in particle_dfs])
+all_alts_nuc = np.concatenate([df["Altitude"].values for df in particle_dfs])
 all_nuc_particles = np.concatenate([df["nuc_particles"].values for df in particle_dfs])
 
 nuc_bin_medians, _, _, _ = binned_statistic_2d(
-    all_latitudes_nuc, all_ptemps_nuc, all_nuc_particles,
-    statistic="median", bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+    all_latitudes_nuc, all_alts_nuc, all_nuc_particles,
+    statistic="median", bins=[common_lat_bin_edges, common_alt_bin_edges])
 
 ##--Binning for averaged nucleating particle data --##
 all_latitudes_nuc_averaged = np.concatenate([df["Latitude"].values for df in averaged_dfs])
-all_ptemps_nuc_averaged = np.concatenate([df["PTemp"].values for df in averaged_dfs])
+all_alts_nuc_averaged = np.concatenate([df["Altitude"].values for df in averaged_dfs])
 all_nuc_particles_averaged = np.concatenate([df["n_3_10_STP"].values for df in averaged_dfs])
 
 nuc_bin_medians_averaged, _, _, _ = binned_statistic_2d(
-    all_latitudes_nuc_averaged, all_ptemps_nuc_averaged, all_nuc_particles_averaged,
-    statistic="median", bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+    all_latitudes_nuc_averaged, all_alts_nuc_averaged, all_nuc_particles_averaged,
+    statistic="median", bins=[common_lat_bin_edges, common_alt_bin_edges])
 
 ##--Binning for averaged data: n 10-130 --##
 all_latitudes_n_10_130 = np.concatenate([df["Latitude"].values for df in averaged_dfs])
-all_ptemps_n_10_130 = np.concatenate([df["PTemp"].values for df in averaged_dfs])
+all_alts_n_10_130 = np.concatenate([df["Altitude"].values for df in averaged_dfs])
 all_n_10_130 = np.concatenate([df["n_10_130"].values for df in averaged_dfs])
 
 n_10_130_bin_medians, _, _, _ = binned_statistic_2d(
-    all_latitudes_n_10_130, all_ptemps_n_10_130, all_n_10_130,
-    statistic="median", bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+    all_latitudes_n_10_130, all_alts_n_10_130, all_n_10_130,
+    statistic="median", bins=[common_lat_bin_edges, common_alt_bin_edges])
 
 ##--Binning for averaged data: total count --##
 all_latitudes_total = np.concatenate([df["Latitude"].values for df in averaged_dfs])
-all_ptemps_total = np.concatenate([df["PTemp"].values for df in averaged_dfs])
+all_alts_total = np.concatenate([df["Altitude"].values for df in averaged_dfs])
 all_total = np.concatenate([df['Total_particles_STP'].values for df in averaged_dfs])
 
 total_bin_medians, _, _, _ = binned_statistic_2d(
-    all_latitudes_total, all_ptemps_total, all_total,
-    statistic="median", bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+    all_latitudes_total, all_alts_total, all_total,
+    statistic="median", bins=[common_lat_bin_edges, common_alt_bin_edges])
 
 cmap = plt.get_cmap('viridis')
 
@@ -422,13 +394,13 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label): 
 
     ##--Set axis labels and title--##
     ax.set_xlabel("Latitude (°)", fontsize=18)
-    ax.set_ylabel("Potential Temperature \u0398 (K)", fontsize=18)
+    ax.set_ylabel("Altitude (m)", fontsize=18)
     ax.tick_params(axis='both', labelsize=18)
     ax.set_title(title, fontsize=20)
-    ax.set_ylim(238, 316)
+    ax.set_ylim(1, 7100)
     ax.set_xlim(64, 86)
     ax.xaxis.set_major_locator(ticker.MultipleLocator(5))
-    ax.yaxis.set_major_locator(ticker.MultipleLocator(10))
+    #ax.yaxis.set_major_locator(ticker.MultipleLocator(10))
  
     ##--Save the plot--##
     #plt.savefig(output_path, dpi=600, bbox_inches="tight")
@@ -436,29 +408,27 @@ def plot_curtain(bin_medians, x_edges, y_edges, vmin, vmax, title, cbar_label): 
     plt.show()
  
 ##--Plot for CPC3--##
-plot_curtain(CPC3_bin_medians, common_lat_bin_edges, common_ptemp_bin_edges, vmin=1, vmax=2000,
+plot_curtain(CPC3_bin_medians, common_lat_bin_edges, common_alt_bin_edges, vmin=1, vmax=2000,
     title="Particles >2.5 nm Abundance", cbar_label="Particles >2.5 nm $(Counts/cm^{3})$")
     #output_path=f"{output_path}\\CPC3/PTempLatitude/MultiFlights.png")
 
 ##--Plot for CPC10--##
-plot_curtain(CPC10_bin_medians, common_lat_bin_edges, common_ptemp_bin_edges, vmin=1, vmax=2000,
+plot_curtain(CPC10_bin_medians, common_lat_bin_edges, common_alt_bin_edges, vmin=1, vmax=2000,
     title="Particles >10 nm Abundance", cbar_label="Particles >10 nm $(Counts/cm^{3})$")
     #output_path=f"{output_path}\\CPC10/PTempLatitude/MultiFlights.png")
-
+ 
 ##--Plot for nucleating particles--##
-plot_curtain(nuc_bin_medians, common_lat_bin_edges, common_ptemp_bin_edges, vmin=0, vmax=1000,
+plot_curtain(nuc_bin_medians, common_lat_bin_edges, common_alt_bin_edges, vmin=0, vmax=1000,
     title="2.5-10 nm Particle Abundance", cbar_label="2.5-10 nm Particles $(Counts/cm^{3})$")
     #output_path=f"{output_path}\\Nucleating/PTempLatitude/MultiFlights.png")
 
 ##--Plot for n_10_130--##
-plot_curtain(n_10_130_bin_medians, common_lat_bin_edges, common_ptemp_bin_edges, vmin=1, vmax=2000,
+plot_curtain(n_10_130_bin_medians, common_lat_bin_edges, common_alt_bin_edges, vmin=1, vmax=2000,
     title='10-130 nm Particle Abundance', cbar_label='10-130 nm Particles $(Counts/cm^{3})$')
 
 ##--Plot for total count--##
-plot_curtain(total_bin_medians, common_lat_bin_edges, common_ptemp_bin_edges, vmin=1, vmax=2000,
+plot_curtain(total_bin_medians, common_lat_bin_edges, common_alt_bin_edges, vmin=1, vmax=2000,
     title='Total Particle Abundance', cbar_label='All Particles $(Counts/cm^{3})$')
-
-
 
 ########################
 ##--Diagnostic Plots--##
@@ -466,26 +436,25 @@ plot_curtain(total_bin_medians, common_lat_bin_edges, common_ptemp_bin_edges, vm
 
 ##--Remove hashtags below to comment out this section--##
 
-
 ##--Counts per bin for CPC3 data--##
-CPC3_bin_counts, _, _, _ = binned_statistic_2d(all_latitudes_CPC3, all_ptemps_CPC3, all_CPC3_concs,
-    statistic="count", bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+CPC3_bin_counts, _, _, _ = binned_statistic_2d(all_latitudes_CPC3, all_alts_CPC3, all_CPC3_concs,
+    statistic="count", bins=[common_lat_bin_edges, common_alt_bin_edges])
  
 ##--Counts per bin for CPC10 data--##
-CPC10_bin_counts, _, _, _ = binned_statistic_2d(all_latitudes_CPC10, all_ptemps_CPC10, all_CPC10_concs,
-    statistic="count", bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+CPC10_bin_counts, _, _, _ = binned_statistic_2d(all_latitudes_CPC10, all_alts_CPC10, all_CPC10_concs,
+    statistic="count", bins=[common_lat_bin_edges, common_alt_bin_edges])
  
 ##--Counts per bin for N3-10 particles--##
-nuc_bin_counts, _, _, _ = binned_statistic_2d(all_latitudes_nuc, all_ptemps_nuc, all_nuc_particles,
-    statistic="count", bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+nuc_bin_counts, _, _, _ = binned_statistic_2d(all_latitudes_nuc, all_alts_nuc, all_nuc_particles,
+    statistic="count", bins=[common_lat_bin_edges, common_alt_bin_edges])
 
 ##--Counts per bin for N10-89 particles--##
-n_10_130_bin_counts, _, _, _ = binned_statistic_2d(all_latitudes_n_10_130, all_ptemps_n_10_130, all_n_10_130,
-    statistic="count", bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+n_10_130_bin_counts, _, _, _ = binned_statistic_2d(all_latitudes_n_10_130, all_alts_n_10_130, all_n_10_130,
+    statistic="count", bins=[common_lat_bin_edges, common_alt_bin_edges])
 
 ##--Counts per bin for N10-89 particles--##
-total_bin_counts, _, _, _ = binned_statistic_2d(all_latitudes_total, all_ptemps_total, all_total,
-    statistic="count", bins=[common_lat_bin_edges, common_ptemp_bin_edges])
+total_bin_counts, _, _, _ = binned_statistic_2d(all_latitudes_total, all_alts_total, all_total,
+    statistic="count", bins=[common_lat_bin_edges, common_alt_bin_edges])
 
 ##--Plotting--##
 
@@ -508,10 +477,10 @@ def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label):
     
     ##--Set axis labels and title--##
     ax.set_xlabel("Latitude (°)", fontsize=18)
-    ax.set_ylabel("Potential Temperature Θ (K)", fontsize=18)
+    ax.set_ylabel("Altitude (m)", fontsize=18)
     ax.tick_params(axis='both', labelsize=18)
     ax.set_title(title, fontsize=20)
-    ax.set_ylim(238, 315)
+    #ax.set_ylim(238, 315)
     ax.set_xlim(65, 85)
  
     ##--Save the plot--##
@@ -520,26 +489,26 @@ def plot_curtain(bin_counts, x_edges, y_edges, vmin, vmax, title, cbar_label):
     plt.show()
  
 ##--Plot for CPC3 counts--##
-plot_curtain(CPC3_bin_counts, common_lat_bin_edges, common_ptemp_bin_edges, vmin=1, vmax=5500, 
+plot_curtain(CPC3_bin_counts, common_lat_bin_edges, common_alt_bin_edges, vmin=1, vmax=5500, 
     title="Particles >2.5 nm Data Point Counts", cbar_label="Number of Data Points")
     #output_path=f"{output_path}\\CPC3/PtempLatitude/MultiFlights_diagnostic.png")
  
 ##--Plot for CPC10 counts--##
-plot_curtain(CPC10_bin_counts, common_lat_bin_edges, common_ptemp_bin_edges, vmin=1, vmax=6000,  
+plot_curtain(CPC10_bin_counts, common_lat_bin_edges, common_alt_bin_edges, vmin=1, vmax=6000,  
     title="Particles >10 nm Data Point Counts", cbar_label="Number of Data Points")
     #output_path=f"{output_path}\\CPC10/PtempLatitude/MultiFlights_diagnostic.png")
  
 ##--Plot for N3-10 counts--##
-plot_curtain(nuc_bin_counts, common_lat_bin_edges, common_ptemp_bin_edges, vmin=1, vmax=4000,  
+plot_curtain(nuc_bin_counts, common_lat_bin_edges, common_alt_bin_edges, vmin=1, vmax=4000,  
     title="2.5-10 nm Data Point Counts", cbar_label="Number of Data Points")
     #output_path=f"{output_path}\\Nucleating/PtempLatitude/MultiFlights_diagnostic.png")
 
 ##--Plot for N10-130 counts--##
-plot_curtain(n_10_130_bin_counts, common_lat_bin_edges, common_ptemp_bin_edges, vmin=1, vmax=500,  
+plot_curtain(n_10_130_bin_counts, common_lat_bin_edges, common_alt_bin_edges, vmin=1, vmax=500,  
     title="10-130 nm Data Point Counts", cbar_label="Number of Data Points")
     #output_path=f"{output_path}\\N_10_89/PtempLatitude/MultiFlights_diagnostic.png")
 
 ##--Plot for total counts--##
-plot_curtain(total_bin_counts, common_lat_bin_edges, common_ptemp_bin_edges, vmin=1, vmax=500,  
+plot_curtain(total_bin_counts, common_lat_bin_edges, common_alt_bin_edges, vmin=1, vmax=500,  
     title="Total Count Data Point Counts", cbar_label="Number of Data Points")
     #output_path=f"{output_path}\\N_10_89/PtempLatitude/MultiFlights_diagnostic.png")
