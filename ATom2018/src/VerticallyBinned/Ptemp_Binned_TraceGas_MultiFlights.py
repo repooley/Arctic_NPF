@@ -59,7 +59,7 @@ for flight in flights_to_analyze:
     #################
     
     ##--AIMMS Data--##
-    altitude = dataset.data['G_ALT'] # in m (not sure if this is best one)
+    altitude = dataset.data['G_ALT'] # in m 
     temperature = dataset.data['T'] # in K
     pressure = dataset.data['P'] * 100 # in Pa
     RH = dataset.data['Relative_Humidity'] # wrt water, percent

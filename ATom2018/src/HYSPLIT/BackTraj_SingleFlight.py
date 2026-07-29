@@ -5,7 +5,7 @@ Created on Fri Feb 27 08:52:22 2026
 @author: repooley
 """
 
-
+import re
 import os
 import numpy as np
 import numpy.ma as ma
@@ -20,6 +20,7 @@ from scipy.spatial import ConvexHull
 from matplotlib.colors import LogNorm
 from datetime import date
 from pathlib import Path
+from datetime import datetime
 
 ###########################
 ##--Establish directory--##
@@ -34,7 +35,7 @@ root = script_path.parents[3]
 ##--Path to raw ATom data--##
 directory = root / "Arctic_NPF" / "ATom2018" / "data" / "raw" 
 
-HYSPLIT = directory / "HYSPLIT"
+HYSPLIT = directory / "HYSPLIT" 
 
 ATom = pd.read_csv(directory / "ATom.csv")
 
@@ -43,7 +44,7 @@ ATom = pd.read_csv(directory / "ATom.csv")
 ###########################################
 
 ##--Flights to analyze - flights 2, 10, 11, 12--##
-flights_to_analyze = ["Flight11"]
+flights_to_analyze = ["Flight2"]
 
 ##################
 ##--Pull Files--##
@@ -64,38 +65,25 @@ for flight in flights_to_analyze:
     
     ##--Flight-by-flight parameters--##
     if flight == "Flight2":
-        flight_date = date(1998, 4, 9)
+        flight_date = date(2018, 4, 27)
         map_extent = [-60, 180, 20, 90]
         hspace = 0.1
         htitle = 0.92
     elif flight == "Flight10":
-        flight_date = date(1998, 4, 21)
+        flight_date = date(2018, 5, 17)
         map_extent = [-180, 60, 30, 90]
         hspace = -0.15
         htitle=0.85
     elif flight == "Flight11":
-        flight_date = date(1998, 4, 21)
+        flight_date = date(2018, 5, 18)
         map_extent = [-180, 120, 30, 90]
         hspace = -0.15
         htitle=0.85
     elif flight == "Flight12":
-        flight_date = date(1998, 4, 22)
+        flight_date = date(2018, 5, 19)
         map_extent = [-180, 120, 30, 90]
         hspace = -0.15
         htitle=0.85    
-    
-    flight_directory = find_files(HYSPLIT, flight)
-    
-    ##--Get timestamps where trajectories were initialized--##
-    ##--Trajectories were initialized every 5 minutes from the Netcare file--##
-    single_flight = ATom[ATom['Flight_num'] == flight]
-    
-    start_utc = int(single_flight['Time_start'].min())
-    end_utc = int(single_flight['Time_start'].max())
-    UTCs = list(range(start_utc, end_utc +1, 15))
-    
-    ##--Subset FIREACE to times in UTCs--##
-    ATom_subset = single_flight[single_flight['Time_start'].isin(UTCs)]
     
     ##--Separate the axes from the figure object to apply different projections--##
     fig = plt.figure(figsize=(12, 10))
@@ -142,25 +130,79 @@ for flight in flights_to_analyze:
     p_sig, p_nonsig = [], []
     masl_sig, masl_nonsig = [], []
     
-    for i, (file, row) in enumerate(zip(sorted(os.listdir(flight_directory)), ATom_subset.itertuples(index=False))):
+    flight_directory = find_files(HYSPLIT, flight)
     
-        ##--Determine which axis to use (NPF vs non-NPF)--##
-        is_significant = pd.notna(row.nuc_significant)
+    ##--Get timestamps where trajectories were initialized--##
+    ##--Trajectories were initialized every 5 minutes from the Netcare file--##
+    ##--Subset to this flight only--##
+    flight_df = ATom[ATom['Flight_num'] == flight].copy()
+    
+    files = sorted([f for f in os.listdir(flight_directory) if f.endswith("_output.txt")])
+
+    flight_df = ATom[ATom['Flight_num'] == flight].copy()
+    flight_df['datetime'] = pd.to_datetime(flight_df['datetime'])
+    
+    for file in files:
+        
+        ##--Pull the values after the first separator (seconds since midnight--##)
+        sec_str = file.split('_')[1]
+        date_str = file[:8]
+        
+        ##--NEED to match the datetime instead to deal with dates past midnight--##
+        UTC = int(sec_str)
+        
+        date = datetime.strptime(date_str, "%Y%m%d")
+        
+        ##--Create a series of date times--##
+        flight_datetime = pd.to_datetime(UTC, unit='s', origin=date)
+        
+        match = flight_df.loc[flight_df['datetime'] == flight_datetime]
+
+        if match.empty:
+            print(f"No match for {UTC}")
+            continue
+        
+        row = match.iloc[0]
+        is_significant = pd.notna(row['nuc_significant'])
+        
+        ##--Determine significance--##
+        #is_significant = row['nuc_significant'].notna()
         ax_map = ax_map_sig if is_significant else ax_map_nonsig
         ax_time = ax_time_sig if is_significant else ax_time_nonsig
         
-        df = pd.read_csv(os.path.join(directory, "HYSPLIT", flight, file), sep=r'\s+')
+        ##--For some reason, some ATom HYSPLIT files are missing a header--##
+        ##--Assign the headers as follows: --##
+        columns = ["TRAJ", "MGRID", "YEAR", "MONTH", "DATE", "HOUR", "MIN",
+            "FOREH", "AGE", "LAT", "LONG", "ALTITUDE",
+            "PRESSURE", "THETA", "AIR_TEMP", "RAINFALL",
+            "MIXDEPTH", "RELHUMID", "TERR_MSL", "SUN_FLUX"]
         
-        ##--Rename DATE to DAY--##
+        ##--Flight11 does have the headers--##
+        if flight == "Flight11":
+            df = pd.read_csv(os.path.join(flight_directory, file),
+                sep=r'\s+')
+        else: 
+            df = pd.read_csv(os.path.join(flight_directory, file),
+                sep=r'\s+',
+                header=None,
+                skiprows=1)
+            
+            df.columns = columns[:df.shape[1]]
+        
+        ##--Basic cleaning--##
+        if df.empty or 'YEAR' not in df.columns:
+            print(f"Skipping bad file: {file}")
+            continue
+        
         df = df.rename(columns={'DATE': 'DAY'})
+        df['YEAR'] = df['YEAR'] + 2000
         
-        ##--Change year to four digits, .apply() takes a function as an argument--##
-        ##--A lambda function is local only--##
-        df['YEAR'] = df['YEAR'].apply(lambda y: y + 2000)
-        
-        ##--Format for year, month, day, hour--##
-        df['DateTime'] = pd.to_datetime({'year': df['YEAR'], 'month': df['MONTH'],
-                'day': df['DAY'], 'hour': df['HOUR']})
+        df['DateTime'] = pd.to_datetime({
+            'year': df['YEAR'],
+            'month': df['MONTH'],
+            'day': df['DAY'],
+            'hour': df['HOUR']
+        })
       
         ##--Group by TRAJ to place each trajectory in time order--##
         for traj_num, group in df.groupby('TRAJ'):

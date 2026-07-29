@@ -58,6 +58,7 @@ for flight in flights_to_analyze:
     
     ##--AIMMS Data--##
     altitude = dataset.data['G_ALT'] # in m (not sure if this is best one)
+    latitude = dataset.data['G_LAT']
     temperature = dataset.data['T'] # in K
     pressure = dataset.data['P'] * 100 # in Pa
     RH = dataset.data['Relative_Humidity'] # wrt water, percent
@@ -82,6 +83,8 @@ for flight in flights_to_analyze:
     nucleating_filtered = nucleating_series.mask(
     nucleating_series <= nucleating_thresh)
     
+    
+    
     #######################################
     ##--Calculate potential temperature--##
     #######################################
@@ -100,7 +103,11 @@ for flight in flights_to_analyze:
     
     ##--Place in dataframe--##
     
-    df = pd.DataFrame({'ptemp': potential_temp, 'nucleating': nucleating, 'aitken': aitken})
+    df = pd.DataFrame({'ptemp': potential_temp, 'latitude': latitude,
+                       'nucleating': nucleating, 'aitken': aitken})
+    
+    df = df.mask(df['ptemp']>310)
+    df = df.mask(df['latitude']<66.5)
     
     #%%
     ###############

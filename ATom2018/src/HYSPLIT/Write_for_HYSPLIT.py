@@ -46,6 +46,7 @@ def get_icartt_dates(filepath):
 
 ##--Store processed data here: --##
 dfs = []
+dfs_significant = []
 
 ##--Loop through each flight in the list--##
 for flight in flights_to_analyze:
@@ -94,17 +95,14 @@ for flight in flights_to_analyze:
     ##--First convert to a series for calc--##
     nucleating_series = pd.Series(nucleating)
     
-    ##--REMOVE OUTLIERS above 99th percentile--##
-    p = 0.99
+    ##--REMOVE OUTLIERS above 99.9th percentile--##
+    p = 0.999
     
     ##--Compute threshold for each UHSAS column--##
     nucleating_thresh = nucleating_series.quantile(p)
     
     ##--keep only rows where each bin is below its threshold--##
-    nucleating_filtered = nucleating_series[nucleating_series.le(nucleating_thresh)]
-    
-    nucleating_filtered = nucleating_series.mask(
-    nucleating_series <= nucleating_thresh)
+    nucleating_filtered = nucleating_series.mask(nucleating_series > nucleating_thresh)
     
     #######################################
     ##--Calculate potential temperature--##
@@ -129,7 +127,7 @@ for flight in flights_to_analyze:
                        'Temp': temperature, 'ptemp':potential_temp})
     
     ##--This is the 75th percentile median uncertainty across NETCARE--##
-    nuc_error_3sigma = 133.71 
+    nuc_error_3sigma = 54
     
     ##--Subtract error from nucleating particles--##f
     ##--First condition, then outcome, then the 'else' outcome--##
@@ -138,15 +136,21 @@ for flight in flights_to_analyze:
     df['nuc_significant'] = nuc_significant
     
     ##--Drop rows where the potential temperature is above 310 K for comparison to other campaigns--##
-    df = df[df['ptemp']<310]
+    df = df.mask(df['ptemp']>310)
     
     ##--Constrain the region to the high Arctic--##
-    df = df[df['Lat']>66.5]
+    df = df.mask(df['Lat']<66.5) 
+    
+    df_significant = df[df['nuc_significant'].notna()]
     
     dfs.append(df)
     
+    dfs_significant.append(df_significant)
+    
 ##--Concatenate the list of dataframes into one large df--##
 ATom = pd.concat(dfs, ignore_index=True)
+
+ATom_significant = pd.concat(dfs_significant, ignore_index=True)
 
 ##--Write netCDF file--##
 ds = xr.Dataset.from_dataframe(ATom)
