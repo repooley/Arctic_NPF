@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Sep 16 17:34:08 2025
+Created on Thu Jan 22 15:23:46 2026
 
 @author: repooley
 """
+
 
 import os
 import glob
@@ -277,40 +278,6 @@ for flight in flights_to_analyze:
     df_averaged['Total_particles_STP'] = (df_averaged['n_3_10_STP'].fillna(0) + 
     df_averaged['n_10_130'].fillna(0) + df_averaged['Total_count'].fillna(0))
     
-    #######################################
-    ##--Calculate potential temperature--##
-    #######################################
-
-    ##--Constants--##
-    p_0 = 1E5 # Reference pressure in Pa (1000 hPa)
-    k = 0.286 # Poisson constant for dry air
-
-    ##--Generate empty list for potential temperature output--##
-    potential_temp = []
-    potential_temp_averaged = []
-
-    ##--Calculate potential temperature from ambient temp & pressure--##
-    for T, P in zip(temperature, pressure):
-        p_t = T*(p_0/P)**k
-        potential_temp.append(p_t)
-    
-    ##--Separate calculation for the averaged data--##
-    for T, P in zip(averaged_data['Temperature']+273.15, averaged_data['Pressure']*100):
-        p_t = T*(p_0/P)**k
-        potential_temp_averaged.append(p_t)
-
-    df['ptemp'] = potential_temp
-    
-    df_averaged['PTemp'] = potential_temp_averaged
-    
-    ##--Drop rows where ptemp is NaN--##
-    df = df.dropna(subset=['ptemp'])
-    df_averaged = df_averaged.dropna(subset=['PTemp'])
-    
-    ##--Drop rows where Latitude or ptemp are negative--##
-    df = df[(df['ptemp'] >= 0)]
-    df_averaged = df_averaged[(df_averaged['PTemp'] >= 0)]
-    
     particle_dfs.append(df)
     
     averaged_dfs.append(df_averaged)
@@ -325,10 +292,10 @@ for flight in flights_to_analyze:
 ##--NUCLEATING PARTICLES--##
 
 num_bins = 128
-all_ptemp = pd.concat([df["ptemp"] for df in particle_dfs])
-min_ptemp = all_ptemp.min(skipna=True)
-max_ptemp = all_ptemp.max(skipna=True)
-bin_edges = np.linspace(min_ptemp, max_ptemp, num_bins + 1)
+all_alt = pd.concat([df["Altitude"] for df in particle_dfs])
+min_alt = all_alt.min(skipna=True)
+max_alt = all_alt.max(skipna=True)
+bin_edges = np.linspace(min_alt, max_alt, num_bins + 1)
 
 fig, axs = plt.subplots(1, 4, figsize=(12, 6), sharey=True)
 
@@ -341,42 +308,42 @@ for i, flight in enumerate(flights_to_analyze):
     
     average_df = averaged_dfs[i].copy()
 
-    particle_df['PTemp_bin'] = pd.cut(particle_df['ptemp'], bins=bin_edges)
+    particle_df['Alt_bin'] = pd.cut(particle_df['Altitude'], bins=bin_edges)
     
-    average_df['PTemp_bin'] = pd.cut(average_df['PTemp'], bins=bin_edges)
+    average_df['Alt_bin'] = pd.cut(average_df['Altitude'], bins=bin_edges)
 
     ##--Binning--##
-    binned_df = particle_df.groupby('PTemp_bin', observed=False).agg(
-        PTemp_center=('ptemp', 'median'),
+    binned_df = particle_df.groupby('Alt_bin', observed=False).agg(
+        Alt_center=('Altitude', 'median'),
         CPC10_conc_center=('CPC10_conc', 'median'),
         CPC3_conc_center=('CPC3_conc', 'median'),
         nuc_particles_center=('nuc_particles', 'median')
     ).reset_index()
     
-    binned_average_df = average_df.groupby('PTemp_bin', observed=False).agg(
-        PTemp_center=('PTemp', 'median'),
+    binned_average_df = average_df.groupby('Alt_bin', observed=False).agg(
+        Alt_center=('Altitude', 'median'),
         grow_particles_center=('n_10_130', 'median')
     ).reset_index()
 
     color = colors[i]
 
     ##--CPC 10--##
-    axs[0].plot(binned_df["CPC10_conc_center"], binned_df["PTemp_center"],
+    axs[0].plot(binned_df["CPC10_conc_center"], binned_df["Alt_center"],
                 label=flight, color=color)
 
     ##--CPC 3--##
-    axs[1].plot(binned_df["CPC3_conc_center"], binned_df["PTemp_center"],
+    axs[1].plot(binned_df["CPC3_conc_center"], binned_df["Alt_center"],
                 label=flight, color=color)
 
     ##--Nucleating--##
-    axs[2].plot(binned_df["nuc_particles_center"], binned_df["PTemp_center"],
+    axs[2].plot(binned_df["nuc_particles_center"], binned_df["Alt_center"],
                 label=flight, color=color)
     
     ##--Aitken (grow)--##
-    axs[3].plot(binned_average_df['grow_particles_center'], binned_df['PTemp_center'],
+    axs[3].plot(binned_average_df['grow_particles_center'], binned_df['Alt_center'],
                 label=flight, color=color)
 
-axs[0].set_ylabel("Potential Temperature (K)", fontsize=16)
+axs[0].set_ylabel("Altitude (m)", fontsize=16)
 axs[0].set_xlabel("Counts/cm³", fontsize=14)
 axs[0].set_title("N ≥ 10 nm", fontsize=16)
 axs[0].set_xlim(-50, 2500)
@@ -404,10 +371,10 @@ plt.tight_layout(rect=[0, 0.05, 1, 0.99])
 ##--PCASP TOTAL COUNT--##
 
 num_bins = 30
-all_ptemp = pd.concat([df_averaged["PTemp"] for df in averaged_dfs])
-min_ptemp = all_ptemp.min(skipna=True)
-max_ptemp = all_ptemp.max(skipna=True)
-bin_edges = np.linspace(min_ptemp, max_ptemp, num_bins + 1)
+all_alt = pd.concat([df_averaged["Altitude"] for df in averaged_dfs])
+min_alt = all_alt.min(skipna=True)
+max_alt = all_alt.max(skipna=True)
+bin_edges = np.linspace(min_alt, max_alt, num_bins + 1)
 
 fig, axs = plt.subplots(1, 1, figsize=(6, 6), sharey=True)
 
@@ -418,20 +385,20 @@ colors = [cmap(i / (n_flights - 1)) for i in range(n_flights)]
 for i, flight in enumerate(flights_to_analyze):
     averaged_df = averaged_dfs[i].copy()
 
-    averaged_df['PTemp_bin'] = pd.cut(averaged_df['PTemp'], bins=bin_edges)
+    averaged_df['Alt_bin'] = pd.cut(averaged_df['Altitude'], bins=bin_edges)
 
-    binned_df = averaged_df.groupby('PTemp_bin', observed=False).agg(
-        PTemp_center=('PTemp', 'median'),
+    binned_df = averaged_df.groupby('Alt_bin', observed=False).agg(
+        Alt_center=('Altitude', 'median'),
         total_particles_center=('Total_particles_STP', 'median')
     ).reset_index()
 
     color = colors[i]
 
     ##--TOTAL--##
-    axs.plot(binned_df["total_particles_center"], binned_df["PTemp_center"],
+    axs.plot(binned_df["total_particles_center"], binned_df["Alt_center"],
                 label=flight, color=color)
 
-axs.set_ylabel("Potential Temperature (K)", fontsize=16)
+axs.set_ylabel("Altitude (m)", fontsize=16)
 axs.set_xlabel("Counts/cm³", fontsize=14)
 axs.set_title("Total particle counts", fontsize=16)
 axs.set_xlim(-50, 2500)

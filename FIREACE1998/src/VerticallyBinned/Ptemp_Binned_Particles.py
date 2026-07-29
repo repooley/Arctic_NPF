@@ -20,12 +20,14 @@ from datetime import date
 directory = r"C:\Users\repooley\REP_PhD\Arctic_NPF\FIREACE1998\data"
 
 ##--Flights to analyze - flights 1-18--##
-flights_to_analyze = ["Flight1", "Flight2", "Flight3",  
+flights_to_analyze = ["Flight3",  
                       "Flight7", "Flight8", "Flight9", "Flight10", "Flight11", "Flight12",
                       "Flight13", "Flight14", "Flight15", "Flight16", "Flight17", "Flight18"]
 
 ##--Base output path in directory--##
 output_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\FIRACE1998\data\processed\VerticallyBinnedData"
+
+PCASP_bins_path = r"C:\Users\repooley\REP_PhD\Arctic_NPF\FIREACE1998\data\raw\FIREACE1998_PCASP_bins.csv"
 
 #%%
 
@@ -58,6 +60,36 @@ for flight in flights_to_analyze:
     CPC3_data = data['CN3025_corrected'] # Uncorrected data has a flow issue
     CPC10_data = data['CN7610']
     
+    averaged_data = pd.read_csv(find_files(directory, flight, "FIREACE")[1])
+    averaged_data = averaged_data.set_index('Time', drop=False)
+
+    PCASP_bins = pd.read_csv(PCASP_bins_path)
+
+    PCASP_data = averaged_data.iloc[:, 14:29] # select PCASP data
+
+    ##--Add time, total_num to UHSAS_bins df--##
+    PCASP_data.insert(0, 'Time', averaged_data['Time'])
+
+    ##--Set time as the index for later alignment--##
+    PCASP_data = PCASP_data.set_index('Time')
+
+    ##--15 total bins--##
+    PCASP_bin_num = [f'bin_{i}' for i in range(1, 16)]
+
+    ##--Information for bins--##
+    PCASP_bin_center = PCASP_bins['bin_avg']
+    PCASP_lower_bound = PCASP_bins['lower_bound']
+    PCASP_upper_bound = PCASP_bins['upper_bound']
+
+    ##--Put column names and content in a dictionary and then convert to a Pandas df--##
+    PCASP_df = pd.DataFrame({col: PCASP_data[col] for col in PCASP_bin_num})
+
+    ##--Create new column names by rounding the bin center values to the nearest integer--##
+    PCASP_new_col_names = PCASP_bin_center.round().astype(int).tolist()
+
+    ##--Rename the PCASP_bins df columns to bin average values--##
+    PCASP_data.columns = PCASP_new_col_names
+
     ##--Nans are denoted by -8888--##
     
     ####################################
@@ -140,31 +172,119 @@ for flight in flights_to_analyze:
     ##--Add nucleating particles to df--##
     df['nuc_particles'] = nuc_particles
     
+    #########################
+    ##--Averaged CPC Data--##
+    #########################
+    
+    CPC_averaged_data = pd.DataFrame({'CPC3': averaged_data['CN3025'], 'CPC10': averaged_data['CN7610']}) 
+
+    ##--Add time, total_num to UHSAS_bins df--##
+    CPC_averaged_data.insert(0, 'Time', averaged_data['Time'])
+
+    ##--Set time as the index for later alignment--##
+    CPC_averaged_data = CPC_averaged_data.set_index('Time')
+    
+    ##--Calculate *averaged* nucleating particles--##
+    n_3_10_averaged = (CPC_averaged_data['CPC3'] - CPC_averaged_data['CPC10'])
+    
+    ##--Change calculated particle counts less than zero to NaN--##
+    n_3_10_averaged = np.where(n_3_10_averaged >= 0, n_3_10_averaged, np.nan)
+
+    ##--Create empty list for n_3_10 particles--##
+    n_3_10_averaged_STP = []
+
+    for n_3_10, T, P in zip(n_3_10_averaged, averaged_data['Temperature']+273.15, averaged_data['Pressure']*100):
+        if np.isnan(T) or np.isnan(P) or np.isnan(n_3_10):
+            ##--Append with NaN if any input is NaN--##
+            n_3_10_averaged_STP.append(np.nan)
+        else:
+            ##--Perform conversion if all inputs are valid--##
+            corrected_n_3_10_averaged = n_3_10 * (P_STP / P) * (T / T_STP)
+            n_3_10_averaged_STP.append(corrected_n_3_10_averaged)
+                
+    ##--Convert back to DataFrame with same columns and index--##
+    n_3_10_averaged_STP = pd.DataFrame({'n_3_10_STP': n_3_10_averaged_STP}, index=CPC_averaged_data.index)
+    
+    ##--Make a separate dataframe for the averaged data--##
+    df_averaged = pd.DataFrame({'Altitude': averaged_data['Altitude'], 
+                                'Latitude': averaged_data['Latitude'], 
+                                'Time': averaged_data['Time']})
+    
+    ##--Reindex df_averaged to time--##
+    df_averaged = df_averaged.set_index('Time', drop=False)
+    
+    ##--Add PCASP data to the dataframe--##
+    df_averaged = pd.concat([df_averaged, n_3_10_averaged_STP], axis=1)
+
+    ######################
+    ##--Calc N(10-130)--##
+    ######################
+    
+    ##--Calculate the total in STP--##
+    PCASP_total_STP = []
+    
+    for total, T, P in zip(averaged_data['PCTcon'], averaged_data['Temperature']+273.15, averaged_data['Pressure']*100):
+        if np.isnan(T) or np.isnan(P) or np.isnan(total):
+            ##--Append with NaN if any input is NaN--##
+            PCASP_total_STP.append(np.nan)
+        else:
+            ##--Perform conversion if all inputs are valid--##
+            corrected_total_averaged = total * (P_STP / P) * (T / T_STP)
+            PCASP_total_STP.append(corrected_total_averaged)
+    
+    ##--Create df with UHSAS total counts--##
+    PCASP_total = pd.DataFrame({'Time': averaged_data['Time'], 'Total_count': PCASP_total_STP})
+    
+    ##--Set time as the index for later alignment--##
+    PCASP_total = PCASP_total.set_index('Time')
+    
+    ##--Add the PCASP total to the averaged df--##
+    df_averaged = pd.concat([df_averaged, PCASP_total], axis=1)
+
+    ##--Create df with CPC10 counts and set index to time--##
+    CPC10_counts = pd.DataFrame({'Time':averaged_data['Time'], 'Counts':averaged_data['CN7610']}).set_index('Time')
+
+    ##--Calculate particles below UHSAS lower cutoff--##
+    n_10_130 = (averaged_data['CN7610'] - PCASP_total['Total_count'])
+
+    ##--Change calculated particle counts less than zero to NaN--##
+    n_10_130 = np.where(n_10_130 >= 0, n_10_130, np.nan)
+
+    ##--Put N(10-130) bin center in a df--##
+    n_10_130_center = pd.DataFrame([70])
+
+    ##--Convert n_10_130 to a df--##
+    n_10_130 = pd.DataFrame({'70': n_10_130, 'Time':averaged_data['Time']}).set_index('Time')
+    
+    df_averaged['grow_particles'] = n_10_130
+    
+    ##--Compute TOTAL counts from all size bins combined--##
+    df_averaged['Total_particles_STP'] = (df_averaged['n_3_10_STP'].fillna(0) + 
+    df_averaged['grow_particles'].fillna(0) + df_averaged['Total_count'].fillna(0))
+    
+    
     #%%
     #############################
     ##--Propagate uncertainty--##
     #############################
     
-    ##--The CPC3 instrument nominally has +-10% uncertainty, but with the flow error it's higher--##
-    ##--Going to guess 15% for now--##
-    CPC3_sigma = 0.15*(CPC3_data)
-    
-    ##--The CPC10 instrument has a +-10% uncertainty--##
-    CPC10_sigma = 0.1*(CPC3_data)
-    
-    ##--Not sure of what instruments were onboard Convair 580, using values from NETCARE instruments--##
-    T_error = 0.3 # K, constant
-    P_error = 100 + 0.0005*(pressure)
-    
-    ##--Use formula for mult/div to compute error after converting to STP--##
-    greater3nm_error = (CPC3_data)*(((P_error)/(pressure))**2 + ((T_error)/(temperature))**2 + ((CPC3_sigma)/(CPC3_data)))**(0.5)
-    greater10nm_error = (CPC10_data)*(((P_error)/(pressure))**2 + ((T_error)/(temperature))**2 + ((CPC10_sigma)/(CPC10_data)))**(0.5)
-    
-    ##--Calculated error is too high - this is the 75th percentile median uncertainty across NETCARE--##
-    nuc_error_3sigma = 133.71 
+    ##--This is the 75th percentile median uncertainty across NETCARE--##
+    nuc_error_3sigma = 134 
     
     ##--nuc_error_3sigma still has a time index, reset to integer to align--##
     df['nuc_error_3sigma'] = nuc_error_3sigma
+    
+    ##--PCASP uncertainty is quoted as +-5%--##
+    PCASP_3sigma = 3*(0.05*(PCASP_total['Total_count']))
+    
+    ##--Not sure of what instruments were onboard Convair 580, using values from NETCARE instruments--##
+    T_error = 0.3 # K, constant
+    P_error = 100 + 0.0005*(averaged_data['Pressure'])
+    
+    PCASP_STP_3sigma = (PCASP_total['Total_count'])*(((P_error)/(averaged_data['Pressure']))**2 + 
+            ((T_error)/(averaged_data['Temperature']))**2 + ((PCASP_3sigma)/(PCASP_total['Total_count'])))**(0.5)
+    
+    df_averaged['grow_error_3sigma'] = PCASP_STP_3sigma
     
     #%%
     #######################################
@@ -174,16 +294,33 @@ for flight in flights_to_analyze:
     ##--Constants--##
     p_0 = 1E5 # Reference pressure in Pa (1000 hPa)
     k = 0.286 # Poisson constant for dry air
-    
+
     ##--Generate empty list for potential temperature output--##
     potential_temp = []
-    
+    potential_temp_averaged = []
+
     ##--Calculate potential temperature from ambient temp & pressure--##
     for T, P in zip(temperature, pressure):
         p_t = T*(p_0/P)**k
         potential_temp.append(p_t)
     
+    ##--Separate calculation for the averaged data--##
+    for T, P in zip(averaged_data['Temperature']+273.15, averaged_data['Pressure']*100):
+        p_t = T*(p_0/P)**k
+        potential_temp_averaged.append(p_t)
+
     df['ptemp'] = potential_temp
+    
+    df_averaged['PTemp'] = potential_temp_averaged
+    
+    ##--Drop rows where ptemp is NaN--##
+    df = df.dropna(subset=['ptemp'])
+    df_averaged = df_averaged.dropna(subset=['PTemp'])
+    
+    ##--Drop rows where Latitude or ptemp are negative--##
+    df = df[(df['ptemp'] >= 0)]
+    df_averaged = df_averaged[(df_averaged['PTemp'] >= 0)]
+    
         
     #%%
     ###############
@@ -241,13 +378,31 @@ for flight in flights_to_analyze:
         ##--Reset the index so Altitude_bin is just a column--##
     ).reset_index()
     
+    ##--Pandas 'cut' splits altitude data into specified number of bins--##
+    df_averaged['ptemp_bin'] = pd.cut(df_averaged['PTemp'], bins=bin_edges)
+    
+    binned_averaged_df = df_averaged.groupby('ptemp_bin', observed=False).agg(
+        
+        ##--Aggregate data by mean, min, and max--##
+        ptemp_center=('PTemp', 'median'), 
+        grow_particles_center=('grow_particles', 'median'),
+        grow_particles_min=('grow_particles', 'min'),
+        grow_particles_max=('grow_particles', 'min'),
+        grow_particles_25th=('grow_particles', lambda x: x.quantile(0.25)),
+        grow_particles_75th =('grow_particles', lambda x: x.quantile(0.75)),
+        
+        ##--And Aitken mode (grow) particles--##
+        grow_error_center=('grow_error_3sigma', 'median')
+        
+    ).reset_index()
+    
     #%%
     ################
     ##--PLOTTING--##
     ################
     
     ##--Creates figure with 3 horizontally stacked subplots sharing a y-axis--##
-    fig, axs = plt.subplots(1, 3, figsize=(9, 6), sharey=True)
+    fig, axs = plt.subplots(1, 4, figsize=(12, 6), sharey=True)
     
     ##--First subplot: 10+ nm Particles vs Altitude--##
     
@@ -284,12 +439,27 @@ for flight in flights_to_analyze:
     axs[2].plot(binned_df['nuc_error_center'], binned_df['ptemp_center'], color='crimson', 
                 linestyle='dashed', label='3$\sigma$ \nuncertainty')
     
-    axs[2].legend(loc='lower right')
-    
     ##--Subscript 3-10--##
     axs[2].set_title('$N_{2.5-10}$')
     axs[2].set_xlabel('Counts/cm\u00b3')
     #axs[2].set_xlim(-50, 2000)
+    
+    ##--Fourth subplot: Aitken (grow) particles vs ptemp--##
+    axs[3].plot(binned_averaged_df['grow_particles_center'], binned_averaged_df['ptemp_center'], color='darkslategray')
+    axs[3].fill_betweenx(binned_averaged_df['ptemp_center'], binned_averaged_df['grow_particles_min'],
+                          binned_averaged_df['grow_particles_max'], color='cadetblue', alpha=0.25)
+    axs[3].fill_betweenx(binned_averaged_df['ptemp_center'], binned_averaged_df['grow_particles_25th'],
+                         binned_averaged_df['grow_particles_75th'], color='cadetblue', alpha=1)
+    
+    ##--Plot uncertainty--##
+    axs[3].plot(binned_averaged_df['grow_error_center'], binned_averaged_df['ptemp_center'], color='crimson',
+                linestyle='dashed', label='3$\sigma$ \nuncertainty')
+    
+    ##--Subscript 10-130--##
+    axs[3].set_title('$N_{10-130}$')
+    axs[3].set_xlabel('Counts/cm\u00b3')
+    
+    axs[3].legend(loc='lower right')
     
     ##--Use f-string to embed flight # variable in plot title--##
     plt.suptitle(f"FIRE-ACE Vertical Particle Count Profile - {flight.replace('Flight', 'Flight ')} ({flight_date})", fontsize=16)
