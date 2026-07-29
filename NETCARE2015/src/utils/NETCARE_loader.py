@@ -190,6 +190,81 @@ def load_flight(directory, flight):
     H2O_conc = H2O.data["H2O_ppmv"]
     H2O_aligned = align_to_aimms(aimms_time, H2O_time, H2O_conc)
     
+    #####################
+    ##--Calc humidity--##
+    #####################
+
+    ##--Convert H2O ppm to RH wrt Water--##
+
+    ##--Lowe and Ficke (1974) 6th deg polynomial approach--##
+    ##--Sat vap pressure water -50 to 50 C--##
+    wa0 = 6.107799961
+    wa1 = 4.436518521E-1
+    wa2 = 1.428945805E-2
+    wa3 = 2.650648471E-4
+    wa4 = 3.031240396E-6
+    wa5 = 2.034080948E-8
+    wa6 = 6.136820929E-11
+
+    ##--Generate empty lists for humididy outputs--##
+    saturation_humidity_w = []
+    relative_humidity_w = []
+
+    ##--Calculate saturation humidity in ppmv and relative humidity--##
+    for T, P, H2O_ppmv in zip(aimms.data['Temp'], aimms.data['BP'], H2O_aligned):
+        ##--Only calculate within temp range--##
+        if -50 <= T < 50:
+            ##--saturation vapor pressure using Lowe and Ficke (1974) eqn--##
+            e_sw = wa0 + wa1*T + wa2*(T**2)+ wa3*(T**3)+ wa4*(T**4) + wa5*(T**5) + wa6*(T**6) # in mbar 
+            ##--Convert from mbar to pa--##
+            e_sw_pa = e_sw*100
+            ##--Saturation mixing ratio in ppmv--##
+            w_s_ppmv = (e_sw_pa / P) * 1e6
+            saturation_humidity_w.append(w_s_ppmv)
+            ##--Relative humidity--##
+            RH = (H2O_ppmv / w_s_ppmv) * 100  # in %
+            relative_humidity_w.append(RH)
+        else:
+            saturation_humidity_w.append(np.nan)  
+            relative_humidity_w.append(np.nan)    
+
+    ##--Place in dataframe for use--##
+    RH = pd.DataFrame({'RH': relative_humidity_w})
+
+    ##--With respect to ice--##
+
+    ##--Lowe and Ficke (1974) 6th deg polynomial approach--##
+    ##--Sat vap pressure ice -50 to 0 C--##
+    ia0 = 6.109177956
+    ia1 = 5.034698970E-1
+    ia2 = 1.886013408E-2
+    ia3 = 4.176223716E-4
+    ia4 = 5.824720280E-6
+    ia5 = 4.838803174E-8
+    ia6 = 1.838826904E-10
+
+    ##--Generate empty lists for humidity outputs--##
+    saturation_humidity_i = []
+    relative_humidity_i = []
+
+    ##--Calculate saturation humidity wrt ice in ppmv and RH--##
+    for T, P, H2O_ppmv in zip(aimms.data['Temp'], aimms.data['BP'], H2O_aligned):
+        ##--Only calculate within temp range--##
+        if -50 <= T < 0:
+            ##--Saturation vapor pressure using Lowe and Ficke (1974) eqn--##
+            e_si = ia0 + ia1*T + ia2*(T**2) + ia3*(T**3) + ia4*(T**4) + ia5*(T**5) + ia6*(T**6)  # in mbar
+            ##--Convert from mbar to Pa--##
+            e_si_pa = e_si * 100
+            ##--Saturation mixing ratio in ppbv--##
+            e_si_ppmv = (e_si_pa / P) * 1e6
+            saturation_humidity_i.append(e_si_ppmv)
+            ##--Relative Humidity--##
+            RH_i = (H2O_ppmv / e_si_ppmv) * 100  # in %
+            relative_humidity_i.append(RH_i)
+        else:
+            saturation_humidity_i.append(np.nan)  
+            relative_humidity_i.append(np.nan)
+    
     ##--O3--##
     ##--Flight 2 requires concatenation for O3 files--##
     
@@ -239,4 +314,5 @@ def load_flight(directory, flight):
         "CO": CO_aligned,
         "CO2": CO2_aligned, 
         "H2O": H2O_aligned, 
+        "RH": RH,
         "O3": O3_aligned}
