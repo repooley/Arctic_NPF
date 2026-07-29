@@ -308,18 +308,18 @@ for flight in flights_to_analyze:
     
     ##--Add percentile ranges--##
     ax.fill_between(combined_bin_edges_optical, optical_bins_min, optical_bins_max, 
-                    color='yellowgreen', alpha=0.4, edgecolor='none')
+                    color='gold', alpha=0.4, edgecolor='none')
     ax.fill_between(combined_bin_edges_optical, optical_bins_25th, optical_bins_75th, 
-                    color='yellowgreen', alpha=1, edgecolor='none')
+                    color='gold', alpha=1, edgecolor='none')
     
     ##--Flatten N(3-10) to one dimension--##
     n_3_10_center = n_3_10_center.values.flatten()
     n_10_150_center = n_10_150_center.values.flatten()
     
     
-    ax.fill_between(n_3_10_center, n_3_10_min, n_3_10_max, color='yellowgreen', 
+    ax.fill_between(n_3_10_center, n_3_10_min, n_3_10_max, color='gold', 
                     alpha=0.4, linewidth=3, label='Full Range', edgecolor='none')
-    ax.fill_between(n_3_10_center, n_3_10_25th, n_3_10_75th, color='yellowgreen', 
+    ax.fill_between(n_3_10_center, n_3_10_25th, n_3_10_75th, color='gold', 
                     alpha=1, linewidth=3, label='Interquartile Range', edgecolor='none')
     
     ##--Fill between on x-axis to give appearance of a full bin--##
@@ -339,28 +339,28 @@ for flight in flights_to_analyze:
     grow_75_fill = np.array([n_10_150_75th[0], n_10_150_75th[0]])
     
     ##--Fill full range--##
-    ax.fill_between(bin_edges, nuc_min_fill, nuc_max_fill, color='yellowgreen', alpha=0.4, linewidth=3, edgecolor='none')
-    ax.fill_between(bin_edges2, grow_min_fill, grow_max_fill, color='yellowgreen', alpha=0.4, linewidth=3, edgecolor='none')
+    ax.fill_between(bin_edges, nuc_min_fill, nuc_max_fill, color='gold', alpha=0.4, linewidth=3, edgecolor='none')
+    ax.fill_between(bin_edges2, grow_min_fill, grow_max_fill, color='gold', alpha=0.4, linewidth=3, edgecolor='none')
     
     ##--Fill interquartile range--##
-    ax.fill_between(bin_edges, nuc_25_fill, nuc_75_fill, color='yellowgreen', alpha=1, linewidth=3, edgecolor='none')
-    ax.fill_between(bin_edges2, grow_25_fill, grow_75_fill, color='yellowgreen', alpha=1, linewidth=3, edgecolor='none')
+    ax.fill_between(bin_edges, nuc_25_fill, nuc_75_fill, color='gold', alpha=1, linewidth=3, edgecolor='none')
+    ax.fill_between(bin_edges2, grow_25_fill, grow_75_fill, color='gold', alpha=1, linewidth=3, edgecolor='none')
     
     ##--Add medians--##
-    ax.plot(combined_bin_edges_optical, optical_bins_median, c='darkolivegreen', linewidth=2)
+    ax.plot(combined_bin_edges_optical, optical_bins_median, c='darkgoldenrod', linewidth=2)
     
     ##--Fill n_3_10_median to edges--##
     median_fill = np.array([n_3_10_median, n_3_10_median])
-    ax.plot(bin_edges, median_fill, c='darkolivegreen', linewidth=2)
+    ax.plot(bin_edges, median_fill, c='darkgoldenrod', linewidth=2)
     
     ##--Same for n_10_89--##
     median_fill2 = np.array([n_10_150_median, n_10_150_median])
-    ax.plot(bin_edges2, median_fill2, c='darkolivegreen', linewidth=2)
+    ax.plot(bin_edges2, median_fill2, c='darkgoldenrod', linewidth=2)
     
     
-    ax.fill_between(n_10_150_center, n_10_150_min, n_10_150_max, color='yellowgreen',
+    ax.fill_between(n_10_150_center, n_10_150_min, n_10_150_max, color='gold',
                     alpha=0.4, linewidth=3, edgecolor='none')
-    ax.fill_between(n_10_150_center, n_10_150_25th, n_10_150_75th, color='yellowgreen', 
+    ax.fill_between(n_10_150_center, n_10_150_25th, n_10_150_75th, color='gold', 
                     alpha=1, linewidth=3, edgecolor='none')
     
     ax.vlines(x=2.5, ymin=-250, ymax=4000, colors='darkgrey', linewidth=1.5, linestyle='--')
@@ -368,7 +368,7 @@ for flight in flights_to_analyze:
     ax.vlines(x=150, ymin=-250, ymax=4000, colors='darkgrey', linewidth=1.5, linestyle='--')
     
     ##--Add medians--##
-    ax.plot(combined_bin_edges_optical, optical_bins_median, c='darkolivegreen', linewidth=2, label='Median')
+    ax.plot(combined_bin_edges_optical, optical_bins_median, c='darkgoldenrod', linewidth=2, label='Median')
     
     ##--Format x-axis on a log scale--##
     ax.set_xscale('log')
